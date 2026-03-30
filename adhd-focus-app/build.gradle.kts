@@ -1,0 +1,152 @@
+plugins {
+    id("com.android.application")
+    kotlin("android")
+    kotlin("kapt")
+    kotlin("plugin.serialization")
+    id("com.google.dagger.hilt.android")
+}
+
+android {
+    namespace = "com.adhdfocus.app"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.adhdfocus.app"
+        minSdk = 28
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
+
+    buildTypes {
+        debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.3"
+    }
+
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+dependencies {
+    // Version management
+    val composeBomVersion = "2023.10.00"
+    val roomVersion = "2.6.0"
+    val hiltVersion = "2.48"
+    val retrofitVersion = "2.9.0"
+    val okhttpVersion = "4.11.0"
+    val coroutinesVersion = "1.7.3"
+    val kotlinVersion = "1.9.10"
+    val coreKtxVersion = "1.12.0"
+    val lifecycleVersion = "2.6.2"
+    val activityComposeVersion = "1.8.0"
+    val navigationComposeVersion = "2.7.4"
+    val dataStoreVersion = "1.0.0"
+    val securityVersion = "1.1.0-alpha06"
+    val gsonVersion = "2.10.1"
+    val junitVersion = "4.13.2"
+    val junitExtVersion = "1.1.5"
+    val espressoVersion = "3.5.1"
+    val composeTestVersion = "1.5.4"
+    val kotlinxSerializationVersion = "1.6.0"
+    val kotestVersion = "5.7.2"
+
+    // Jetpack Compose BOM for version management
+    implementation(platform("androidx.compose:compose-bom:$composeBomVersion"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // Jetpack Core
+    implementation("androidx.core:core-ktx:$coreKtxVersion")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
+    implementation("androidx.activity:activity-compose:$activityComposeVersion")
+
+    // Room Database
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
+
+    // Networking - Retrofit and OkHttp
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
+    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
+    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
+    implementation("com.google.code.gson:gson:$gsonVersion")
+
+    // Coroutines for async operations
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+
+    // Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+
+    // Dependency Injection - Hilt
+    implementation("com.google.dagger:hilt-android:$hiltVersion")
+    kapt("com.google.dagger:hilt-compiler:$hiltVersion")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:$navigationComposeVersion")
+
+    // DataStore for preferences
+    implementation("androidx.datastore:datastore-preferences:$dataStoreVersion")
+
+    // Security
+    implementation("androidx.security:security-crypto:$securityVersion")
+
+    // Testing - Unit Tests
+    testImplementation("junit:junit:$junitVersion")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+    testImplementation("androidx.room:room-testing:$roomVersion")
+    testImplementation("io.mockk:mockk:1.13.7")
+    testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
+    testImplementation("io.kotest:kotest-property:$kotestVersion")
+
+    // Testing - Instrumented Tests (Espresso)
+    androidTestImplementation(platform("androidx.compose:compose-bom:$composeBomVersion"))
+    androidTestImplementation("androidx.test.ext:junit:$junitExtVersion")
+    androidTestImplementation("androidx.test.espresso:espresso-core:$espressoVersion")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:$composeTestVersion")
+    androidTestImplementation("io.mockk:mockk-android:1.13.7")
+
+    // Debug dependencies
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+}

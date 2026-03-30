@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+.env
+.env.local
+dist/
+build/
+.gradle/
+.idea/
+*.iml
+local.properties
+.kiro/specs/adhd-focus-app/.config.kiro
