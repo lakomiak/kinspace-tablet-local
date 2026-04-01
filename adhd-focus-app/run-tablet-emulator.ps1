@@ -13,9 +13,13 @@ $AVD_NAME = "tablet_7inch_avd"
 $ANDROID_SDK_ROOT = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { "$env:USERPROFILE\AppData\Local\Android\Sdk" }
 $EMULATOR_PATH = "$ANDROID_SDK_ROOT\emulator\emulator.exe"
 $ADB_PATH = "$ANDROID_SDK_ROOT\platform-tools\adb.exe"
-$GRADLE_WRAPPER = ".\gradlew.bat"
 
-# Tablet specifications (7" tablet - 1024x600)
+# Get the script directory and parent directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$parentDir = Split-Path -Parent $scriptDir
+$GRADLE_WRAPPER = "$parentDir\gradlew.bat"
+
+# Tablet specifications (7 inch tablet - 1024x600)
 $TABLET_WIDTH = 1024
 $TABLET_HEIGHT = 600
 $TABLET_DPI = 160
@@ -49,23 +53,23 @@ function Check-Prerequisites {
     Write-ColorOutput "Step 1: Checking prerequisites..." $colors['Yellow']
     
     if (-not (Test-Path $ANDROID_SDK_ROOT)) {
-        Write-ColorOutput "✗ Android SDK not found at $ANDROID_SDK_ROOT" $colors['Red']
+        Write-ColorOutput "X Android SDK not found at $ANDROID_SDK_ROOT" $colors['Red']
         Write-ColorOutput "Please set ANDROID_SDK_ROOT environment variable or install Android SDK" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ Android SDK found" $colors['Green']
+    Write-ColorOutput "OK Android SDK found" $colors['Green']
     
     if (-not (Test-Path $EMULATOR_PATH)) {
-        Write-ColorOutput "✗ Emulator not found at $EMULATOR_PATH" $colors['Red']
+        Write-ColorOutput "X Emulator not found at $EMULATOR_PATH" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ Emulator found" $colors['Green']
+    Write-ColorOutput "OK Emulator found" $colors['Green']
     
     if (-not (Test-Path $ADB_PATH)) {
-        Write-ColorOutput "✗ ADB not found at $ADB_PATH" $colors['Red']
+        Write-ColorOutput "X ADB not found at $ADB_PATH" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ ADB found" $colors['Green']
+    Write-ColorOutput "OK ADB found" $colors['Green']
 }
 
 function Create-AVD-IfNeeded {
@@ -74,45 +78,55 @@ function Create-AVD-IfNeeded {
     $avdPath = "$env:USERPROFILE\.android\avd\$AVD_NAME.avd"
     
     if (Test-Path $avdPath) {
-        Write-ColorOutput "✓ AVD already exists" $colors['Green']
+        Write-ColorOutput "OK AVD already exists" $colors['Green']
         return
     }
     
-    Write-ColorOutput "Creating new 7`` tablet AVD..." $colors['Yellow']
+    Write-ColorOutput "Creating new 7 inch tablet AVD..." $colors['Yellow']
     
     $avdManagerPath = "$ANDROID_SDK_ROOT\cmdline-tools\latest\bin\avdmanager.bat"
     
-    # Try to create with specific device profile
-    $process = Start-Process -FilePath $avdManagerPath -ArgumentList @(
-        "create", "avd",
-        "-n", $AVD_NAME,
-        "-k", "system-images;android;34;google_apis",
-        "-d", "7in WSVGA",
-        "-f"
-    ) -NoNewWindow -PassThru -RedirectStandardInput ([System.IO.StreamWriter]::Null)
+    if (-not (Test-Path $avdManagerPath)) {
+        Write-ColorOutput "X AVD Manager not found at $avdManagerPath" $colors['Red']
+        Write-ColorOutput "Please ensure Android SDK cmdline-tools are installed" $colors['Red']
+        exit 1
+    }
     
-    $process.WaitForExit()
+    # Create AVD using cmd to handle input properly
+    # Try Android 36 first (most commonly available)
+    $cmdScript = @"
+@echo off
+echo no | "$avdManagerPath" create avd -n "$AVD_NAME" -k "system-images;android-36;google_apis;x86_64" -d "7in WSVGA" -f
+"@
+    
+    $tempScript = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.bat'
+    Set-Content -Path $tempScript -Value $cmdScript
+    
+    $process = Start-Process -FilePath $tempScript -NoNewWindow -PassThru -Wait
+    Remove-Item $tempScript -Force
     
     if ($process.ExitCode -ne 0) {
-        Write-ColorOutput "[WARNING] Failed to create AVD with specific device profile" $colors['Yellow']
-        Write-ColorOutput "Trying alternative method..." $colors['Yellow']
+        Write-ColorOutput "[WARNING] Failed to create AVD with Android 36" $colors['Yellow']
+        Write-ColorOutput "Trying with generic tablet profile..." $colors['Yellow']
         
-        $process = Start-Process -FilePath $avdManagerPath -ArgumentList @(
-            "create", "avd",
-            "-n", $AVD_NAME,
-            "-k", "system-images;android;34;google_apis",
-            "-f"
-        ) -NoNewWindow -PassThru -RedirectStandardInput ([System.IO.StreamWriter]::Null)
+        $cmdScript = @"
+@echo off
+echo no | "$avdManagerPath" create avd -n "$AVD_NAME" -k "system-images;android-36;google_apis;x86_64" -f
+"@
         
-        $process.WaitForExit()
+        $tempScript = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.bat'
+        Set-Content -Path $tempScript -Value $cmdScript
+        
+        $process = Start-Process -FilePath $tempScript -NoNewWindow -PassThru -Wait
+        Remove-Item $tempScript -Force
         
         if ($process.ExitCode -ne 0) {
-            Write-ColorOutput "✗ Could not create AVD" $colors['Red']
+            Write-ColorOutput "X Could not create AVD" $colors['Red']
             exit 1
         }
     }
     
-    Write-ColorOutput "✓ AVD created successfully" $colors['Green']
+    Write-ColorOutput "OK AVD created successfully" $colors['Green']
 }
 
 function Start-Emulator {
@@ -121,15 +135,16 @@ function Start-Emulator {
     # Check if emulator is already running
     $devices = & $ADB_PATH devices
     if ($devices -match $EMULATOR_NAME) {
-        Write-ColorOutput "✓ Emulator already running" $colors['Green']
+        Write-ColorOutput "OK Emulator already running" $colors['Green']
         return
     }
     
     Write-ColorOutput "Launching emulator..." $colors['Yellow']
     
+    $skinRes = "$TABLET_WIDTH" + "x" + "$TABLET_HEIGHT"
     $arguments = @(
         "-avd", $AVD_NAME,
-        "-skin", "$TABLET_WIDTH`x$TABLET_HEIGHT",
+        "-skin", $skinRes,
         "-dpi-device", $TABLET_DPI,
         "-memory", "2048",
         "-cores", "4",
@@ -140,7 +155,7 @@ function Start-Emulator {
     )
     
     Start-Process -FilePath $EMULATOR_PATH -ArgumentList $arguments -NoNewWindow
-    Write-ColorOutput "✓ Emulator started" $colors['Green']
+    Write-ColorOutput "OK Emulator started" $colors['Green']
     
     # Wait for emulator to be ready
     Write-ColorOutput "Waiting for emulator to be ready..." $colors['Yellow']
@@ -151,7 +166,7 @@ function Start-Emulator {
         try {
             $bootCompleted = & $ADB_PATH shell getprop sys.boot_completed 2>$null
             if ($bootCompleted -match "1") {
-                Write-ColorOutput "✓ Emulator is ready" $colors['Green']
+                Write-ColorOutput "OK Emulator is ready" $colors['Green']
                 return
             }
         }
@@ -165,61 +180,93 @@ function Start-Emulator {
     }
     
     Write-Host ""
-    Write-ColorOutput "✗ Emulator failed to start within timeout" $colors['Red']
+    Write-ColorOutput "X Emulator failed to start within timeout" $colors['Red']
     exit 1
 }
 
 function Build-App {
     if ($SkipBuild) {
-        Write-ColorOutput "Skipping build (--SkipBuild flag set)" $colors['Yellow']
+        Write-ColorOutput "Skipping build (SkipBuild flag set)" $colors['Yellow']
         return
     }
     
     Write-ColorOutput "Step 4: Building app..." $colors['Yellow']
     
     if (-not (Test-Path $GRADLE_WRAPPER)) {
-        Write-ColorOutput "✗ Gradle wrapper not found" $colors['Red']
-        exit 1
+        Write-ColorOutput "X Gradle wrapper not found at $GRADLE_WRAPPER" $colors['Red']
+        Write-ColorOutput "Attempting to initialize gradle wrapper..." $colors['Yellow']
+        
+        # Try to use gradle from PATH if available
+        $gradleCmd = Get-Command gradle -ErrorAction SilentlyContinue
+        if ($gradleCmd) {
+            Write-ColorOutput "Found gradle in PATH, using it to initialize wrapper..." $colors['Yellow']
+            & gradle wrapper --gradle-version 8.5
+            if ($LASTEXITCODE -ne 0) {
+                Write-ColorOutput "X Failed to initialize gradle wrapper" $colors['Red']
+                exit 1
+            }
+        } else {
+            Write-ColorOutput "X Gradle not found in PATH and wrapper not initialized" $colors['Red']
+            Write-ColorOutput "Please install Gradle or run: gradle wrapper --gradle-version 8.5" $colors['Red']
+            exit 1
+        }
     }
     
     & $GRADLE_WRAPPER clean assembleDebug
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "✗ Build failed" $colors['Red']
+        Write-ColorOutput "X Build failed" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ Build successful" $colors['Green']
+    Write-ColorOutput "OK Build successful" $colors['Green']
 }
 
 function Install-And-Run-App {
     if ($SkipInstall) {
-        Write-ColorOutput "Skipping install (--SkipInstall flag set)" $colors['Yellow']
+        Write-ColorOutput "Skipping install (SkipInstall flag set)" $colors['Yellow']
         return
     }
     
     Write-ColorOutput "Step 5: Installing and running app..." $colors['Yellow']
     
-    $apkPath = "app\build\outputs\apk\debug\app-debug.apk"
+    $apkPath = "$scriptDir\app\build\outputs\apk\debug\app-debug.apk"
     
     if (-not (Test-Path $apkPath)) {
-        Write-ColorOutput "✗ APK not found at $apkPath" $colors['Red']
+        Write-ColorOutput "X APK not found at $apkPath" $colors['Red']
         exit 1
     }
     
     Write-ColorOutput "Installing app on emulator..." $colors['Yellow']
     & $ADB_PATH install -r $apkPath
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "✗ Installation failed" $colors['Red']
+        Write-ColorOutput "X Installation failed" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ App installed successfully" $colors['Green']
+    Write-ColorOutput "OK App installed successfully" $colors['Green']
+    
+    # Wait for app to be fully installed and system to settle
+    Write-ColorOutput "Waiting for system to settle..." $colors['Yellow']
+    Start-Sleep -Seconds 3
     
     Write-ColorOutput "Launching app..." $colors['Yellow']
-    & $ADB_PATH shell am start -n "com.adhdfocus.app/.MainActivity"
+    $launchOutput = & $ADB_PATH shell am start -n "com.adhdfocus.app/.MainActivity" 2>&1
+    
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "✗ Failed to launch app" $colors['Red']
+        Write-ColorOutput "X Failed to launch app" $colors['Red']
+        Write-ColorOutput "Launch output: $launchOutput" $colors['Red']
         exit 1
     }
-    Write-ColorOutput "✓ App launched" $colors['Green']
+    
+    # Wait for app to actually start
+    Write-ColorOutput "Waiting for app to start..." $colors['Yellow']
+    Start-Sleep -Seconds 2
+    
+    # Verify app is running
+    $runningApps = & $ADB_PATH shell "ps -A | grep com.adhdfocus.app" 2>&1
+    if ($runningApps -match "com.adhdfocus.app") {
+        Write-ColorOutput "OK App is running" $colors['Green']
+    } else {
+        Write-ColorOutput "[WARNING] Could not verify app is running, but launch command succeeded" $colors['Yellow']
+    }
 }
 
 function Show-Device-Info {
@@ -232,7 +279,7 @@ function Show-Device-Info {
     & $ADB_PATH shell getprop ro.build.version.release
     
     Write-ColorOutput "Screen Resolution:" $colors['Yellow']
-    Write-Host "$TABLET_WIDTH`x$TABLET_HEIGHT @ $TABLET_DPI`dpi"
+    Write-Host "$TABLET_WIDTH x $TABLET_HEIGHT @ $TABLET_DPI dpi"
     
     Write-ColorOutput "Connected Devices:" $colors['Yellow']
     & $ADB_PATH devices
@@ -280,6 +327,6 @@ Show-Device-Info
 Show-Usage
 
 Write-Header "Setup Complete"
-Write-ColorOutput "✓ App is running on the 7`` tablet emulator" $colors['Green']
+Write-ColorOutput "OK App is running on the 7 inch tablet emulator" $colors['Green']
 
 Show-Logcat

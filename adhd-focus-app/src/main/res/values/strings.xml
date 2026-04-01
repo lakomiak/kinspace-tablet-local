@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ADHD Focus App</string>
+    <string name="app_name">Kinspace</string>
     <string name="daily_focus">Daily Focus</string>
     <string name="achievements">Achievements</string>
     <string name="settings">Settings</string>
