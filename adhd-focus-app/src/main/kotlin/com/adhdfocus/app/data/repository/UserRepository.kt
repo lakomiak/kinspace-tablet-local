@@ -23,7 +23,7 @@ class UserRepository @Inject constructor(
      * @return List of users in the household
      */
     suspend fun getUsersByHousehold(householdId: String): List<User> {
-        return userDao.getUsersByHousehold(householdId)
+        return userDao.getUsersByHouseholdOnce(householdId)
     }
 
     /**
@@ -60,7 +60,7 @@ class UserRepository @Inject constructor(
      * @param userId User ID
      */
     suspend fun deleteUser(userId: String) {
-        userDao.delete(userId)
+        userDao.deleteUserById(userId)
     }
 
     /**

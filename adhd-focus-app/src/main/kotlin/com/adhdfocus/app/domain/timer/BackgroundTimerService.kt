@@ -239,7 +239,7 @@ class BackgroundTimerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         timerJob?.cancel()
-        serviceScope.cancel()
+        (serviceScope.coroutineContext[kotlinx.coroutines.Job] as? kotlinx.coroutines.Job)?.cancel()
         audioNotificationManager.release()
     }
 

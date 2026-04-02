@@ -81,7 +81,7 @@ class AchievementsViewModel @Inject constructor(
                 _lockedBadges.value = locked
 
                 // Load streak data
-                val streak = streakRepository.getStreakForUser(userId, householdId)
+                val streak = streakRepository.getStreak(userId, householdId)
                 _currentStreak.value = streak?.currentCount ?: 0
                 _bestStreak.value = streak?.bestCount ?: 0
             } finally {

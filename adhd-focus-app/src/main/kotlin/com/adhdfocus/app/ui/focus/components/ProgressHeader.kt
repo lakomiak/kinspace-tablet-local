@@ -76,7 +76,7 @@ fun ProgressHeader(
 
             // Progress Bar
             LinearProgressIndicator(
-                progress = { animatedProgress },
+                progress = animatedProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(12.dp)

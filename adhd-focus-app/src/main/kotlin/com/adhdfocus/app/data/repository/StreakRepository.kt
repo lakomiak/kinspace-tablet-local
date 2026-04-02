@@ -58,14 +58,14 @@ class StreakRepository @Inject constructor(
                 bestCount = 1,
                 lastCompletionDate = LocalDate.now(),
                 startDate = LocalDate.now(),
-                updatedAt = System.currentTimeMillis()
+                updatedAt = java.time.Instant.now()
             )
         } else {
             streak = streak.copy(
                 currentCount = streak.currentCount + 1,
                 bestCount = maxOf(streak.currentCount + 1, streak.bestCount),
                 lastCompletionDate = LocalDate.now(),
-                updatedAt = System.currentTimeMillis()
+                updatedAt = java.time.Instant.now()
             )
         }
         streakDao.upsert(streak)
@@ -83,7 +83,7 @@ class StreakRepository @Inject constructor(
         if (streak != null) {
             val resetStreak = streak.copy(
                 currentCount = 0,
-                updatedAt = System.currentTimeMillis()
+                updatedAt = java.time.Instant.now()
             )
             streakDao.upsert(resetStreak)
         }

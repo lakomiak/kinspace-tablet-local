@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.sync
 
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.model.SyncOperation
+import com.adhdfocus.app.data.model.SyncQueueItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,9 +46,10 @@ class CloudSyncManagerImpl @Inject constructor(
 
         syncStatusFlow.value = SyncStatus.SYNCING
 
+        var pendingItems = emptyList<SyncQueueItem>()
         return try {
             // Get pending changes for user
-            val pendingItems = syncQueueManager.getPendingItemsByUser(userId)
+            pendingItems = syncQueueManager.getPendingItemsByUser(userId)
 
             if (pendingItems.isEmpty()) {
                 syncStatusFlow.value = SyncStatus.SYNCED
@@ -115,7 +117,7 @@ class CloudSyncManagerImpl @Inject constructor(
     }
 
     override fun observeSyncStatus(): Flow<SyncStatus> {
-        return syncStatusFlow.asStateFlow().distinctUntilChanged()
+        return syncStatusFlow.asStateFlow()
     }
 
     override fun getCurrentSyncStatus(): SyncStatus {

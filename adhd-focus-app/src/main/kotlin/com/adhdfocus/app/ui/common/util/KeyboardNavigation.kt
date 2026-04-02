@@ -142,6 +142,7 @@ fun Modifier.keyboardNavigableWithRequester(
  * @param interactionSource The interaction source for tracking focus
  * @return Modified Modifier with focus indicator
  */
+@androidx.compose.runtime.Composable
 fun Modifier.keyboardFocusIndicator(
     interactionSource: MutableInteractionSource
 ): Modifier {

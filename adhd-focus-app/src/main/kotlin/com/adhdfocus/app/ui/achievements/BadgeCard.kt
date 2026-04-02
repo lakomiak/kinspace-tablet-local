@@ -108,8 +108,7 @@ fun BadgeCard(
                             .fillMaxWidth()
                             .height(6.dp),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(3.dp)
+                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                     )
                     Text(
                         text = "${badge.progress ?: 0}%",
@@ -121,7 +120,7 @@ fun BadgeCard(
             } else {
                 // Earned date for unlocked badges
                 Text(
-                    text = "Earned: ${DateTimeUtils.formatDate(Date(badge.earnedAt))}",
+                    text = "Earned: ${DateTimeUtils.formatDate(badge.earnedAt)}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
@@ -208,8 +207,7 @@ fun BadgeCardCompact(
                             .fillMaxWidth()
                             .height(4.dp),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(2.dp)
+                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                     )
                     Text(
                         text = "${badge.progress ?: 0}%",
@@ -218,7 +216,7 @@ fun BadgeCardCompact(
                     )
                 } else {
                     Text(
-                        text = "Earned: ${DateTimeUtils.formatDate(Date(badge.earnedAt))}",
+                        text = "Earned: ${DateTimeUtils.formatDate(badge.earnedAt)}",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold

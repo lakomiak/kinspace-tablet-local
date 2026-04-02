@@ -4,6 +4,7 @@ import com.adhdfocus.app.data.dao.UserPreferencesDao
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
+import javax.inject.Singleton
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -19,6 +20,7 @@ import javax.inject.Inject
  * - Validating preference values
  * - Serializing/deserializing complex preference objects
  */
+@Singleton
 class UserPreferencesManager @Inject constructor(
     private val userPreferencesDao: UserPreferencesDao
 ) {

@@ -22,7 +22,7 @@ class AffirmationRepository @Inject constructor(
      * @return List of all affirmations
      */
     suspend fun getAllAffirmations(): List<Affirmation> {
-        return affirmationDao.getAllAffirmations()
+        return affirmationDao.getAllAffirmationsOnce()
     }
 
     /**
@@ -32,7 +32,7 @@ class AffirmationRepository @Inject constructor(
      * @return List of affirmations of the specified type
      */
     suspend fun getAffirmationsByType(type: AffirmationType): List<Affirmation> {
-        return affirmationDao.getAffirmationsByType(type.name)
+        return affirmationDao.getAffirmationsByType(type)
     }
 
     /**
@@ -42,7 +42,7 @@ class AffirmationRepository @Inject constructor(
      * @return List of affirmations suitable for the age level
      */
     suspend fun getAffirmationsByAgeLevel(ageLevel: Int): List<Affirmation> {
-        return affirmationDao.getAffirmationsByAgeLevel(ageLevel)
+        return affirmationDao.getAffirmationsByAgeLevel(ageLevel, ageLevel)
     }
 
     /**
@@ -79,6 +79,6 @@ class AffirmationRepository @Inject constructor(
      * @param affirmationId Affirmation ID
      */
     suspend fun deleteAffirmation(affirmationId: String) {
-        affirmationDao.delete(affirmationId)
+        affirmationDao.deleteAffirmationById(affirmationId)
     }
 }

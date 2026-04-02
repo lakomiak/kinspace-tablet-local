@@ -3,8 +3,8 @@ package com.adhdfocus.app.ui.notification
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInDown
-import androidx.compose.animation.slideOutUp
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,8 +51,8 @@ fun UpdateNotificationComposable(
 
     AnimatedVisibility(
         visible = isVisible.value,
-        enter = slideInDown() + fadeIn(),
-        exit = slideOutUp() + fadeOut()
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
     ) {
         currentNotification.value?.let { task ->
             NotificationCard(

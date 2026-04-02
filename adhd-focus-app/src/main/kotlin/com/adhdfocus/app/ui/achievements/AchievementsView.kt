@@ -1,11 +1,13 @@
 package com.adhdfocus.app.ui.achievements
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -240,6 +242,7 @@ private fun StreakSection(
 /**
  * CategoryTabs displays category filter tabs for badge organization.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryTabs(
     categories: List<BadgeSystem.BadgeCategory>,

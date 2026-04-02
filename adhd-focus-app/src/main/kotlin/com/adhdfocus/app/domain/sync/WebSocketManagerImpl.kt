@@ -5,7 +5,6 @@ import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.model.SyncStatus
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -80,7 +79,7 @@ class WebSocketManagerImpl @Inject constructor(
                 .addHeader("Authorization", "Bearer $token")
                 .build()
 
-            webSocket = okHttpClient.newWebSocket(request, WebSocketListener())
+            webSocket = okHttpClient.newWebSocket(request, InternalWebSocketListener())
         } catch (e: Exception) {
             emitEvent(WebSocketEvent.Error("Failed to connect: ${e.message}", e))
             scheduleReconnect()
@@ -120,7 +119,7 @@ class WebSocketManagerImpl @Inject constructor(
         }
     }
 
-    private inner class WebSocketListener : WebSocketListener() {
+    private inner class InternalWebSocketListener : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
             isConnected.set(true)
             reconnectAttempts = 0

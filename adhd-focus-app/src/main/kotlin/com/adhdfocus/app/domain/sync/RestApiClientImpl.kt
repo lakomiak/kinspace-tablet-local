@@ -31,7 +31,7 @@ class RestApiClientImpl @Inject constructor(
     private val gson: Gson,
     private val tokenProvider: TokenProvider,
     private val retryPolicy: RetryPolicy = ExponentialBackoffRetryPolicy()
-) : RestApiClient
+) : RestApiClient {
 
     override suspend fun createTask(householdId: String, task: Task): Task {
         return retryWithBackoff {

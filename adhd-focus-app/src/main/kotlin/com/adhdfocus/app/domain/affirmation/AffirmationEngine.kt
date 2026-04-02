@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.affirmation
 
 import com.adhdfocus.app.data.model.Affirmation
 import com.adhdfocus.app.data.model.AffirmationType
+import com.adhdfocus.app.data.model.AffirmationTone
 import com.adhdfocus.app.data.repository.AffirmationRepository
 import javax.inject.Inject
 import kotlin.random.Random
@@ -34,7 +35,7 @@ class AffirmationEngine @Inject constructor(
                 id = java.util.UUID.randomUUID().toString(),
                 type = AffirmationType.TASK_COMPLETION,
                 message = "Great job!",
-                tone = "ENCOURAGING",
+                tone = AffirmationTone.ENCOURAGING,
                 ageAppropriatenessLevel = 3
             )
         }
@@ -54,7 +55,7 @@ class AffirmationEngine @Inject constructor(
                 id = java.util.UUID.randomUUID().toString(),
                 type = AffirmationType.DAY_COMPLETION,
                 message = "Perfect day! You crushed it!",
-                tone = "CELEBRATORY",
+                tone = AffirmationTone.CELEBRATORY,
                 ageAppropriatenessLevel = 4
             )
         }
@@ -75,7 +76,7 @@ class AffirmationEngine @Inject constructor(
                 id = java.util.UUID.randomUUID().toString(),
                 type = AffirmationType.STREAK_MILESTONE,
                 message = "$streakCount-day streak! Keep it up!",
-                tone = "MOTIVATIONAL",
+                tone = AffirmationTone.MOTIVATIONAL,
                 ageAppropriatenessLevel = 4
             )
         }
@@ -100,7 +101,7 @@ class AffirmationEngine @Inject constructor(
                 id = java.util.UUID.randomUUID().toString(),
                 type = AffirmationType.TASK_COMPLETION,
                 message = "You're doing great!",
-                tone = "ENCOURAGING",
+                tone = AffirmationTone.ENCOURAGING,
                 ageAppropriatenessLevel = 3
             )
         }

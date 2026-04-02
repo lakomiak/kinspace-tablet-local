@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.adhdfocus.app.data.model.SyncStatus
+import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.ui.focus.components.ProgressHeader

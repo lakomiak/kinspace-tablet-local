@@ -1,4 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#4CAF50</color>
+    <!-- Brand Colors from Kinspace Mobile App -->
+    <color name="brand_primary">#6F9C62</color>
+    <color name="brand_secondary">#E58D4E</color>
+    <color name="brand_background">#F8F5EE</color>
+    <color name="brand_surface">#FFFFFF</color>
+    <color name="brand_text">#1F2933</color>
+    
+    <!-- Launcher Icon -->
+    <color name="ic_launcher_background">#6F9C62</color>
+    <color name="ic_launcher_foreground">#FFFFFF</color>
+    
+    <!-- Material 3 Colors -->
+    <color name="material_primary">#6F9C62</color>
+    <color name="material_on_primary">#FFFFFF</color>
+    <color name="material_primary_container">#E8F5E0</color>
+    <color name="material_on_primary_container">#2D5A1F</color>
+    
+    <color name="material_secondary">#E58D4E</color>
+    <color name="material_on_secondary">#FFFFFF</color>
+    <color name="material_secondary_container">#FFE8D6</color>
+    <color name="material_on_secondary_container">#6B3A1A</color>
+    
+    <color name="material_background">#F8F5EE</color>
+    <color name="material_on_background">#1F2933</color>
+    <color name="material_surface">#FFFFFF</color>
+    <color name="material_on_surface">#1F2933</color>
+    
+    <!-- Semantic Colors -->
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FFC107</color>
+    <color name="error">#F44336</color>
+    <color name="info">#2196F3</color>
 </resources>

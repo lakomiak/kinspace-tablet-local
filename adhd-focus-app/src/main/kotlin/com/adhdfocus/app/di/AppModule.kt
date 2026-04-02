@@ -19,6 +19,7 @@ import com.adhdfocus.app.domain.notification.NotificationPreferencesManager
 import com.adhdfocus.app.domain.notification.NotificationPreferencesManagerImpl
 import com.adhdfocus.app.domain.theme.ThemeManager
 import com.adhdfocus.app.domain.theme.ThemeManagerImpl
+import com.adhdfocus.app.domain.userswitching.UserSwitchingManager
 import com.adhdfocus.app.domain.visibility.TodoGroupVisibilityManager
 import com.adhdfocus.app.domain.visibility.TodoGroupVisibilityManagerImpl
 import dagger.Module

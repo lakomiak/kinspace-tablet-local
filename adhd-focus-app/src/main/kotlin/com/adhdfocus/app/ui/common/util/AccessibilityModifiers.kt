@@ -21,6 +21,7 @@ import com.adhdfocus.app.ui.theme.FocusOutlineDark
  * @param focusOutlineColor Color of the focus outline
  * @return Modified Modifier with focus indicator
  */
+@androidx.compose.runtime.Composable
 fun Modifier.wcagFocusIndicator(
     interactionSource: MutableInteractionSource,
     focusOutlineColor: Color = FocusOutlineLight

@@ -52,7 +52,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3"
+        kotlinCompilerExtensionVersion = "1.5.10"
     }
 
     packagingOptions {
@@ -70,7 +70,7 @@ dependencies {
     val retrofitVersion = "2.9.0"
     val okhttpVersion = "4.11.0"
     val coroutinesVersion = "1.7.3"
-    val kotlinVersion = "1.9.10"
+    val kotlinVersion = "1.9.22"
     val coreKtxVersion = "1.12.0"
     val lifecycleVersion = "2.6.2"
     val activityComposeVersion = "1.8.0"
@@ -96,6 +96,7 @@ dependencies {
     // Jetpack Core
     implementation("androidx.core:core-ktx:$coreKtxVersion")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycleVersion")
     implementation("androidx.activity:activity-compose:$activityComposeVersion")
 
     // Room Database
@@ -121,9 +122,13 @@ dependencies {
     implementation("com.google.dagger:hilt-android:$hiltVersion")
     kapt("com.google.dagger:hilt-compiler:$hiltVersion")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("javax.inject:javax.inject:1")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:$navigationComposeVersion")
+
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:$dataStoreVersion")

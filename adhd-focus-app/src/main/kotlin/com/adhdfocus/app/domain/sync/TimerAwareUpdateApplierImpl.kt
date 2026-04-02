@@ -114,7 +114,7 @@ class TimerAwareUpdateApplierImpl @Inject constructor(
                     UpdateResult(success = true, message = "Task updated")
                 }
                 is UpdateEvent.TaskDeleted -> {
-                    taskDao.deleteById(event.taskId)
+                    taskDao.deleteTaskById(event.taskId)
                     UpdateResult(success = true, message = "Task deleted")
                 }
                 is UpdateEvent.TaskCreated -> {

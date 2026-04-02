@@ -46,7 +46,7 @@ class TaskRepository @Inject constructor(
             todoGroup = (updates["todoGroup"] as? String) ?: task.todoGroup,
             estimatedDurationMinutes = (updates["estimatedDurationMinutes"] as? Int) ?: task.estimatedDurationMinutes,
             status = (updates["status"] as? TaskStatus) ?: task.status,
-            updatedAt = System.currentTimeMillis()
+            updatedAt = java.time.Instant.now()
         )
         taskDao.update(updatedTask)
         return updatedTask
@@ -62,8 +62,8 @@ class TaskRepository @Inject constructor(
         val task = taskDao.getTaskById(taskId) ?: throw IllegalArgumentException("Task not found")
         val completedTask = task.copy(
             status = TaskStatus.COMPLETED,
-            completedAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
+            completedAt = java.time.Instant.now(),
+            updatedAt = java.time.Instant.now()
         )
         taskDao.update(completedTask)
         return completedTask
@@ -78,7 +78,7 @@ class TaskRepository @Inject constructor(
         val task = taskDao.getTaskById(taskId) ?: throw IllegalArgumentException("Task not found")
         val deletedTask = task.copy(
             isDeleted = true,
-            updatedAt = System.currentTimeMillis()
+            updatedAt = java.time.Instant.now()
         )
         taskDao.update(deletedTask)
     }
@@ -92,13 +92,13 @@ class TaskRepository @Inject constructor(
      */
     suspend fun getTasksForToday(householdId: String, userId: String? = null): List<Task> {
         val today = LocalDate.now()
-        val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
         return if (userId != null) {
-            taskDao.getTasksByUserAndDateRange(householdId, userId, startOfDay, endOfDay)
+            taskDao.getTasksByUserAndDateRange(userId, startOfDay, endOfDay)
         } else {
-            taskDao.getTasksByHouseholdAndDateRange(householdId, startOfDay, endOfDay)
+            taskDao.getTasksInDateRange(householdId, startOfDay, endOfDay)
         }
     }
 
@@ -119,7 +119,7 @@ class TaskRepository @Inject constructor(
      * @return List of all tasks
      */
     suspend fun getTasksByHousehold(householdId: String): List<Task> {
-        return taskDao.getTasksByHousehold(householdId)
+        return taskDao.getTasksByHouseholdOnce(householdId)
     }
 
     /**
@@ -130,7 +130,7 @@ class TaskRepository @Inject constructor(
      * @return List of user's tasks
      */
     suspend fun getTasksByUser(householdId: String, userId: String): List<Task> {
-        return taskDao.getTasksByUser(householdId, userId)
+        return taskDao.getTasksByUserOnce(userId)
     }
 
     /**

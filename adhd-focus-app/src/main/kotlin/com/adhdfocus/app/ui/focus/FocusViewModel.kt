@@ -2,7 +2,7 @@ package com.adhdfocus.app.ui.focus
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.adhdfocus.app.data.model.SyncStatus
+import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager

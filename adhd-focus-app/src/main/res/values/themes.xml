@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AdhdfocusApp" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.AdhdfocusApp" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="android:colorPrimary">@color/brand_primary</item>
+        <item name="android:colorPrimaryDark">@color/brand_primary</item>
+        <item name="android:colorAccent">@color/brand_secondary</item>
+        
+        <!-- Background and text colors -->
+        <item name="android:colorBackground">@color/brand_background</item>
+        <item name="android:textColorPrimary">@color/brand_text</item>
+        <item name="android:textColorSecondary">@color/brand_text</item>
+        
+        <!-- Status bar styling -->
+        <item name="android:statusBarColor">@color/brand_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>

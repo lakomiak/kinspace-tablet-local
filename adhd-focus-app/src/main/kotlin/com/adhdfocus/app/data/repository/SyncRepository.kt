@@ -43,7 +43,7 @@ class SyncRepository @Inject constructor() {
      */
     suspend fun syncPendingChanges(): SyncResult {
         // TODO: Implement actual sync logic
-        return SyncResult(success = true, syncedCount = 0)
+        return SyncResult(success = true, failedCount = 0)
     }
 
     /**

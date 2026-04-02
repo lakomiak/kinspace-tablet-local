@@ -67,6 +67,9 @@ interface OfflineUpdateQueueDao {
     @Query("DELETE FROM offline_update_queue WHERE id = :itemId")
     suspend fun deleteItemById(itemId: String)
 
+    @Query("DELETE FROM offline_update_queue WHERE id = :itemId")
+    suspend fun deleteById(itemId: String)
+
     @Query("DELETE FROM offline_update_queue WHERE taskId = :taskId")
     suspend fun deleteItemsByTaskId(taskId: String)
 

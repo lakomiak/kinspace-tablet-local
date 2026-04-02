@@ -3,6 +3,7 @@ package com.adhdfocus.app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.adhdfocus.app.data.model.Task
@@ -30,6 +31,67 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE assignedUserId = :userId AND isDeleted = 0")
     fun getTasksByUser(userId: String): Flow<List<Task>>
+
+    @Query("SELECT * FROM tasks WHERE assignedUserId = :userId AND isDeleted = 0")
+    suspend fun getTasksByUserOnce(userId: String): List<Task>
+
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE assignedUserId = :userId 
+        AND isDeleted = 0 
+        AND createdAt >= :startTime 
+        AND createdAt <= :endTime
+        ORDER BY createdAt DESC
+    """)
+    suspend fun getTasksByUserAndDateRange(
+        userId: String,
+        startTime: Instant,
+        endTime: Instant
+    ): List<Task>
+
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE householdId = :householdId 
+        AND isDeleted = 0 
+        AND createdAt >= :startTime 
+        AND createdAt <= :endTime
+        ORDER BY createdAt DESC
+    """)
+    suspend fun getTasksByHouseholdAndDateRange(
+        householdId: String,
+        startTime: Instant,
+        endTime: Instant
+    ): List<Task>
+
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE householdId = :householdId 
+        AND assignedUserId = :userId
+        AND isDeleted = 0 
+        AND createdAt >= :startTime 
+        AND createdAt <= :endTime
+        ORDER BY createdAt DESC
+    """)
+    suspend fun getTasksByUserAndDateRange(
+        householdId: String,
+        userId: String,
+        startTime: Long,
+        endTime: Long
+    ): List<Task>
+
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE householdId = :householdId 
+        AND isDeleted = 0 
+        AND createdAt >= :startTime 
+        AND createdAt <= :endTime
+        ORDER BY createdAt DESC
+    """)
+    suspend fun getTasksByHouseholdAndDateRange(
+        householdId: String,
+        startTime: Long,
+        endTime: Long
+    ): List<Task>
 
     @Query("SELECT * FROM tasks WHERE householdId = :householdId AND isDeleted = 0")
     suspend fun getTasksByHouseholdOnce(householdId: String): List<Task>

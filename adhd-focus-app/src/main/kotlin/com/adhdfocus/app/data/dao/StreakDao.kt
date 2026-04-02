@@ -3,6 +3,7 @@ package com.adhdfocus.app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.adhdfocus.app.data.model.Streak
@@ -13,8 +14,11 @@ import java.time.LocalDate
 interface StreakDao {
     // ==================== Basic CRUD Operations ====================
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(streak: Streak): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(streak: Streak): Long
 
     @Update
     suspend fun update(streak: Streak)
@@ -40,6 +44,14 @@ interface StreakDao {
 
     @Query("SELECT * FROM streaks WHERE userId = :userId")
     fun getStreakByUserFlow(userId: String): Flow<Streak?>
+
+    // ==================== Retrieve by User and Household ====================
+
+    @Query("SELECT * FROM streaks WHERE userId = :userId AND householdId = :householdId")
+    suspend fun getStreak(userId: String, householdId: String): Streak?
+
+    @Query("SELECT * FROM streaks WHERE userId = :userId AND householdId = :householdId")
+    fun getStreakFlow(userId: String, householdId: String): Flow<Streak?>
 
     // ==================== Retrieve by Household ====================
 

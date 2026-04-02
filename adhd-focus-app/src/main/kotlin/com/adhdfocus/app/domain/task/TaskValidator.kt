@@ -172,8 +172,8 @@ class TaskValidator {
  */
 sealed class ValidationResult {
     object Success : ValidationResult()
-    data class Failure(val errors: List<String>) : ValidationResult()
+    data class Failure(val errorList: List<String>) : ValidationResult()
 
     fun isValid(): Boolean = this is Success
-    fun getErrors(): List<String> = if (this is Failure) errors else emptyList()
+    fun getErrors(): List<String> = if (this is Failure) errorList else emptyList()
 }

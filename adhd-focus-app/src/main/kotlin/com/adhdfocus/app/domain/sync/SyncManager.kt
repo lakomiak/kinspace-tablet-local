@@ -101,25 +101,3 @@ class SyncManager @Inject constructor(
         syncRepository.shutdown()
     }
 }
-
-/**
- * Result of a sync operation.
- */
-data class SyncResult(
-    val success: Boolean,
-    val syncedCount: Int = 0,
-    val failedCount: Int = 0,
-    val conflictCount: Int = 0,
-    val errorMessage: String? = null
-)
-
-/**
- * Current sync status.
- */
-enum class SyncStatus {
-    IDLE,
-    SYNCING,
-    SYNCED,
-    OFFLINE,
-    ERROR
-}

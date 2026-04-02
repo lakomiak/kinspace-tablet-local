@@ -1,7 +1,6 @@
 package com.adhdfocus.app.domain.visibility
 
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
-import dagger.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -17,7 +16,6 @@ import javax.inject.Inject
  * - Singleton scope for app-wide access
  * - Default visibility: all groups visible
  */
-@Singleton
 class TodoGroupVisibilityManagerImpl @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager
 ) : TodoGroupVisibilityManager {

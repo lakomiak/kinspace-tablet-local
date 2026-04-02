@@ -84,15 +84,6 @@ data class SyncChange(
 )
 
 /**
- * Result of a batch sync operation.
- */
-data class SyncResult(
-    val syncedCount: Int,
-    val failedCount: Int,
-    val conflicts: List<SyncConflict> = emptyList()
-)
-
-/**
  * Represents a conflict during sync.
  */
 data class SyncConflict(

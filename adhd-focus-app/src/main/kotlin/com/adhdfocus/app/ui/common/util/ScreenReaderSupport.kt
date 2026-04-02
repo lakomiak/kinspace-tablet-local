@@ -1,10 +1,10 @@
 package com.adhdfocus.app.ui.common.util
 
-import androidx.compose.foundation.semantics.contentDescription
-import androidx.compose.foundation.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
@@ -27,7 +27,7 @@ object ScreenReaderSupport {
             TaskStatus.COMPLETED -> "completed"
         }
         
-        val durationText = if (task.estimatedDurationMinutes > 0) {
+        val durationText = if ((task.estimatedDurationMinutes ?: 0) > 0) {
             ", estimated ${task.estimatedDurationMinutes} minutes"
         } else {
             ""

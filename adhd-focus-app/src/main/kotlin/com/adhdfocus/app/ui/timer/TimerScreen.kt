@@ -3,6 +3,7 @@ package com.adhdfocus.app.ui.timer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -80,19 +81,21 @@ fun TimerScreen(
                     .size(280.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+                
                 // Background circle
-                androidx.compose.foundation.Canvas(
+                Canvas(
                     modifier = Modifier.size(280.dp)
                 ) {
                     drawCircle(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        color = surfaceVariantColor,
                         radius = size.minDimension / 2,
                         style = Stroke(width = 8.dp.toPx())
                     )
                 }
 
                 // Progress ring
-                androidx.compose.foundation.Canvas(
+                Canvas(
                     modifier = Modifier.size(280.dp)
                 ) {
                     val radius = size.minDimension / 2
@@ -268,7 +271,7 @@ fun CompactTimerDisplay(
 
             // Progress bar
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)

@@ -152,15 +152,3 @@ enum class ProgressDirection {
     DOWN,
     UNCHANGED
 }
-
-/**
- * Progress metrics data class.
- */
-data class ProgressMetrics(
-    val completionPercentage: Int,
-    val completedCount: Int,
-    val totalCount: Int,
-    val currentStreak: Int,
-    val bestStreak: Int,
-    val isDayComplete: Boolean
-)
