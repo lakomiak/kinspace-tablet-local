@@ -10,3 +10,5 @@ build/
 *.iml
 local.properties
 .kiro/specs/adhd-focus-app/.config.kiro
+
+gradle-*.zip
