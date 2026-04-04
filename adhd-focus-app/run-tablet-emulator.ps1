@@ -149,6 +149,7 @@ function Start-Emulator {
         "-memory", "2048",
         "-cores", "4",
         "-gpu", "on",
+        "-read-only",
         "-no-snapshot-load",
         "-no-snapshot-save",
         "-no-audio"
@@ -212,7 +213,7 @@ function Build-App {
         }
     }
     
-    & $GRADLE_WRAPPER clean assembleDebug
+    & $GRADLE_WRAPPER -p $parentDir :adhd-focus-app:clean :adhd-focus-app:assembleDebug
     if ($LASTEXITCODE -ne 0) {
         Write-ColorOutput "X Build failed" $colors['Red']
         exit 1
@@ -228,7 +229,7 @@ function Install-And-Run-App {
     
     Write-ColorOutput "Step 5: Installing and running app..." $colors['Yellow']
     
-    $apkPath = "$scriptDir\app\build\outputs\apk\debug\app-debug.apk"
+    $apkPath = "$scriptDir\build\outputs\apk\debug\adhd-focus-app-debug.apk"
     
     if (-not (Test-Path $apkPath)) {
         Write-ColorOutput "X APK not found at $apkPath" $colors['Red']

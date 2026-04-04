@@ -29,7 +29,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
-    private val themeManager: ThemeManager
+    private val themeManager: ThemeManager,
+    private val authManager: com.adhdfocus.app.domain.auth.AuthManager
 ) : ViewModel() {
 
     private val _theme = MutableStateFlow(Theme.LIGHT)
@@ -73,15 +74,35 @@ class SettingsViewModel @Inject constructor(
 
     private var currentUserId: String? = null
 
+    init {
+        // Auto-initialize with the current user's ID from stored tokens
+        val userId = resolveUserId()
+        if (userId.isNotBlank()) {
+            currentUserId = userId
+            loadSettings(userId)
+        }
+    }
+
+    private fun resolveUserId(): String {
+        // Extract sub from stored ID token
+        val idToken = authManager.getAccessToken() ?: return "default_user"
+        return try {
+            val parts = idToken.split(".")
+            if (parts.size == 3) {
+                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING))
+                val json = org.json.JSONObject(payload)
+                json.optString("sub").takeIf { it.isNotEmpty() } ?: "default_user"
+            } else "default_user"
+        } catch (e: Exception) { "default_user" }
+    }
+
     /**
      * Initializes settings for a user.
-     *
-     * @param userId User ID
      */
     fun initialize(userId: String) {
-        require(userId.isNotBlank()) { "userId cannot be blank" }
-        currentUserId = userId
-        loadSettings(userId)
+        val effectiveId = userId.ifBlank { resolveUserId() }
+        currentUserId = effectiveId
+        loadSettings(effectiveId)
     }
 
     /**

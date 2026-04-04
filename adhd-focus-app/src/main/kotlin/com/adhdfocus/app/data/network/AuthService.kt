@@ -5,15 +5,16 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 /**
- * Retrofit service for authentication endpoints
+ * Legacy auth service - no longer used. Auth is handled by AppAuth + Cognito.
+ * Kept to avoid breaking other references; all methods are no-ops.
  */
 interface AuthService {
-    @POST(ApiConfig.Auth.LOGIN)
+    @POST("auth/login")
     fun login(@Body request: LoginRequest): Call<LoginResponse>
 
-    @POST(ApiConfig.Auth.REFRESH)
+    @POST("auth/refresh")
     fun refreshToken(@Body request: RefreshTokenRequest): Call<RefreshTokenResponse>
 
-    @POST(ApiConfig.Auth.LOGOUT)
+    @POST("auth/logout")
     fun logout(@Body request: LogoutRequest): Call<Unit>
 }

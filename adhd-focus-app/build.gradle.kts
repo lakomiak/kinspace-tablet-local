@@ -21,6 +21,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        manifestPlaceholders["appAuthRedirectScheme"] = "kinspacedev"
     }
 
     buildTypes {
@@ -135,6 +136,9 @@ dependencies {
 
     // Security
     implementation("androidx.security:security-crypto:$securityVersion")
+
+    // AppAuth for Cognito OIDC (matches calendar-mobile auth mechanism)
+    implementation("net.openid:appauth:0.11.1")
 
     // Testing - Unit Tests
     testImplementation("junit:junit:$junitVersion")

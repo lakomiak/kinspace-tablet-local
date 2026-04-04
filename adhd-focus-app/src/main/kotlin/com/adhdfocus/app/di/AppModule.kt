@@ -17,6 +17,27 @@ import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
 import com.adhdfocus.app.domain.persistence.TaskPersistenceManagerImpl
 import com.adhdfocus.app.domain.notification.NotificationPreferencesManager
 import com.adhdfocus.app.domain.notification.NotificationPreferencesManagerImpl
+import com.adhdfocus.app.domain.notification.UpdateNotificationManager
+import com.adhdfocus.app.domain.notification.UpdateNotificationManagerImpl
+import com.adhdfocus.app.domain.sync.CloudSyncManager
+import com.adhdfocus.app.domain.sync.CloudSyncManagerImpl
+import com.adhdfocus.app.domain.sync.ConflictResolver
+import com.adhdfocus.app.domain.sync.ConflictResolverImpl
+import com.adhdfocus.app.domain.sync.ConnectivityManager
+import com.adhdfocus.app.domain.sync.ConnectivityManagerImpl
+import com.adhdfocus.app.domain.sync.RestApiClient
+import com.adhdfocus.app.domain.sync.RestApiClientImpl
+import com.adhdfocus.app.domain.sync.RetryPolicy
+import com.adhdfocus.app.domain.sync.ExponentialBackoffRetryPolicy
+import com.adhdfocus.app.domain.sync.TokenProvider
+import com.google.gson.Gson
+import com.adhdfocus.app.data.dao.BadgeDao
+import com.adhdfocus.app.data.dao.StreakDao
+import com.adhdfocus.app.data.dao.SyncQueueDao
+import com.adhdfocus.app.data.dao.TaskDao
+import com.adhdfocus.app.data.dao.UserDao
+import com.adhdfocus.app.data.dao.UserPreferencesDao
+import com.adhdfocus.app.data.dao.UserSwitchingStateDao
 import com.adhdfocus.app.domain.theme.ThemeManager
 import com.adhdfocus.app.domain.theme.ThemeManagerImpl
 import com.adhdfocus.app.domain.userswitching.UserSwitchingManager
@@ -107,17 +128,7 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideAuthManager(
-        authService: AuthService,
-        tokenStorage: TokenStorage
-    ): AuthManager {
-        return AuthManager(authService, tokenStorage)
-    }
-
-    @Singleton
-    @Provides
-    fun provideUserSwitchingManager(
-        userSwitchingRepository: com.adhdfocus.app.data.repository.UserSwitchingRepository
+    fun provideUserSwitchingManager(        userSwitchingRepository: com.adhdfocus.app.data.repository.UserSwitchingRepository
     ): UserSwitchingManager {
         return UserSwitchingManager(userSwitchingRepository)
     }
@@ -160,5 +171,50 @@ object AppModule {
         userPreferencesManager: com.adhdfocus.app.domain.preferences.UserPreferencesManager
     ): TodoGroupVisibilityManager {
         return TodoGroupVisibilityManagerImpl(userPreferencesManager)
+    }
+
+    // DAO providers - extracted from database
+    @Singleton @Provides fun provideTaskDao(db: AdhdfocusDatabase): TaskDao = db.taskDao()
+    @Singleton @Provides fun provideUserDao(db: AdhdfocusDatabase): UserDao = db.userDao()
+    @Singleton @Provides fun provideBadgeDao(db: AdhdfocusDatabase): BadgeDao = db.badgeDao()
+    @Singleton @Provides fun provideStreakDao(db: AdhdfocusDatabase): StreakDao = db.streakDao()
+    @Singleton @Provides fun provideSyncQueueDao(db: AdhdfocusDatabase): SyncQueueDao = db.syncQueueDao()
+    @Singleton @Provides fun provideUserPreferencesDao(db: AdhdfocusDatabase): UserPreferencesDao = db.userPreferencesDao()
+    @Singleton @Provides fun provideUserSwitchingStateDao(db: AdhdfocusDatabase): UserSwitchingStateDao = db.userSwitchingStateDao()
+
+    @Singleton
+    @Provides
+    fun provideUpdateNotificationManager(impl: UpdateNotificationManagerImpl): UpdateNotificationManager = impl
+
+    @Singleton
+    @Provides
+    fun provideCloudSyncManager(impl: CloudSyncManagerImpl): CloudSyncManager = impl
+
+    @Singleton
+    @Provides
+    fun provideConflictResolver(impl: ConflictResolverImpl): ConflictResolver = impl
+
+    @Singleton
+    @Provides
+    fun provideConnectivityManager(impl: ConnectivityManagerImpl): ConnectivityManager = impl
+
+    @Singleton
+    @Provides
+    fun provideRestApiClient(impl: RestApiClientImpl): RestApiClient = impl
+
+    @Singleton
+    @Provides
+    fun provideRetryPolicy(): RetryPolicy = ExponentialBackoffRetryPolicy()
+
+    @Singleton
+    @Provides
+    fun provideGson(): Gson = Gson()
+
+    @Singleton
+    @Provides
+    fun provideTokenProvider(tokenStorage: TokenStorage): TokenProvider {
+        return object : TokenProvider {
+            override suspend fun getAccessToken(): String = tokenStorage.getAccessToken() ?: ""
+        }
     }
 }

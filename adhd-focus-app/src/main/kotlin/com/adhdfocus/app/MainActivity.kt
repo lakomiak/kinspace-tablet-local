@@ -6,14 +6,19 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.theme.ThemeManager
-import com.adhdfocus.app.ui.theme.AdhdfocusAppTheme
+import com.adhdfocus.app.ui.achievements.AchievementsView
+import com.adhdfocus.app.ui.auth.SignInScreen
+import com.adhdfocus.app.ui.focus.DailyFocusViewScreen
+import com.adhdfocus.app.ui.settings.SettingsScreen
+import com.adhdfocus.app.ui.setup.MemberSelectionScreen
 import com.adhdfocus.app.ui.theme.AdhdfocusAppThemeWithTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -21,8 +26,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var themeManager: ThemeManager
+    @Inject lateinit var themeManager: ThemeManager
+    @Inject lateinit var setupManager: TabletSetupManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,22 +38,60 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AdhdfocusApp()
+                    val navController = rememberNavController()
+                    NavHost(navController = navController, startDestination = "signin") {
+
+                        composable("signin") {
+                            SignInScreen(
+                                onSignInSuccess = {
+                                    // After sign-in: check if tablet has been assigned to a member
+                                    if (setupManager.isSetupComplete()) {
+                                        navController.navigate("focus") {
+                                            popUpTo("signin") { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.navigate("member_selection") {
+                                            popUpTo("signin") { inclusive = true }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable("member_selection") {
+                            MemberSelectionScreen(
+                                onMemberSelected = {
+                                    navController.navigate("focus") {
+                                        popUpTo("member_selection") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable("focus") {
+                            DailyFocusViewScreen(
+                                onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToAchievements = { navController.navigate("achievements") },
+                                onCreateTask = { /* TODO */ },
+                                onTaskClick = { /* TODO */ }
+                            )
+                        }
+
+                        composable("settings") {
+                            SettingsScreen(
+                                userId = setupManager.getAssignedMemberId() ?: "",
+                                onBackClick = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable("achievements") {
+                            AchievementsView(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun AdhdfocusApp() {
-    Text("ADHD Focus App")
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AdhdfocusAppPreview() {
-    AdhdfocusAppTheme {
-        AdhdfocusApp()
     }
 }
