@@ -16,12 +16,12 @@ import com.adhdfocus.app.ui.theme.InProgressOrange
 import com.adhdfocus.app.ui.theme.CompletedGreen
 
 /**
- * TaskStatusIndicator displays a visual indicator for task status.
+ * TaskStatusIndicator displays a visual indicator for To Do status.
  *
  * Shows:
- * - Red for incomplete tasks
- * - Orange for in-progress tasks
- * - Green for completed tasks
+ * - Red for incomplete To Do's
+ * - Orange for in-progress To Do's
+ * - Green for completed To Do's
  */
 @Composable
 fun TaskStatusIndicator(

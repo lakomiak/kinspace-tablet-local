@@ -132,7 +132,7 @@ com.adhdfocus.app/
 │   │   ├── SignInScreen.kt
 │   │   └── AuthNavigation.kt
 │   │
-│   ├── focus/                               # Daily Focus View feature
+│   ├── focus/                               # Home screen feature
 │   │   ├── FocusViewModel.kt
 │   │   ├── DailyFocusScreen.kt
 │   │   ├── TaskListSection.kt
@@ -295,7 +295,7 @@ com.adhdfocus.app/
 
 ### Major Features
 1. **Auth** - Authentication and sign-in
-2. **Focus** - Daily Focus View (primary interface)
+2. **Home** - Home screen (primary interface)
 3. **Task** - Task creation, editing, deletion
 4. **Timer** - Timer functionality with visual feedback
 5. **Achievements** - Badges, streaks, efficiency metrics

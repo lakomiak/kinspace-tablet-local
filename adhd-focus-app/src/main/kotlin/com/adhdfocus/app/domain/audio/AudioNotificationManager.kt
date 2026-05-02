@@ -5,6 +5,7 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.adhdfocus.app.data.model.TimerAlarmSound
 import javax.inject.Inject
 
 /**
@@ -25,18 +26,13 @@ class AudioNotificationManager @Inject constructor(
     /**
      * Plays the timer completion notification sound.
      */
-    fun playTimerCompletionSound() {
-        try {
-            // Get the default notification sound
-            val notificationUri: Uri = RingtoneManager.getDefaultUri(
-                RingtoneManager.TYPE_NOTIFICATION
-            )
-
-            mediaPlayer?.release()
-            mediaPlayer = MediaPlayer.create(context, notificationUri)
-            mediaPlayer?.start()
-        } catch (e: Exception) {
-            // Handle error silently
+    fun playTimerCompletionSound(alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM) {
+        when (alarmSound) {
+            TimerAlarmSound.ALARM -> playRingtone(RingtoneManager.TYPE_ALARM)
+            TimerAlarmSound.NOTIFICATION -> playRingtone(RingtoneManager.TYPE_NOTIFICATION)
+            TimerAlarmSound.BEEP -> playBeep()
+            TimerAlarmSound.MULTI_BEEP -> playMultipleBeeps(3)
+            TimerAlarmSound.SILENT -> Unit
         }
     }
 
@@ -90,6 +86,18 @@ class AudioNotificationManager @Inject constructor(
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             )
             ringtone.play()
+        } catch (e: Exception) {
+            // Handle error silently
+        }
+    }
+
+    private fun playRingtone(type: Int) {
+        try {
+            val ringtoneUri: Uri = RingtoneManager.getDefaultUri(type)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer.create(context, ringtoneUri)
+            mediaPlayer?.start()
         } catch (e: Exception) {
             // Handle error silently
         }

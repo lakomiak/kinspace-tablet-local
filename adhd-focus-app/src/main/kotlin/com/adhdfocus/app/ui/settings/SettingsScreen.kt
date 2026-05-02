@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adhdfocus.app.data.model.NotificationPreferences
+import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
 
 /**
@@ -55,6 +56,7 @@ import com.adhdfocus.app.data.model.Theme
 @Composable
 fun SettingsScreen(
     userId: String,
+    onChangeMemberClick: () -> Unit,
     onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -135,7 +137,8 @@ fun SettingsScreen(
             SettingSection(title = "Notifications") {
                 NotificationPreferencesPanel(
                     preferences = notificationPreferences,
-                    onPreferencesChanged = { viewModel.updateNotificationPreferences(it) }
+                    onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                    onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
                 )
             }
 
@@ -250,7 +253,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Family task management for everyone",
+                        text = "Family To Do's management for everyone",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -264,6 +267,16 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                OutlinedButton(
+                    onClick = onChangeMemberClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    enabled = !isSaving
+                ) {
+                    Text("Change member")
+                }
+
                 OutlinedButton(
                     onClick = { viewModel.resetToDefaults() },
                     modifier = Modifier
@@ -468,7 +481,8 @@ fun ThemeSelector(
 @Composable
 fun NotificationPreferencesPanel(
     preferences: NotificationPreferences,
-    onPreferencesChanged: (NotificationPreferences) -> Unit
+    onPreferencesChanged: (NotificationPreferences) -> Unit,
+    onPreviewTimerAlarm: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -497,7 +511,38 @@ fun NotificationPreferencesPanel(
                 onPreferencesChanged(preferences.copy(visualAlertsEnabled = it))
             }
         )
+
+        SettingDropdown(
+            label = "Timer Alarm Sound",
+            selectedValue = preferences.timerAlarmSound.name,
+            options = TimerAlarmSound.values().map { it.name },
+            onOptionSelected = { selected -> 
+                val alarmSound = runCatching { TimerAlarmSound.valueOf(selected) }
+                    .getOrDefault(TimerAlarmSound.ALARM)
+                onPreferencesChanged(preferences.copy(timerAlarmSound = alarmSound))
+            }
+        )
+        Text(
+            text = "Current sound: ${preferences.timerAlarmSound.displayLabel()}",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        OutlinedButton(
+            onClick = onPreviewTimerAlarm,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Preview ${preferences.timerAlarmSound.displayLabel()}")
+        }
     }
+}
+
+private fun TimerAlarmSound.displayLabel(): String = when (this) {
+    TimerAlarmSound.ALARM -> "Alarm"
+    TimerAlarmSound.NOTIFICATION -> "Notify"
+    TimerAlarmSound.BEEP -> "Beep"
+    TimerAlarmSound.MULTI_BEEP -> "Triple"
+    TimerAlarmSound.SILENT -> "Silent"
 }
 
 /**

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adhdfocus.app.data.model.NotificationPreferences
+import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
 
 /**
@@ -133,7 +134,8 @@ fun UserPreferencesScreen(
             // Notification Preferences
             NotificationPreferencesPanel(
                 preferences = notificationPreferences,
-                onPreferencesChanged = { viewModel.updateNotificationPreferences(it) }
+                onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -282,7 +284,8 @@ fun ThemeSelector(
 @Composable
 fun NotificationPreferencesPanel(
     preferences: NotificationPreferences,
-    onPreferencesChanged: (NotificationPreferences) -> Unit
+    onPreferencesChanged: (NotificationPreferences) -> Unit,
+    onPreviewTimerAlarm: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -363,7 +366,64 @@ fun NotificationPreferencesPanel(
                 }
             )
         }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Timer Alarm Sound",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                TimerAlarmSound.values().forEach { sound ->
+                    OutlinedButton(
+                        onClick = { onPreferencesChanged(preferences.copy(timerAlarmSound = sound)) },
+                        modifier = Modifier.weight(1f),
+                        enabled = preferences.timerAlarmSound != sound
+                    ) {
+                        Text(
+                            text = when (sound) {
+                                TimerAlarmSound.ALARM -> "Alarm"
+                                TimerAlarmSound.NOTIFICATION -> "Notify"
+                                TimerAlarmSound.BEEP -> "Beep"
+                                TimerAlarmSound.MULTI_BEEP -> "Triple"
+                                TimerAlarmSound.SILENT -> "Silent"
+                            }
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "Current sound: ${preferences.timerAlarmSound.displayLabel()}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        OutlinedButton(
+            onClick = onPreviewTimerAlarm,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Preview ${preferences.timerAlarmSound.displayLabel()}")
+        }
     }
+}
+
+private fun TimerAlarmSound.displayLabel(): String = when (this) {
+    TimerAlarmSound.ALARM -> "Alarm"
+    TimerAlarmSound.NOTIFICATION -> "Notify"
+    TimerAlarmSound.BEEP -> "Beep"
+    TimerAlarmSound.MULTI_BEEP -> "Triple"
+    TimerAlarmSound.SILENT -> "Silent"
 }
 
 /**

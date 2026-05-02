@@ -5,12 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
+import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /**
@@ -30,8 +33,10 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val themeManager: ThemeManager,
-    private val authManager: com.adhdfocus.app.domain.auth.AuthManager
+    private val authManager: com.adhdfocus.app.domain.auth.AuthManager,
+    private val audioNotificationManager: AudioNotificationManager
 ) : ViewModel() {
+    private val json = Json { ignoreUnknownKeys = true }
 
     private val _theme = MutableStateFlow(Theme.LIGHT)
     val theme: StateFlow<Theme> = _theme
@@ -163,6 +168,13 @@ class SettingsViewModel @Inject constructor(
     fun updateNotificationPreferences(prefs: NotificationPreferences) {
         _notificationPreferences.value = prefs
         saveCurrentSettings()
+    }
+
+    /**
+     * Plays the currently selected timer alarm sound.
+     */
+    fun previewTimerAlarm() {
+        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
     }
 
     /**
@@ -376,6 +388,6 @@ class SettingsViewModel @Inject constructor(
      * @return JSON string
      */
     private fun serializeNotificationPreferences(prefs: NotificationPreferences): String {
-        return "{\"soundEnabled\":${prefs.soundEnabled},\"vibrationEnabled\":${prefs.vibrationEnabled},\"visualAlertsEnabled\":${prefs.visualAlertsEnabled}}"
+        return json.encodeToString(prefs)
     }
 }

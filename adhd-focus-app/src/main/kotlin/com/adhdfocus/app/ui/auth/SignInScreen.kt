@@ -87,7 +87,7 @@ fun SignInScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Family task management",
+            text = "Family To Do's management",
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )

@@ -142,6 +142,8 @@ class AuthManager @Inject constructor(
 
     fun getAccessToken(): String? = tokenStorage.getAccessToken()
 
+    fun getIdToken(): String? = tokenStorage.getIdToken()
+
     fun getRefreshToken(): String? = tokenStorage.getRefreshToken()
 
     suspend fun logout() {

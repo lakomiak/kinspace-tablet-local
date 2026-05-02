@@ -57,6 +57,24 @@ class TaskPersistenceManagerImpl @Inject constructor(
         }
     }
 
+    override suspend fun replaceTasksForHousehold(householdId: String, tasks: List<Task>) {
+        require(householdId.isNotBlank()) { "householdId cannot be blank" }
+
+        taskDao.softDeleteAllHouseholdTasks(householdId)
+
+        tasks.forEach { task ->
+            require(task.householdId.isNotBlank()) { "householdId cannot be blank" }
+            require(task.assignedUserId.isNotBlank()) { "assignedUserId cannot be blank" }
+            require(task.title.isNotBlank()) { "title cannot be blank" }
+            val existingTask = taskDao.getTaskById(task.id)
+            if (existingTask != null) {
+                taskDao.update(task)
+            } else {
+                taskDao.insert(task)
+            }
+        }
+    }
+
     override suspend fun getTasks(householdId: String): List<Task> {
         require(householdId.isNotBlank()) { "householdId cannot be blank" }
         return taskDao.getTasksByHouseholdOnce(householdId)

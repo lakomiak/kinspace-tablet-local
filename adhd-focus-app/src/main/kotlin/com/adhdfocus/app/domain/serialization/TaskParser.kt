@@ -5,6 +5,8 @@ import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.model.SyncStatus
 import org.json.JSONObject
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * TaskParser converts JSON representations back into Task objects.
@@ -53,11 +55,15 @@ class TaskParser {
             ?: throw IllegalArgumentException("Missing required field: title")
         val todoGroup = json.optString("todoGroup", "").takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Missing required field: todoGroup")
+        val repeatRule = json.optString("repeatRule", json.optString("repeat", "once"))
+            .takeIf { it.isNotBlank() } ?: "once"
 
         // Extract optional fields
         val description = json.optString("description", null).takeIf { it?.isNotBlank() == true }
         val estimatedDurationMinutes = json.optInt("estimatedDurationMinutes", -1).takeIf { it > 0 }
+        val estimatedDurationSeconds = json.optInt("estimatedDurationSeconds", -1).takeIf { it > 0 }
         val actualDurationMinutes = json.optInt("actualDurationMinutes", -1).takeIf { it >= 0 }
+        val timerDurationMs = parseTimer(json)
 
         // Parse status enum
         val statusString = json.optString("status", "INCOMPLETE")
@@ -76,9 +82,12 @@ class TaskParser {
         }
 
         // Parse timestamps
-        val createdAt = parseInstant(json.optLong("createdAt", 0))
-        val updatedAt = parseInstant(json.optLong("updatedAt", 0))
-        val completedAt = json.optLong("completedAt", 0).takeIf { it > 0 }?.let { parseInstant(it) }
+        val dueDate = parseFlexibleInstant(json, "dueDate")
+        val createdAt = parseFlexibleInstant(json, "createdAt")
+            ?: throw IllegalArgumentException("Missing required field: createdAt")
+        val updatedAt = parseFlexibleInstant(json, "updatedAt")
+            ?: throw IllegalArgumentException("Missing required field: updatedAt")
+        val completedAt = parseFlexibleInstant(json, "completedAt")
 
         val isDeleted = json.optBoolean("isDeleted", false)
 
@@ -89,9 +98,13 @@ class TaskParser {
             title = title,
             description = description,
             todoGroup = todoGroup,
+            repeatRule = repeatRule,
             estimatedDurationMinutes = estimatedDurationMinutes,
+            estimatedDurationSeconds = estimatedDurationSeconds,
+            timerDurationMs = timerDurationMs,
             actualDurationMinutes = actualDurationMinutes,
             status = status,
+            dueDate = dueDate,
             createdAt = createdAt,
             updatedAt = updatedAt,
             completedAt = completedAt,
@@ -128,5 +141,28 @@ class TaskParser {
      */
     private fun parseInstant(timestamp: Long): Instant {
         return Instant.ofEpochMilli(timestamp)
+    }
+
+    private fun parseFlexibleInstant(json: JSONObject, key: String): Instant? {
+        if (!json.has(key) || json.isNull(key)) {
+            return null
+        }
+
+        return when (val value = json.opt(key)) {
+            is Number -> Instant.ofEpochMilli(value.toLong())
+            is String -> value.takeIf { it.isNotBlank() }?.let {
+                runCatching { Instant.parse(it) }.getOrNull()
+                    ?: runCatching { Instant.ofEpochMilli(it.toLong()) }.getOrNull()
+                    ?: runCatching { LocalDate.parse(it).atStartOfDay(ZoneId.systemDefault()).toInstant() }.getOrNull()
+            }
+            else -> null
+        }
+    }
+
+    private fun parseTimer(json: JSONObject): Long? {
+        if (!json.has("timer") || json.isNull("timer")) return null
+        val timerObj = json.optJSONObject("timer") ?: return null
+        val durationMs = timerObj.optLong("durationMs", 0L)
+        return durationMs.takeIf { it > 0 }
     }
 }

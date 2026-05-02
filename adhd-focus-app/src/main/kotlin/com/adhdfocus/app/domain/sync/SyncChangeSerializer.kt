@@ -2,7 +2,9 @@ package com.adhdfocus.app.domain.sync
 
 import com.adhdfocus.app.data.model.SyncOperation
 import com.adhdfocus.app.data.model.Task
+import com.adhdfocus.app.data.model.TaskStatus
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import java.time.Instant
 import javax.inject.Inject
 
@@ -25,7 +27,7 @@ class SyncChangeSerializer @Inject constructor(
      * @return SyncChange with serialized payload
      */
     fun createSyncChange(task: Task, operation: SyncOperation): SyncChange {
-        val payload = gson.toJson(task)
+        val payload = serializeTask(task)
         return SyncChange(
             taskId = task.id,
             operation = operation,
@@ -56,7 +58,29 @@ class SyncChangeSerializer @Inject constructor(
      * @return JSON string representation
      */
     fun serializeTask(task: Task): String {
-        return gson.toJson(task)
+        val payload = JsonObject().apply {
+            addProperty("id", task.id)
+            addProperty("householdId", task.householdId)
+            addProperty("assignedUserId", task.assignedUserId)
+            addProperty("title", task.title)
+            addProperty("description", task.description)
+            addProperty("todoGroup", task.todoGroup)
+            addProperty("repeat", task.repeatRule)
+            addProperty("repeatRule", task.repeatRule)
+            addProperty("estimatedDurationMinutes", task.estimatedDurationMinutes)
+            addProperty("estimatedDurationSeconds", task.estimatedDurationSeconds)
+            addProperty("timerDurationMs", task.timerDurationMs)
+            addProperty("actualDurationMinutes", task.actualDurationMinutes)
+            addProperty("status", task.status.name)
+            addProperty("done", task.status == TaskStatus.COMPLETED)
+            addProperty("dueDate", task.dueDate?.toString())
+            addProperty("createdAt", task.createdAt.toString())
+            addProperty("updatedAt", task.updatedAt.toString())
+            addProperty("completedAt", task.completedAt?.toString())
+            addProperty("syncStatus", task.syncStatus.name)
+            addProperty("isDeleted", task.isDeleted)
+        }
+        return gson.toJson(payload)
     }
 
     /**

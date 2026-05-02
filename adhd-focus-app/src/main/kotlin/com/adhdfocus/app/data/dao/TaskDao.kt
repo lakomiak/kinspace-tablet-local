@@ -39,9 +39,9 @@ interface TaskDao {
         SELECT * FROM tasks 
         WHERE assignedUserId = :userId 
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getTasksByUserAndDateRange(
         userId: String,
@@ -53,9 +53,9 @@ interface TaskDao {
         SELECT * FROM tasks 
         WHERE householdId = :householdId 
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getTasksByHouseholdAndDateRange(
         householdId: String,
@@ -68,9 +68,9 @@ interface TaskDao {
         WHERE householdId = :householdId 
         AND assignedUserId = :userId
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getTasksByUserAndDateRange(
         householdId: String,
@@ -83,9 +83,9 @@ interface TaskDao {
         SELECT * FROM tasks 
         WHERE householdId = :householdId 
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getTasksByHouseholdAndDateRange(
         householdId: String,
@@ -204,9 +204,9 @@ interface TaskDao {
         SELECT * FROM tasks 
         WHERE householdId = :householdId 
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getTasksInDateRange(
         householdId: String,
@@ -218,9 +218,9 @@ interface TaskDao {
         SELECT * FROM tasks 
         WHERE assignedUserId = :userId 
         AND isDeleted = 0 
-        AND createdAt >= :startTime 
-        AND createdAt <= :endTime
-        ORDER BY createdAt DESC
+        AND COALESCE(dueDate, createdAt) >= :startTime 
+        AND COALESCE(dueDate, createdAt) <= :endTime
+        ORDER BY COALESCE(dueDate, createdAt) DESC
     """)
     suspend fun getUserTasksInDateRange(
         userId: String,

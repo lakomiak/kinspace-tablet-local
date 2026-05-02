@@ -8,6 +8,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
+import java.time.Duration
 
 /**
  * Utility functions for screen reader support and semantic descriptions.
@@ -16,8 +17,8 @@ import com.adhdfocus.app.data.model.TaskStatus
 object ScreenReaderSupport {
 
     /**
-     * Generates accessible description for a task.
-     * @param task The task to describe
+     * Generates accessible description for a To Do.
+     * @param task The To Do to describe
      * @return Accessible description string
      */
     fun getTaskDescription(task: Task): String {
@@ -26,38 +27,52 @@ object ScreenReaderSupport {
             TaskStatus.IN_PROGRESS -> "in progress"
             TaskStatus.COMPLETED -> "completed"
         }
-        
-        val durationText = if ((task.estimatedDurationMinutes ?: 0) > 0) {
-            ", estimated ${task.estimatedDurationMinutes} minutes"
-        } else {
-            ""
+
+        val durationText = when {
+            (task.timerDurationMs ?: 0L) > 0L -> {
+                val totalSeconds = Duration.ofMillis(task.timerDurationMs!!).seconds.toInt()
+                val minutes = totalSeconds / 60
+                val seconds = totalSeconds % 60
+                when {
+                    minutes > 0 && seconds > 0 -> ", estimated $minutes minutes $seconds seconds"
+                    minutes > 0 -> ", estimated $minutes minutes"
+                    else -> ", estimated $seconds seconds"
+                }
+            }
+            (task.estimatedDurationMinutes ?: 0) > 0 && (task.estimatedDurationSeconds ?: 0) > 0 ->
+                ", estimated ${task.estimatedDurationMinutes} minutes ${task.estimatedDurationSeconds} seconds"
+            (task.estimatedDurationMinutes ?: 0) > 0 ->
+                ", estimated ${task.estimatedDurationMinutes} minutes"
+            (task.estimatedDurationSeconds ?: 0) > 0 ->
+                ", estimated ${task.estimatedDurationSeconds} seconds"
+            else -> ""
         }
-        
+
         return "${task.title}, $statusText$durationText"
     }
 
     /**
-     * Generates accessible description for task status.
-     * @param status The task status
+     * Generates accessible description for To Do status.
+     * @param status The To Do status
      * @return Accessible status description
      */
     fun getStatusDescription(status: TaskStatus): String {
         return when (status) {
-            TaskStatus.INCOMPLETE -> "Task is incomplete"
-            TaskStatus.IN_PROGRESS -> "Task is in progress"
-            TaskStatus.COMPLETED -> "Task is completed"
+            TaskStatus.INCOMPLETE -> "To Do is incomplete"
+            TaskStatus.IN_PROGRESS -> "To Do is in progress"
+            TaskStatus.COMPLETED -> "To Do is completed"
         }
     }
 
     /**
      * Generates accessible description for completion percentage.
-     * @param completed Number of completed tasks
-     * @param total Total number of tasks
+     * @param completed Number of completed To Do's
+     * @param total Total number of To Do's
      * @return Accessible percentage description
      */
     fun getCompletionDescription(completed: Int, total: Int): String {
         val percentage = if (total > 0) (completed * 100) / total else 0
-        return "$completed of $total tasks complete, $percentage percent"
+        return "$completed of $total To Do's complete, $percentage percent"
     }
 
     /**

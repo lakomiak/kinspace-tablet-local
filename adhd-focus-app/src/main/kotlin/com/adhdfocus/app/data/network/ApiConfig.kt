@@ -19,10 +19,10 @@ object ApiConfig {
 
     // Task management endpoints
     object Tasks {
-        const val GET_TASKS = "households/{householdId}/tasks"
-        const val CREATE_TASK = "households/{householdId}/tasks"
-        const val UPDATE_TASK = "households/{householdId}/tasks/{taskId}"
-        const val DELETE_TASK = "households/{householdId}/tasks/{taskId}"
+        const val GET_TASKS = "households/{householdId}/todos"
+        const val CREATE_TASK = "households/{householdId}/todos"
+        const val UPDATE_TASK = "households/{householdId}/todos/{taskId}"
+        const val DELETE_TASK = "households/{householdId}/todos/{taskId}"
     }
 
     // Sync endpoints

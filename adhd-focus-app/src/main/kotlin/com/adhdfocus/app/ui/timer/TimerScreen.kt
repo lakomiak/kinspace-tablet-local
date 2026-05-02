@@ -33,7 +33,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
  */
 @Composable
 fun TimerScreen(
-    onTimerComplete: () -> Unit,
+    taskId: String = "",
+    initialDurationSeconds: Int = 0,
+    onTaskCompleted: () -> Unit,
     onCancel: () -> Unit,
     viewModel: TimerViewModel = hiltViewModel()
 ) {
@@ -43,6 +45,18 @@ fun TimerScreen(
     val isPaused by viewModel.isPaused.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val timerCompleted by viewModel.timerCompleted.collectAsState()
+
+    LaunchedEffect(taskId) {
+        if (taskId.isNotBlank()) {
+            viewModel.setTaskId(taskId)
+        }
+    }
+
+    LaunchedEffect(initialDurationSeconds) {
+        if (initialDurationSeconds > 0 && timerDuration == 0 && !isRunning) {
+            viewModel.startTimer(initialDurationSeconds)
+        }
+    }
 
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
@@ -54,12 +68,6 @@ fun TimerScreen(
         animatedProgress < 0.5f -> Color(0xFF43A047) // Green
         animatedProgress < 0.9f -> Color(0xFFFB8C00) // Orange
         else -> Color(0xFFE53935) // Red
-    }
-
-    LaunchedEffect(timerCompleted) {
-        if (timerCompleted) {
-            onTimerComplete()
-        }
     }
 
     Box(
@@ -153,6 +161,30 @@ fun TimerScreen(
                 }
             }
 
+            if (timerCompleted) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFE53935).copy(alpha = 0.12f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Timer complete",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE53935)
+                        )
+                    }
+                }
+            }
+
             // Control buttons
             Row(
                 modifier = Modifier
@@ -173,6 +205,7 @@ fun TimerScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
+                    enabled = isRunning,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFB8C00)
                     )
@@ -209,16 +242,32 @@ fun TimerScreen(
                 }
             }
 
-            // Extend timer button
+            // Reset timer button
             OutlinedButton(
                 onClick = {
-                    viewModel.extendTimer(5)
+                    viewModel.resetTimer()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
-                Text("+ 5 Minutes")
+                Text("Reset Timer")
+            }
+
+            if (taskId.isNotBlank()) {
+                Button(
+                    onClick = {
+                        viewModel.completeCurrentTask(onTaskCompleted)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF43A047)
+                    )
+                ) {
+                    Text("Complete To Do")
+                }
             }
         }
     }

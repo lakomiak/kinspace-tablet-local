@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kinspace</string>
-    <string name="daily_focus">Daily Focus</string>
+    <string name="home">Home</string>
     <string name="achievements">Achievements</string>
     <string name="settings">Settings</string>
-    <string name="tasks_complete">Tasks Complete</string>
+    <string name="tasks_complete">To Do\'s Complete</string>
     <string name="current_streak">Current Streak</string>
     <string name="days">days</string>
-    <string name="create_task">Create Task</string>
-    <string name="task_title">Task Title</string>
-    <string name="task_description">Description</string>
+    <string name="create_task">Create To Do</string>
+    <string name="task_title">To Do Title</string>
+    <string name="task_description">To Do Description</string>
     <string name="estimated_duration">Estimated Duration (minutes)</string>
-    <string name="todo_group">Todo Group</string>
+    <string name="todo_group">To Do Group</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>

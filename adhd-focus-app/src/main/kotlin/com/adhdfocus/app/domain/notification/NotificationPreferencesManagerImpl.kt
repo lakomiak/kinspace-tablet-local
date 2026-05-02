@@ -28,7 +28,8 @@ class NotificationPreferencesManagerImpl @Inject constructor(
         private val DEFAULT_PREFERENCES = NotificationPreferences(
             soundEnabled = true,
             vibrationEnabled = true,
-            visualAlertsEnabled = true
+            visualAlertsEnabled = true,
+            timerAlarmSound = com.adhdfocus.app.data.model.TimerAlarmSound.ALARM
         )
     }
 

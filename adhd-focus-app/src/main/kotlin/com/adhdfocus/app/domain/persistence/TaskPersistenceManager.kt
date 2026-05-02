@@ -36,6 +36,17 @@ interface TaskPersistenceManager {
     suspend fun saveTasks(tasks: List<Task>)
 
     /**
+     * Replaces all tasks for a household with the provided set.
+     *
+     * This is used for cloud refreshes where the remote household list is the source of truth.
+     * Tasks that are not present in the incoming list are soft deleted locally.
+     *
+     * @param householdId The household whose task set should be replaced
+     * @param tasks The current canonical tasks for that household
+     */
+    suspend fun replaceTasksForHousehold(householdId: String, tasks: List<Task>)
+
+    /**
      * Retrieves all tasks for a household.
      *
      * @param householdId The household ID

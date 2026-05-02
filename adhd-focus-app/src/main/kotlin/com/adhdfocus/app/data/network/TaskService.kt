@@ -4,8 +4,8 @@ import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 
 /**
@@ -13,20 +13,20 @@ import retrofit2.http.Path
  */
 interface TaskService {
     @GET(ApiConfig.Tasks.GET_TASKS)
-    fun getTasks(@Path("householdId") householdId: String): Call<TasksResponse>
+    fun getTasks(@Path("householdId") householdId: String): Call<TodosResponse>
 
     @POST(ApiConfig.Tasks.CREATE_TASK)
     fun createTask(
         @Path("householdId") householdId: String,
         @Body request: CreateTaskRequest
-    ): Call<TaskResponse>
+    ): Call<TodoEnvelope>
 
-    @PUT(ApiConfig.Tasks.UPDATE_TASK)
+    @PATCH(ApiConfig.Tasks.UPDATE_TASK)
     fun updateTask(
         @Path("householdId") householdId: String,
         @Path("taskId") taskId: String,
         @Body request: UpdateTaskRequest
-    ): Call<TaskResponse>
+    ): Call<TodoEnvelope>
 
     @DELETE(ApiConfig.Tasks.DELETE_TASK)
     fun deleteTask(

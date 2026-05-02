@@ -18,10 +18,10 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Progress Header Component
- * 
+ *
  * Displays:
  * - Completion percentage with animated progress bar
- * - Task count (e.g., "5 of 8 complete")
+ * - To Do count (e.g., "5 of 8 complete")
  * - Current streak with fire icon
  */
 @Composable
@@ -49,7 +49,6 @@ fun ProgressHeader(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Completion Percentage
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,8 +64,8 @@ fun ProgressHeader(
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = when {
-                        completionPercentage >= 100 -> Color(0xFF43A047) // Green
-                        completionPercentage >= 50 -> Color(0xFFFB8C00) // Orange
+                        completionPercentage >= 100 -> Color(0xFF43A047)
+                        completionPercentage >= 50 -> Color(0xFFFB8C00)
                         else -> MaterialTheme.colorScheme.primary
                     }
                 )
@@ -74,7 +73,6 @@ fun ProgressHeader(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Progress Bar
             LinearProgressIndicator(
                 progress = animatedProgress,
                 modifier = Modifier
@@ -82,8 +80,8 @@ fun ProgressHeader(
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp)),
                 color = when {
-                    completionPercentage >= 100 -> Color(0xFF43A047) // Green
-                    completionPercentage >= 50 -> Color(0xFFFB8C00) // Orange
+                    completionPercentage >= 100 -> Color(0xFF43A047)
+                    completionPercentage >= 50 -> Color(0xFFFB8C00)
                     else -> MaterialTheme.colorScheme.primary
                 },
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -91,20 +89,17 @@ fun ProgressHeader(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Task Count and Streak
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Task Count
                 Text(
-                    text = "$completedCount of $totalCount tasks complete",
+                    text = "$completedCount of $totalCount To Do's complete",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Streak Display
                 if (currentStreak > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -126,7 +121,6 @@ fun ProgressHeader(
                 }
             }
 
-            // Day Complete Indicator
             if (completionPercentage >= 100 && totalCount > 0) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
@@ -142,7 +136,7 @@ fun ProgressHeader(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🎉 Day Complete!",
+                            text = "Day Complete!",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF43A047)

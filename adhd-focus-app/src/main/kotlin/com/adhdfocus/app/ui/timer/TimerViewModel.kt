@@ -2,12 +2,20 @@ package com.adhdfocus.app.ui.timer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adhdfocus.app.data.model.TimerAlarmSound
+import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.preferences.UserPreferencesManager
+import com.adhdfocus.app.domain.setup.TabletSetupManager
+import com.adhdfocus.app.domain.sync.CloudSyncManager
+import com.adhdfocus.app.domain.task.TaskManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -22,7 +30,13 @@ import javax.inject.Inject
  * - Pause/resume functionality
  */
 @HiltViewModel
-class TimerViewModel @Inject constructor() : ViewModel() {
+class TimerViewModel @Inject constructor(
+    private val audioNotificationManager: AudioNotificationManager,
+    private val userPreferencesManager: UserPreferencesManager,
+    private val setupManager: TabletSetupManager,
+    private val taskManager: TaskManager,
+    private val cloudSyncManager: CloudSyncManager
+) : ViewModel() {
 
     private val _timerDuration = MutableStateFlow(0)
     val timerDuration: StateFlow<Int> = _timerDuration
@@ -43,23 +57,30 @@ class TimerViewModel @Inject constructor() : ViewModel() {
     val timerCompleted: StateFlow<Boolean> = _timerCompleted
 
     private var timerJob: Job? = null
+    private var configuredDurationSeconds: Int = 0
+    private var currentTaskId: String? = null
 
     /**
-     * Starts the timer with the specified duration in minutes.
+     * Starts the timer with the specified duration in seconds.
      *
-     * @param durationMinutes Duration in minutes
+     * @param durationSeconds Duration in seconds
      */
-    fun startTimer(durationMinutes: Int) {
-        if (durationMinutes <= 0) return
+    fun startTimer(durationSeconds: Int) {
+        if (durationSeconds <= 0) return
 
-        _timerDuration.value = durationMinutes * 60 // Convert to seconds
-        _timeRemaining.value = durationMinutes * 60
+        configuredDurationSeconds = durationSeconds
+        _timerDuration.value = durationSeconds
+        _timeRemaining.value = durationSeconds
         _isRunning.value = true
         _isPaused.value = false
         _timerCompleted.value = false
         _progress.value = 0f
 
         startCountdown()
+    }
+
+    fun setTaskId(taskId: String) {
+        currentTaskId = taskId.ifBlank { null }
     }
 
     /**
@@ -117,6 +138,7 @@ class TimerViewModel @Inject constructor() : ViewModel() {
      */
     fun cancelTimer() {
         timerJob?.cancel()
+        audioNotificationManager.stopSound()
         _isRunning.value = false
         _isPaused.value = false
         _timerDuration.value = 0
@@ -133,6 +155,9 @@ class TimerViewModel @Inject constructor() : ViewModel() {
         _isPaused.value = false
         _timerCompleted.value = true
         timerJob?.cancel()
+        viewModelScope.launch {
+            playCompletionAlarm()
+        }
     }
 
     /**
@@ -198,6 +223,47 @@ class TimerViewModel @Inject constructor() : ViewModel() {
      */
     fun resetTimer() {
         cancelTimer()
+        if (configuredDurationSeconds > 0) {
+            startTimer(configuredDurationSeconds)
+        }
+    }
+
+    fun completeCurrentTask(onCompleted: (() -> Unit)? = null) {
+        val taskId = currentTaskId ?: return
+        viewModelScope.launch {
+            try {
+                cancelTimer()
+                taskManager.completeTask(taskId)
+                val householdId = setupManager.getHouseholdId().orEmpty()
+                val userId = setupManager.getAssignedMemberId().orEmpty()
+                if (householdId.isNotBlank() && userId.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
+                        cloudSyncManager.syncPendingChanges(householdId, userId)
+                    }
+                }
+                onCompleted?.invoke()
+            } catch (_: Exception) {
+                // Keep the screen open if completion fails.
+            }
+        }
+    }
+
+    private suspend fun playCompletionAlarm() {
+        val userId = setupManager.getAssignedMemberId().orEmpty()
+        val preferences = if (userId.isNotBlank()) {
+            userPreferencesManager.getPreferencesOrDefault(userId)
+        } else {
+            null
+        }
+        val notificationPreferences = preferences
+            ?.let { userPreferencesManager.deserializeNotificationPreferences(it.notificationPreferences) }
+            ?: com.adhdfocus.app.data.model.NotificationPreferences()
+
+        if (!notificationPreferences.soundEnabled) {
+            return
+        }
+
+        audioNotificationManager.playTimerCompletionSound(notificationPreferences.timerAlarmSound)
     }
 
     override fun onCleared() {

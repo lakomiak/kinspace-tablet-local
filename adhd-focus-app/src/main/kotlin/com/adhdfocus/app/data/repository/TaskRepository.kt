@@ -1,5 +1,6 @@
 package com.adhdfocus.app.data.repository
 
+import android.util.Log
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
@@ -20,6 +21,8 @@ import java.time.ZoneId
 class TaskRepository @Inject constructor(
     private val taskDao: TaskDao
 ) {
+    private val tag = "TaskRepository"
+
     /**
      * Creates a new task.
      *
@@ -84,22 +87,107 @@ class TaskRepository @Inject constructor(
     }
 
     /**
-     * Gets all tasks for today.
+     * Gets the tasks that should be visible today for the household.
+     *
+     * The tablet Home screen is pinned to one family member, so we mirror the
+     * source app's member-scoped Today view and advance repeating tasks before
+     * applying the due-date filter.
      *
      * @param householdId Household ID
-     * @param userId User ID (optional)
-     * @return List of today's tasks
+     * @param userId Assigned member ID, kept for logging/context
+     * @param memberName Assigned member display name fallback, kept for logging/context
+     * @return List of tasks that are active for today
      */
-    suspend fun getTasksForToday(householdId: String, userId: String? = null): List<Task> {
+    suspend fun getTasksForToday(
+        householdId: String,
+        userId: String,
+        memberName: String? = null
+    ): List<Task> {
         val today = LocalDate.now()
-        val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
-        val endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
-
-        return if (userId != null) {
-            taskDao.getTasksByUserAndDateRange(userId, startOfDay, endOfDay)
-        } else {
-            taskDao.getTasksInDateRange(householdId, startOfDay, endOfDay)
+        val tasks = taskDao.getTasksByHouseholdOnce(householdId)
+        val normalizedTasks = tasks.map { task -> advanceRepeatingTask(task, today) }
+        return normalizedTasks.filter { task ->
+            !task.isDeleted &&
+                matchesPinnedMember(task, userId, memberName) &&
+                shouldShowTaskToday(task, today)
+        }.also { filtered ->
+            val visibleSummary = filtered.joinToString(", ") { task ->
+                "${task.title}|assignee=${task.assignedUserId}|due=${task.dueDate}|repeat=${task.repeatRule}|status=${task.status}"
+            }
+            Log.d(
+                tag,
+                "getTasksForToday householdId=$householdId userId=$userId memberName=$memberName today=$today loaded=${tasks.size} filtered=${filtered.size} tasks=[$visibleSummary]"
+            )
         }
+    }
+
+    private fun matchesPinnedMember(task: Task, userId: String, memberName: String?): Boolean {
+        val assigned = task.assignedUserId.trim().lowercase()
+        val userKey = userId.trim().lowercase()
+        val memberKey = memberName?.trim()?.lowercase().orEmpty()
+
+        if (assigned.isBlank()) return false
+        if (userKey.isNotBlank() && assigned == userKey) return true
+        if (memberKey.isNotBlank() && assigned == memberKey) return true
+        return false
+    }
+
+    private fun advanceRepeatingTask(task: Task, today: LocalDate): Task {
+        val dueInstant = task.dueDate ?: return task
+        val repeat = task.repeatRule.trim().lowercase()
+        if (repeat == "once") return task
+
+        val dueDate = dueInstant.atZone(ZoneId.systemDefault()).toLocalDate()
+        if (!dueDate.isBefore(today)) return task
+
+        val (interval, unit) = parseRepeatConfig(repeat)
+        if (interval <= 0 || unit == null) return task
+
+        var next = dueDate
+        while (next.isBefore(today)) {
+            next = when (unit) {
+                "day" -> next.plusDays(interval.toLong())
+                "week" -> next.plusWeeks(interval.toLong())
+                "month" -> next.plusMonths(interval.toLong())
+                "year" -> next.plusYears(interval.toLong())
+                else -> return task
+            }
+        }
+
+        return task.copy(
+            dueDate = next.atStartOfDay(ZoneId.systemDefault()).toInstant(),
+            status = TaskStatus.INCOMPLETE,
+            completedAt = null
+        )
+    }
+
+    private fun shouldShowTaskToday(task: Task, today: LocalDate): Boolean {
+        val dueInstant = task.dueDate ?: return true
+        val dueDateLocal = dueInstant.atZone(ZoneId.systemDefault()).toLocalDate()
+        val repeat = task.repeatRule.trim().lowercase()
+
+        if (repeat == "daily") return true
+        if (dueDateLocal == today) return true
+        return false
+    }
+
+    private fun parseRepeatConfig(value: String): Pair<Int, String?> {
+        if (value.isBlank() || value == "once") return 0 to null
+        if (value == "daily") return 1 to "day"
+        if (value == "weekly") return 1 to "week"
+        if (value == "monthly") return 1 to "month"
+        if (value == "yearly") return 1 to "year"
+
+        if (value.startsWith("custom:")) {
+            val parts = value.split(":")
+            val interval = parts.getOrNull(1)?.toIntOrNull()?.coerceAtLeast(1) ?: return 0 to null
+            val unit = parts.getOrNull(2)
+            if (unit in setOf("day", "week", "month", "year")) {
+                return interval to unit
+            }
+        }
+
+        return 0 to null
     }
 
     /**

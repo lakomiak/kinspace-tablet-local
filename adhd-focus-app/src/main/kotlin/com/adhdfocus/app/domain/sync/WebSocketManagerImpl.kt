@@ -15,6 +15,8 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import javax.inject.Inject
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -194,6 +196,7 @@ class WebSocketManagerImpl @Inject constructor(
     }
 
     private fun parseTask(json: JsonObject): Task {
+        val durationParts = durationPartsFromJson(json)
         return Task(
             id = json.get("id")?.asString ?: "",
             householdId = json.get("householdId")?.asString ?: "",
@@ -201,15 +204,41 @@ class WebSocketManagerImpl @Inject constructor(
             title = json.get("title")?.asString ?: "",
             description = json.get("description")?.asString,
             todoGroup = json.get("todoGroup")?.asString ?: "",
-            estimatedDurationMinutes = json.get("estimatedDurationMinutes")?.asInt,
+            repeatRule = json.get("repeatRule")?.asString?.takeIf { it.isNotBlank() }
+                ?: json.get("repeat")?.asString?.takeIf { it.isNotBlank() }
+                ?: "once",
+            estimatedDurationMinutes = json.get("estimatedDurationMinutes")?.asInt ?: durationParts?.first,
+            estimatedDurationSeconds = durationParts?.second?.takeIf { it > 0 },
+            timerDurationMs = durationParts?.let { (it.first * 60L + it.second.toLong()) * 1000L },
             actualDurationMinutes = json.get("actualDurationMinutes")?.asInt,
             status = TaskStatus.valueOf(json.get("status")?.asString ?: "INCOMPLETE"),
+            dueDate = parseDueDate(json.get("dueDate")?.asString),
             createdAt = Instant.parse(json.get("createdAt")?.asString ?: Instant.now().toString()),
             updatedAt = Instant.parse(json.get("updatedAt")?.asString ?: Instant.now().toString()),
             completedAt = json.get("completedAt")?.asString?.let { Instant.parse(it) },
             syncStatus = SyncStatus.valueOf(json.get("syncStatus")?.asString ?: "PENDING"),
             isDeleted = json.get("isDeleted")?.asBoolean ?: false
         )
+    }
+
+    private fun durationPartsFromJson(json: JsonObject): Pair<Int, Int>? {
+        val timerObj = json.get("timer")?.takeIf { it.isJsonObject }?.asJsonObject
+        val durationMs = timerObj?.get("durationMs")?.takeIf { it.isJsonPrimitive }?.asLong
+            ?: json.get("estimatedDurationSeconds")?.takeIf { it.isJsonPrimitive }?.asInt?.let { it * 1000L }
+        if (durationMs == null || durationMs <= 0) return null
+        val totalSeconds = (durationMs / 1000L).toInt()
+        if (totalSeconds <= 0) return null
+        return (totalSeconds / 60) to (totalSeconds % 60)
+    }
+
+    private fun parseDueDate(value: String?): Instant? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { Instant.parse(value) }
+            .getOrElse {
+                runCatching {
+                    LocalDate.parse(value).atStartOfDay(ZoneId.systemDefault()).toInstant()
+                }.getOrNull()
+            }
     }
 }
 

@@ -93,7 +93,7 @@ class AffirmationTriggerManager @Inject constructor() {
 
     private val dayCompleteMessages = listOf(
         "🎉 Perfect day! You crushed it!",
-        "🌟 All tasks complete! Amazing work!",
+        "🌟 All To Do's complete! Amazing work!",
         "🏆 Day complete! You're unstoppable!",
         "✨ Fantastic! You finished everything!",
         "🚀 Incredible! All tasks done!",

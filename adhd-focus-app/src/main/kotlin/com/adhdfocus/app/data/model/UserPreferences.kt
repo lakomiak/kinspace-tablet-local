@@ -48,5 +48,15 @@ enum class Theme {
 data class NotificationPreferences(
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val visualAlertsEnabled: Boolean = true
+    val visualAlertsEnabled: Boolean = true,
+    val timerAlarmSound: TimerAlarmSound = TimerAlarmSound.ALARM
 )
+
+@Serializable
+enum class TimerAlarmSound {
+    ALARM,
+    NOTIFICATION,
+    BEEP,
+    MULTI_BEEP,
+    SILENT
+}

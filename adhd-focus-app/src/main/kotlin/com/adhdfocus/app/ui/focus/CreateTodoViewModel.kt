@@ -1,0 +1,111 @@
+package com.adhdfocus.app.ui.focus
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.adhdfocus.app.domain.setup.TabletSetupManager
+import com.adhdfocus.app.domain.task.TaskManager
+import com.adhdfocus.app.domain.visibility.TodoGroupVisibilityManager
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import javax.inject.Inject
+
+@HiltViewModel
+class CreateTodoViewModel @Inject constructor(
+    private val taskManager: TaskManager,
+    private val setupManager: TabletSetupManager,
+    private val todoGroupVisibilityManager: TodoGroupVisibilityManager
+) : ViewModel() {
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
+    val todoGroups: List<String> = todoGroupVisibilityManager.getAllTodoGroups()
+
+    fun createTodo(
+        title: String,
+        dueDateText: String,
+        todoGroup: String,
+        repeatRule: String,
+        timerMinutesText: String,
+        timerSecondsText: String,
+        onSuccess: () -> Unit
+    ) {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        val memberId = setupManager.getAssignedMemberId().orEmpty()
+        if (householdId.isBlank() || memberId.isBlank()) {
+            _error.value = "This tablet is not linked to a family member."
+            return
+        }
+
+        val trimmedTitle = title.trim()
+        if (trimmedTitle.isBlank()) {
+            _error.value = "Please enter a To Do title."
+            return
+        }
+
+        val dueDate = parseDueDate(dueDateText)
+        if (dueDateText.isNotBlank() && dueDate == null) {
+            _error.value = "Use YYYY-MM-DD for the due date."
+            return
+        }
+
+        val resolvedGroup = todoGroup.trim().ifBlank { "Other" }
+        val durationMinutes = timerMinutesText.trim().toIntOrNull() ?: 0
+        val durationSeconds = timerSecondsText.trim().toIntOrNull() ?: 0
+        if (durationMinutes < 0) {
+            _error.value = "Timer minutes must be 0 or greater."
+            return
+        }
+        if (durationSeconds < 0 || durationSeconds > 59) {
+            _error.value = "Timer seconds must be between 0 and 59."
+            return
+        }
+
+        val estimatedDurationMinutes = durationMinutes.takeIf { it > 0 }
+        val estimatedDurationSeconds = durationSeconds.takeIf { it > 0 }
+
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                taskManager.createTask(
+                    title = trimmedTitle,
+                    todoGroup = resolvedGroup,
+                    householdId = householdId,
+                    assignedUserId = memberId,
+                    dueDate = dueDate,
+                    estimatedDurationMinutes = estimatedDurationMinutes,
+                    estimatedDurationSeconds = estimatedDurationSeconds,
+                    repeatRule = repeatRule
+                )
+                onSuccess()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create To Do."
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    private fun parseDueDate(value: String): Instant? {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) {
+            return null
+        }
+
+        return runCatching {
+            LocalDate.parse(trimmed).atStartOfDay(ZoneId.systemDefault()).toInstant()
+        }.getOrNull()
+    }
+}

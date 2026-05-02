@@ -1,0 +1,1 @@
+select id, assignedUserId, title, todoGroup, repeatRule, dueDate, isDeleted, householdId from tasks where lower(title) = 'make bed' or lower(title) = 'start laundry' or lower(title) like '%laundry%' order by title, id;

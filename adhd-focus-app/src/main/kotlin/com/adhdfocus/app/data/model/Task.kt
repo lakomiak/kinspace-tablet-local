@@ -15,6 +15,7 @@ import java.util.UUID
         Index("status"),
         Index("syncStatus"),
         Index("todoGroup"),
+        Index("dueDate"),
         Index("createdAt"),
         Index("updatedAt"),
         Index("isDeleted"),
@@ -34,9 +35,13 @@ data class Task(
     val title: String,
     val description: String? = null,
     val todoGroup: String,
+    val repeatRule: String = "once",
     val estimatedDurationMinutes: Int? = null,
+    val estimatedDurationSeconds: Int? = null,
+    val timerDurationMs: Long? = null,
     val actualDurationMinutes: Int? = null,
     val status: TaskStatus = TaskStatus.INCOMPLETE,
+    val dueDate: Instant? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
     val completedAt: Instant? = null,
@@ -48,8 +53,12 @@ data class Task(
         require(assignedUserId.isNotBlank()) { "assignedUserId cannot be blank" }
         require(title.isNotBlank()) { "title cannot be blank" }
         require(todoGroup.isNotBlank()) { "todoGroup cannot be blank" }
+        require(repeatRule.isNotBlank()) { "repeatRule cannot be blank" }
         require(estimatedDurationMinutes == null || estimatedDurationMinutes > 0) {
             "estimatedDurationMinutes must be positive if provided"
+        }
+        require(estimatedDurationSeconds == null || estimatedDurationSeconds > 0) {
+            "estimatedDurationSeconds must be positive if provided"
         }
         require(actualDurationMinutes == null || actualDurationMinutes >= 0) {
             "actualDurationMinutes must be non-negative if provided"

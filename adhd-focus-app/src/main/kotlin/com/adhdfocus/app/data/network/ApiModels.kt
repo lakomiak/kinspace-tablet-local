@@ -42,6 +42,146 @@ data class LogoutRequest(
     val refreshToken: String
 )
 
+// Todo Models
+data class TimerResponse(
+    @SerializedName("durationMs")
+    val durationMs: Long?
+)
+
+data class TodoResponse(
+    val id: String,
+    @SerializedName("householdId")
+    val householdId: String,
+    @SerializedName("text")
+    val text: String,
+    @SerializedName("done")
+    val done: Boolean,
+    @SerializedName("createdAt")
+    val createdAt: String,
+    @SerializedName("dueDate")
+    val dueDate: String?,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
+    @SerializedName("estimatedDurationMinutes")
+    val estimatedDurationMinutes: Int?,
+    @SerializedName("actualDurationMinutes")
+    val actualDurationMinutes: Int?,
+    @SerializedName("group")
+    val group: String?,
+    @SerializedName("category")
+    val category: String?,
+    @SerializedName("member")
+    val member: String?,
+    @SerializedName("assignedTo")
+    val assignedTo: String?,
+    @SerializedName("familyMemberId")
+    val familyMemberId: String?,
+    @SerializedName("timer")
+    val timer: TimerResponse? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String
+)
+
+data class TodosResponse(
+    val todos: List<TodoResponse>? = null,
+    @SerializedName("todayTodos")
+    val todayTodos: List<TodoResponse>? = null,
+    @SerializedName("scheduleTodos")
+    val scheduleTodos: List<TodoScheduleResponse>? = null,
+    @SerializedName("todoStates")
+    val todoStates: List<TodoStateResponse>? = null
+)
+
+data class TodoEnvelope(
+    val todo: TodoResponse?
+)
+
+data class TodoScheduleResponse(
+    val id: String,
+    @SerializedName("householdId")
+    val householdId: String,
+    @SerializedName("text")
+    val text: String? = null,
+    @SerializedName("createdAt")
+    val createdAt: String? = null,
+    @SerializedName("dueDate")
+    val dueDate: String? = null,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
+    @SerializedName("estimatedDurationMinutes")
+    val estimatedDurationMinutes: Int? = null,
+    @SerializedName("actualDurationMinutes")
+    val actualDurationMinutes: Int? = null,
+    @SerializedName("group")
+    val group: String? = null,
+    @SerializedName("category")
+    val category: String? = null,
+    @SerializedName("member")
+    val member: String? = null,
+    @SerializedName("assignedTo")
+    val assignedTo: String? = null,
+    @SerializedName("familyMemberId")
+    val familyMemberId: String? = null,
+    @SerializedName("timer")
+    val timer: TimerResponse? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String? = null,
+    @SerializedName("completedAt")
+    val completedAt: String? = null,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("isDeleted")
+    val isDeleted: Boolean? = null,
+    @SerializedName("done")
+    val done: Boolean? = null
+)
+
+data class TodoStateResponse(
+    val id: String,
+    @SerializedName("householdId")
+    val householdId: String,
+    @SerializedName("done")
+    val done: Boolean? = null,
+    @SerializedName("createdAt")
+    val createdAt: String? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String? = null,
+    @SerializedName("completedAt")
+    val completedAt: String? = null,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("isDeleted")
+    val isDeleted: Boolean? = null,
+    @SerializedName("text")
+    val text: String? = null,
+    @SerializedName("dueDate")
+    val dueDate: String? = null,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
+    @SerializedName("estimatedDurationMinutes")
+    val estimatedDurationMinutes: Int? = null,
+    @SerializedName("actualDurationMinutes")
+    val actualDurationMinutes: Int? = null,
+    @SerializedName("group")
+    val group: String? = null,
+    @SerializedName("category")
+    val category: String? = null,
+    @SerializedName("member")
+    val member: String? = null,
+    @SerializedName("assignedTo")
+    val assignedTo: String? = null,
+    @SerializedName("familyMemberId")
+    val familyMemberId: String? = null,
+    @SerializedName("timer")
+    val timer: TimerResponse? = null
+)
+
 // Task Models
 data class TaskResponse(
     val id: String,
@@ -53,11 +193,18 @@ data class TaskResponse(
     val description: String?,
     @SerializedName("todo_group")
     val todoGroup: String,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
     @SerializedName("estimated_duration_minutes")
     val estimatedDurationMinutes: Int?,
     @SerializedName("actual_duration_minutes")
     val actualDurationMinutes: Int?,
     val status: String,
+    val dueDate: String?,
+    @SerializedName("timer")
+    val timer: TimerResponse? = null,
     @SerializedName("created_at")
     val createdAt: String,
     @SerializedName("updated_at")
@@ -79,8 +226,15 @@ data class CreateTaskRequest(
     val description: String?,
     @SerializedName("todo_group")
     val todoGroup: String,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
     @SerializedName("estimated_duration_minutes")
     val estimatedDurationMinutes: Int?,
+    @SerializedName("actual_duration_minutes")
+    val actualDurationMinutes: Int?,
+    val dueDate: String?,
     @SerializedName("assigned_user_id")
     val assignedUserId: String
 )
@@ -89,9 +243,17 @@ data class UpdateTaskRequest(
     val title: String?,
     val description: String?,
     val status: String?,
+    val done: Boolean? = null,
     @SerializedName("actual_duration_minutes")
     val actualDurationMinutes: Int?,
-    @SerializedName("completed_at")
+    @SerializedName("estimated_duration_minutes")
+    val estimatedDurationMinutes: Int?,
+    @SerializedName("repeat")
+    val repeat: String? = null,
+    @SerializedName("repeatRule")
+    val repeatRule: String? = null,
+    val dueDate: String?,
+    @SerializedName("completedAt")
     val completedAt: String?
 )
 

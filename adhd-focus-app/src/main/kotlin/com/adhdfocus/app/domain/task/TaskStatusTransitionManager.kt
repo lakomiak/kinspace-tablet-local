@@ -53,13 +53,13 @@ class TaskStatusTransitionManager {
      */
     fun getTransitionErrorMessage(fromStatus: TaskStatus, toStatus: TaskStatus): String {
         return when {
-            fromStatus == toStatus -> "Task is already in $fromStatus status"
+            fromStatus == toStatus -> "To Do is already in $fromStatus status"
             fromStatus == TaskStatus.INCOMPLETE && toStatus == TaskStatus.INCOMPLETE ->
-                "Task is already incomplete"
+                "To Do is already incomplete"
             fromStatus == TaskStatus.IN_PROGRESS && toStatus == TaskStatus.IN_PROGRESS ->
-                "Task is already in progress"
+                "To Do is already in progress"
             fromStatus == TaskStatus.COMPLETED && toStatus == TaskStatus.COMPLETED ->
-                "Task is already completed"
+                "To Do is already completed"
             else -> "Cannot transition from $fromStatus to $toStatus"
         }
     }

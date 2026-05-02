@@ -32,11 +32,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.adhdfocus.app.data.model.Task
 
 /**
- * Composable for displaying update notifications for new tasks.
+ * Composable for displaying update notifications for new To Do's.
  *
  * Features:
- * - High-contrast green background for new task indicator
- * - Task title and group display
+ * - High-contrast green background for new To Do indicator
+ * - To Do title and group display
  * - Estimated duration display
  * - Dismiss button
  * - Smooth animations
@@ -88,7 +88,7 @@ private fun NotificationCard(
                     .padding(end = 8.dp)
             ) {
                 Text(
-                    text = "New Task",
+                    text = "New To Do",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

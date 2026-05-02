@@ -1,6 +1,6 @@
 package com.adhdfocus.app.domain.task
 
-import com.adhdfocus.app.data.dao.SyncQueueDao
+import android.util.Log
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.model.SyncOperation
 import com.adhdfocus.app.data.model.SyncQueueItem
@@ -9,7 +9,11 @@ import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
+import com.adhdfocus.app.domain.sync.RestApiClient
+import com.adhdfocus.app.domain.sync.SyncQueueManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import java.time.Instant
 import java.util.UUID
@@ -32,9 +36,11 @@ import java.util.UUID
 class TaskManager @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskDao: TaskDao,
-    private val syncQueueDao: SyncQueueDao,
-    private val affirmationTriggerManager: AffirmationTriggerManager
+    private val syncQueueManager: SyncQueueManager,
+    private val affirmationTriggerManager: AffirmationTriggerManager,
+    private val restApiClient: RestApiClient
 ) {
+    private val tag = "TaskManager"
     /**
      * Sets the affirmation frequency for the current user.
      *
@@ -62,20 +68,28 @@ class TaskManager @Inject constructor(
         title: String,
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
+        estimatedDurationSeconds: Int? = null,
         todoGroup: String,
         householdId: String,
-        assignedUserId: String
+        assignedUserId: String,
+        dueDate: Instant? = null,
+        repeatRule: String = "once"
     ): Task {
         // Validate required fields (Property 5: Task Validation)
         require(title.isNotBlank()) { "Task title cannot be empty" }
         require(todoGroup.isNotBlank()) { "Todo group cannot be empty" }
         require(householdId.isNotBlank()) { "Household ID cannot be empty" }
         require(assignedUserId.isNotBlank()) { "Assigned user ID cannot be empty" }
+        require(repeatRule.isNotBlank()) { "Repeat rule cannot be empty" }
         require(estimatedDurationMinutes == null || estimatedDurationMinutes > 0) {
             "Estimated duration must be positive if provided"
         }
+        require(estimatedDurationSeconds == null || estimatedDurationSeconds > 0) {
+            "Estimated duration seconds must be positive if provided"
+        }
 
         val now = Instant.now()
+        val timerDurationMs = computeTimerDurationMs(estimatedDurationMinutes, estimatedDurationSeconds)
         val task = Task(
             id = UUID.randomUUID().toString(),
             householdId = householdId,
@@ -83,7 +97,11 @@ class TaskManager @Inject constructor(
             title = title,
             description = description,
             todoGroup = todoGroup,
+            repeatRule = repeatRule,
             estimatedDurationMinutes = estimatedDurationMinutes,
+            estimatedDurationSeconds = estimatedDurationSeconds,
+            timerDurationMs = timerDurationMs,
+            dueDate = dueDate,
             status = TaskStatus.INCOMPLETE,
             createdAt = now,
             updatedAt = now,
@@ -138,11 +156,17 @@ class TaskManager @Inject constructor(
             require(estimatedDurationMinutes > 0) { "Estimated duration must be positive" }
         }
 
+        val timerDurationMs = computeTimerDurationMs(
+            estimatedDurationMinutes ?: existingTask.estimatedDurationMinutes,
+            existingTask.estimatedDurationSeconds
+        )
+
         val updatedTask = existingTask.copy(
             title = title ?: existingTask.title,
             description = description ?: existingTask.description,
             todoGroup = todoGroup ?: existingTask.todoGroup,
             estimatedDurationMinutes = estimatedDurationMinutes ?: existingTask.estimatedDurationMinutes,
+            timerDurationMs = timerDurationMs,
             status = status ?: existingTask.status,
             updatedAt = Instant.now(),
             syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
@@ -216,10 +240,44 @@ class TaskManager @Inject constructor(
         // Queue for sync
         queueTaskForSync(completedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
 
-        // Trigger affirmation on task completion (Property 18: Affirmation on Task Completion)
-        affirmationTriggerManager.checkAndTriggerTaskCompleteAffirmation(completedTask)
+        // Sync completion directly to cloud so the refreshed view stays aligned.
+        val syncedTask = syncTaskStateToCloud(completedTask, completed = true)
 
-        return completedTask
+        // Trigger affirmation on task completion (Property 18: Affirmation on Task Completion)
+        affirmationTriggerManager.checkAndTriggerTaskCompleteAffirmation(syncedTask ?: completedTask)
+
+        return syncedTask ?: completedTask
+    }
+
+    /**
+     * Reopens a completed task.
+     *
+     * Marks the task as incomplete again and queues the update for synchronization.
+     *
+     * @param taskId ID of the task to reopen
+     * @return Reopened task with PENDING sync status
+     * @throws IllegalArgumentException if task not found
+     */
+    suspend fun reopenTask(taskId: String): Task {
+        require(taskId.isNotBlank()) { "Task ID cannot be empty" }
+
+        val existingTask = taskDao.getTaskById(taskId)
+            ?: throw IllegalArgumentException("Task not found: $taskId")
+
+        val now = Instant.now()
+        val reopenedTask = existingTask.copy(
+            status = TaskStatus.INCOMPLETE,
+            completedAt = null,
+            updatedAt = now,
+            syncStatus = SyncStatus.PENDING
+        )
+
+        taskDao.update(reopenedTask)
+        queueTaskForSync(reopenedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
+
+        val syncedTask = syncTaskStateToCloud(reopenedTask, completed = false)
+
+        return syncedTask ?: reopenedTask
     }
 
     /**
@@ -334,16 +392,39 @@ class TaskManager @Inject constructor(
         userId: String
     ) {
         val payload = serializeTaskToJson(task)
-        val queueItem = SyncQueueItem(
-            id = UUID.randomUUID().toString(),
-            taskId = task.id,
-            userId = userId,
-            operation = operation,
-            payload = payload,
-            timestamp = Instant.now(),
-            retryCount = 0
-        )
-        syncQueueDao.insert(queueItem)
+        runCatching {
+            syncQueueManager.queueItem(
+                taskId = task.id,
+                userId = userId,
+                operation = operation,
+                payload = payload
+            )
+        }.onFailure { error ->
+            Log.w(tag, "Unable to queue task for sync taskId=${task.id} operation=$operation", error)
+        }
+    }
+
+    private suspend fun syncTaskStateToCloud(task: Task, completed: Boolean): Task? {
+        return try {
+            val updatedTask = withContext(Dispatchers.IO) {
+                restApiClient.updateTask(
+                    task.householdId,
+                    task.id,
+                    mapOf(
+                        "status" to (if (completed) TaskStatus.COMPLETED else TaskStatus.INCOMPLETE),
+                        "done" to completed,
+                        "completedAt" to (if (completed) task.completedAt else null)
+                    )
+                )
+            }
+
+            taskDao.update(updatedTask)
+            syncQueueManager.removeItemsByTask(task.id)
+            updatedTask
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to sync task state to cloud taskId=${task.id} completed=$completed", e)
+            null
+        }
     }
 
     /**
@@ -362,16 +443,27 @@ class TaskManager @Inject constructor(
                 "title":"${task.title.replace("\"", "\\\"")}",
                 "description":"${task.description?.replace("\"", "\\\"") ?: ""}",
                 "todoGroup":"${task.todoGroup}",
+                "repeat":"${task.repeatRule.replace("\"", "\\\"")}",
+                "repeatRule":"${task.repeatRule.replace("\"", "\\\"")}",
                 "estimatedDurationMinutes":${task.estimatedDurationMinutes},
+                "estimatedDurationSeconds":${task.estimatedDurationSeconds},
+                "timerDurationMs":${task.timerDurationMs},
                 "actualDurationMinutes":${task.actualDurationMinutes},
                 "status":"${task.status}",
+                "done":${task.status == TaskStatus.COMPLETED},
+                "dueDate":${task.dueDate?.let { "\"$it\"" } ?: "null"},
                 "createdAt":"${task.createdAt}",
                 "updatedAt":"${task.updatedAt}",
-                "completedAt":"${task.completedAt}",
+                "completedAt":${task.completedAt?.let { "\"$it\"" } ?: "null"},
                 "syncStatus":"${task.syncStatus}",
                 "isDeleted":${task.isDeleted}
             }
         """.trimIndent()
+    }
+
+    private fun computeTimerDurationMs(minutes: Int?, seconds: Int?): Long? {
+        val durationMs = ((minutes ?: 0) * 60L + (seconds ?: 0).toLong()) * 1000L
+        return durationMs.takeIf { it > 0L }
     }
 }
 

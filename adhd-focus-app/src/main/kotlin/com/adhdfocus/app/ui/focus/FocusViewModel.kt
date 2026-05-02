@@ -1,21 +1,29 @@
 package com.adhdfocus.app.ui.focus
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.progress.ProgressTracker
+import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
 import com.adhdfocus.app.domain.task.TaskManager
+import com.adhdfocus.app.domain.setup.TabletSetupManager
+import com.adhdfocus.app.domain.sync.CloudSyncManager
+import com.adhdfocus.app.domain.sync.RestApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 /**
- * FocusViewModel manages the state for the Daily Focus View.
+ * FocusViewModel manages the state for the Home screen.
  *
  * Manages:
  * - Today's tasks
@@ -30,8 +38,14 @@ class FocusViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskManager: TaskManager,
     private val progressTracker: ProgressTracker,
-    private val userPreferencesManager: UserPreferencesManager
+    private val userPreferencesManager: UserPreferencesManager,
+    private val setupManager: TabletSetupManager,
+    private val taskPersistenceManager: TaskPersistenceManager,
+    private val restApiClient: RestApiClient,
+    private val cloudSyncManager: CloudSyncManager
 ) : ViewModel() {
+
+    private val tag = "FocusViewModel"
 
     private val _todaysTasks = MutableStateFlow<List<Task>>(emptyList())
     val todaysTasks: StateFlow<List<Task>> = _todaysTasks
@@ -51,6 +65,17 @@ class FocusViewModel @Inject constructor(
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
 
+    init {
+        val householdId = setupManager.getHouseholdId()
+        val userId = setupManager.getAssignedMemberId()
+
+        if (!householdId.isNullOrBlank() && !userId.isNullOrBlank()) {
+            currentHouseholdId = householdId
+            currentUserId = userId
+            refreshFromCloud(householdId, userId)
+        }
+    }
+
     /**
      * Loads today's tasks for a user.
      *
@@ -64,14 +89,9 @@ class FocusViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Load user preferences and set affirmation frequency
-                val preferences = userPreferencesManager.getPreferencesOrDefault(userId)
-                taskManager.setAffirmationFrequency(preferences.affirmationFrequency)
-                
-                val tasks = taskRepository.getTasksForToday(householdId, userId)
-                _todaysTasks.value = tasks
-                _completionPercentage.value = progressTracker.calculateCompletionPercentage(tasks)
-                _currentStreak.value = progressTracker.getCurrentStreak(userId, householdId)
+                val memberName = setupManager.getAssignedMemberName()
+                val tasks = resolveVisibleTasks(householdId, userId, memberName)
+                applyDisplayedTasks(tasks, householdId, userId)
             } finally {
                 _isLoading.value = false
             }
@@ -85,15 +105,37 @@ class FocusViewModel @Inject constructor(
      * @param userId User ID
      */
     fun refreshFromCloud(householdId: String, userId: String) {
+        currentHouseholdId = householdId
+        currentUserId = userId
+
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.SYNCING
             try {
-                loadTodaysTasks(householdId, userId)
+                val tasks = withContext(Dispatchers.IO) {
+                    restApiClient.fetchTasks(householdId)
+                }
+                Log.d(tag, "refreshFromCloud householdId=$householdId userId=$userId cloudCount=${tasks.size}")
+                taskPersistenceManager.replaceTasksForHousehold(householdId, tasks)
+                val memberName = setupManager.getAssignedMemberName()
+                val visibleTasks = filterTasksForPinnedMember(tasks, userId, memberName)
+                applyDisplayedTasks(visibleTasks, householdId, userId)
                 _syncStatus.value = SyncStatus.SYNCED
             } catch (e: Exception) {
+                Log.e(tag, "refreshFromCloud failed householdId=$householdId userId=$userId", e)
                 _syncStatus.value = SyncStatus.ERROR
             }
         }
+    }
+
+    fun refreshCurrentTasks() {
+        val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+        val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+
+        if (householdId.isBlank() || userId.isBlank()) {
+            return
+        }
+
+        refreshFromCloud(householdId, userId)
     }
 
     /**
@@ -114,10 +156,15 @@ class FocusViewModel @Inject constructor(
     fun completeTask(taskId: String) {
         viewModelScope.launch {
             try {
-                taskManager.completeTask(taskId)
-                // Refresh tasks after completion
-                if (currentHouseholdId.isNotBlank() && currentUserId.isNotBlank()) {
-                    loadTodaysTasks(currentHouseholdId, currentUserId)
+                val completedTask = taskManager.completeTask(taskId)
+                _todaysTasks.value = _todaysTasks.value.map { task ->
+                    if (task.id == taskId) completedTask else task
+                }
+                _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
+                val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+                val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+                if (householdId.isNotBlank() && userId.isNotBlank()) {
+                    syncCurrentChanges(householdId, userId)
                 }
             } catch (e: Exception) {
                 // Handle error
@@ -141,6 +188,120 @@ class FocusViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Handle error
             }
+        }
+    }
+
+    fun toggleTaskCompletion(taskId: String, isCompleted: Boolean) {
+        viewModelScope.launch {
+            try {
+                val now = Instant.now()
+                val optimisticTask = _todaysTasks.value.firstOrNull { it.id == taskId }?.let { task ->
+                    if (isCompleted) {
+                        task.copy(
+                            status = com.adhdfocus.app.data.model.TaskStatus.INCOMPLETE,
+                            completedAt = null,
+                            updatedAt = now,
+                            syncStatus = com.adhdfocus.app.data.model.SyncStatus.PENDING
+                        )
+                    } else {
+                        task.copy(
+                            status = com.adhdfocus.app.data.model.TaskStatus.COMPLETED,
+                            completedAt = now,
+                            updatedAt = now,
+                            syncStatus = com.adhdfocus.app.data.model.SyncStatus.PENDING
+                        )
+                    }
+                }
+                if (optimisticTask != null) {
+                    _todaysTasks.value = _todaysTasks.value.map { task ->
+                        if (task.id == taskId) optimisticTask else task
+                    }
+                    _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
+                }
+
+                val persistedTask = if (isCompleted) {
+                    taskManager.reopenTask(taskId)
+                } else {
+                    taskManager.completeTask(taskId)
+                }
+
+                _todaysTasks.value = _todaysTasks.value.map { task ->
+                    if (task.id == taskId) persistedTask else task
+                }
+                _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
+
+                val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+                val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+                if (householdId.isNotBlank() && userId.isNotBlank()) {
+                    syncCurrentChanges(householdId, userId)
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "toggleTaskCompletion failed taskId=$taskId isCompleted=$isCompleted", e)
+            }
+        }
+    }
+
+    /**
+     * Resolves the task list to show on the Home screen.
+     *
+     * The tablet is pinned to one family member, so we show that member's tasks for today.
+     */
+    private suspend fun resolveVisibleTasks(
+        householdId: String,
+        userId: String,
+        memberName: String?
+    ): List<Task> {
+        return taskRepository.getTasksForToday(householdId, userId, memberName)
+    }
+
+    private suspend fun applyDisplayedTasks(
+        tasks: List<Task>,
+        householdId: String,
+        userId: String
+    ) {
+        val preferences = userPreferencesManager.getPreferencesOrDefault(userId)
+        taskManager.setAffirmationFrequency(preferences.affirmationFrequency)
+        _todaysTasks.value = tasks
+        _completionPercentage.value = progressTracker.calculateCompletionPercentage(tasks)
+        _currentStreak.value = progressTracker.getCurrentStreak(userId, householdId)
+    }
+
+    private fun filterTasksForPinnedMember(
+        tasks: List<Task>,
+        userId: String,
+        memberName: String?
+    ): List<Task> {
+        val userKey = userId.trim().lowercase()
+        val memberKey = memberName?.trim()?.lowercase().orEmpty()
+        return tasks.filter { task ->
+            val assigned = task.assignedUserId.trim().lowercase()
+            if (assigned.isBlank()) {
+                return@filter false
+            }
+            if (userKey.isNotBlank() && assigned == userKey) {
+                return@filter true
+            }
+            if (memberKey.isNotBlank() && assigned == memberKey) {
+                return@filter true
+            }
+            false
+        }
+    }
+
+    private suspend fun syncCurrentChanges(householdId: String, userId: String) {
+        _syncStatus.value = SyncStatus.SYNCING
+        try {
+            val result = withContext(Dispatchers.IO) {
+                cloudSyncManager.syncPendingChanges(householdId, userId)
+            }
+            if (result.success) {
+                _syncStatus.value = SyncStatus.SYNCED
+            } else {
+                _syncStatus.value = SyncStatus.ERROR
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "syncCurrentChanges failed householdId=$householdId userId=$userId", e)
+            _syncStatus.value = SyncStatus.ERROR
         }
     }
 }

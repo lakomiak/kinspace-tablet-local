@@ -7,9 +7,9 @@ import com.adhdfocus.app.data.database.DatabaseInitializer
 import com.adhdfocus.app.data.network.ApiConfig
 import com.adhdfocus.app.data.network.AuthInterceptor
 import com.adhdfocus.app.data.network.AuthService
+import com.adhdfocus.app.data.network.TokenRefreshInterceptor
 import com.adhdfocus.app.data.network.SyncService
 import com.adhdfocus.app.data.network.TaskService
-import com.adhdfocus.app.data.network.TokenRefreshInterceptor
 import com.adhdfocus.app.data.security.TokenStorage
 import com.adhdfocus.app.domain.auth.AuthManager
 import com.adhdfocus.app.domain.persistence.DataCleanupScheduler
@@ -89,7 +89,8 @@ object AppModule {
     @Singleton
     @Provides
     fun provideRetrofit(
-        tokenStorage: TokenStorage
+        tokenStorage: TokenStorage,
+        authManager: AuthManager
     ): Retrofit {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -97,8 +98,8 @@ object AppModule {
 
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .addInterceptor(AuthInterceptor(tokenStorage))
-            .addInterceptor(TokenRefreshInterceptor(tokenStorage) { provideRetrofit(tokenStorage) })
+            .addInterceptor(AuthInterceptor(authManager))
+            .addInterceptor(TokenRefreshInterceptor(tokenStorage, authManager))
             .build()
 
         return Retrofit.Builder()
@@ -212,9 +213,13 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideTokenProvider(tokenStorage: TokenStorage): TokenProvider {
+    fun provideTokenProvider(authManager: AuthManager): TokenProvider {
         return object : TokenProvider {
-            override suspend fun getAccessToken(): String = tokenStorage.getAccessToken() ?: ""
+            override suspend fun getAccessToken(): String {
+                return authManager.getIdToken()
+                    ?: authManager.getValidAccessToken()
+                    ?: ""
+            }
         }
     }
 }
