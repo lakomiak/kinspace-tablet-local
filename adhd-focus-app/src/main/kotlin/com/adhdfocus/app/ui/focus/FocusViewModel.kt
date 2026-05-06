@@ -117,7 +117,7 @@ class FocusViewModel @Inject constructor(
                 Log.d(tag, "refreshFromCloud householdId=$householdId userId=$userId cloudCount=${tasks.size}")
                 taskPersistenceManager.replaceTasksForHousehold(householdId, tasks)
                 val memberName = setupManager.getAssignedMemberName()
-                val visibleTasks = filterTasksForPinnedMember(tasks, userId, memberName)
+                val visibleTasks = resolveVisibleTasks(householdId, userId, memberName)
                 applyDisplayedTasks(visibleTasks, householdId, userId)
                 _syncStatus.value = SyncStatus.SYNCED
             } catch (e: Exception) {
@@ -264,28 +264,6 @@ class FocusViewModel @Inject constructor(
         _todaysTasks.value = tasks
         _completionPercentage.value = progressTracker.calculateCompletionPercentage(tasks)
         _currentStreak.value = progressTracker.getCurrentStreak(userId, householdId)
-    }
-
-    private fun filterTasksForPinnedMember(
-        tasks: List<Task>,
-        userId: String,
-        memberName: String?
-    ): List<Task> {
-        val userKey = userId.trim().lowercase()
-        val memberKey = memberName?.trim()?.lowercase().orEmpty()
-        return tasks.filter { task ->
-            val assigned = task.assignedUserId.trim().lowercase()
-            if (assigned.isBlank()) {
-                return@filter false
-            }
-            if (userKey.isNotBlank() && assigned == userKey) {
-                return@filter true
-            }
-            if (memberKey.isNotBlank() && assigned == memberKey) {
-                return@filter true
-            }
-            false
-        }
     }
 
     private suspend fun syncCurrentChanges(householdId: String, userId: String) {

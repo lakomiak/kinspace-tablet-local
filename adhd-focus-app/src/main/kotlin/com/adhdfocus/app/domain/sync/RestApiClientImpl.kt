@@ -120,7 +120,7 @@ class RestApiClientImpl @Inject constructor(
             if (response.isSuccessful) {
                 val payload = response.body()
                 val sourceTodos = when {
-                    payload?.todayTodos != null -> payload.todayTodos
+                    payload?.todayTodos?.isNotEmpty() == true -> payload.todayTodos
                     payload?.todos != null -> payload.todos
                     else -> null
                 } ?: throw ApiException(response.code(), "Empty response body")
