@@ -72,6 +72,7 @@ class TaskManager @Inject constructor(
         todoGroup: String,
         householdId: String,
         assignedUserId: String,
+        assignedMemberName: String? = null,
         dueDate: Instant? = null,
         repeatRule: String = "once"
     ): Task {
@@ -114,7 +115,10 @@ class TaskManager @Inject constructor(
         // Queue for sync
         queueTaskForSync(task, SyncOperation.CREATE, assignedUserId)
 
-        return task
+        // Sync the new task directly so the cloud snapshot is immediately current
+        val syncedTask = syncTaskCreationToCloud(task, assignedMemberName)
+
+        return syncedTask ?: task
     }
 
     /**
@@ -423,6 +427,21 @@ class TaskManager @Inject constructor(
             updatedTask
         } catch (e: Exception) {
             Log.e(tag, "Failed to sync task state to cloud taskId=${task.id} completed=$completed", e)
+            null
+        }
+    }
+
+    private suspend fun syncTaskCreationToCloud(task: Task, memberName: String?): Task? {
+        return try {
+            val createdTask = withContext(Dispatchers.IO) {
+                restApiClient.createTask(task.householdId, task, memberName)
+            }
+
+            taskDao.update(createdTask)
+            syncQueueManager.removeItemsByTask(task.id)
+            createdTask
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to sync task creation to cloud taskId=${task.id}", e)
             null
         }
     }

@@ -2,6 +2,7 @@ package com.adhdfocus.app.ui.focus
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
@@ -51,10 +53,11 @@ import com.adhdfocus.app.ui.focus.components.TaskListByGroup
 fun DailyFocusViewScreen(
     onTimerStartRequested: (Task) -> Unit = {},
     memberName: String? = null,
+    refreshToken: Int = 0,
     viewModel: FocusViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(memberName) {
-        viewModel.refreshCurrentTasks()
+    LaunchedEffect(memberName, refreshToken) {
+        viewModel.refreshCurrentTasks(fromCloud = false)
     }
 
     val todaysTasks by viewModel.todaysTasks.collectAsStateWithLifecycle()
@@ -68,7 +71,7 @@ fun DailyFocusViewScreen(
             TopAppBar(
                 title = { Text(if (memberName.isNullOrBlank()) "Hello" else "Hello, $memberName") },
                 actions = {
-                    IconButton(onClick = { viewModel.refreshCurrentTasks() }) {
+                    IconButton(onClick = { viewModel.refreshCurrentTasks(fromCloud = true) }) {
                         when (syncStatus) {
                             SyncStatus.SYNCING -> {
                                 CircularProgressIndicator(
@@ -93,68 +96,93 @@ fun DailyFocusViewScreen(
             )
         },
     ) { paddingValues ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val horizontalPadding = when {
+                maxWidth < 600.dp -> 12.dp
+                maxWidth < 840.dp -> 16.dp
+                else -> 24.dp
+            }
+            val contentMaxWidth = when {
+                maxWidth < 600.dp -> maxWidth
+                maxWidth < 840.dp -> 720.dp
+                else -> 920.dp
+            }
+            val bottomPadding = if (maxWidth < 600.dp) 88.dp else 112.dp
+
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                LazyColumn(
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 128.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    item {
-                        ProgressHeader(
-                            completionPercentage = completionPercentage,
-                            completedCount = todaysTasks.count { it.status == TaskStatus.COMPLETED },
-                            totalCount = todaysTasks.size,
-                            currentStreak = currentStreak
-                        )
-                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = contentMaxWidth)
+                            .fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = horizontalPadding,
+                            top = 16.dp,
+                            end = horizontalPadding,
+                            bottom = bottomPadding
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            ProgressHeader(
+                                completionPercentage = completionPercentage,
+                                completedCount = todaysTasks.count { it.status == TaskStatus.COMPLETED },
+                                totalCount = todaysTasks.size,
+                                currentStreak = currentStreak
+                            )
+                        }
 
-                    if (todaysTasks.isNotEmpty()) {
-                        val tasksByGroup = todaysTasks.groupBy { it.todoGroup }
+                        if (todaysTasks.isNotEmpty()) {
+                            val tasksByGroup = todaysTasks.groupBy { it.todoGroup }
 
-                        tasksByGroup.forEach { (group, tasks) ->
-                            item {
-                                        TaskListByGroup(
-                                            todoGroup = group,
-                                            tasks = tasks,
-                                            onTaskToggle = { taskId, isCompleted ->
-                                                viewModel.toggleTaskCompletion(taskId, isCompleted)
-                                            },
-                                            onTaskStart = { taskId -> viewModel.startTask(taskId) },
-                                            onTimerStartRequested = onTimerStartRequested
-                                        )
+                            tasksByGroup.forEach { (group, tasks) ->
+                                item {
+                                    TaskListByGroup(
+                                        todoGroup = group,
+                                        tasks = tasks,
+                                        onTaskToggle = { taskId, isCompleted ->
+                                            viewModel.toggleTaskCompletion(taskId, isCompleted)
+                                        },
+                                        onTaskStart = { taskId -> viewModel.startTask(taskId) },
+                                        onTimerStartRequested = onTimerStartRequested
+                                    )
                                 }
                             }
-                    } else {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                        } else {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "No To Do's for today",
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Tap + to create a new To Do",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "No To Do's for today",
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Tap + to create a new To Do",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }

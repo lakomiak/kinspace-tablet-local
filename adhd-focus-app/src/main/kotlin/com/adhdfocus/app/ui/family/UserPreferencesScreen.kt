@@ -3,6 +3,7 @@ package com.adhdfocus.app.ui.family
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -88,145 +90,151 @@ fun UserPreferencesScreen(
             CircularProgressIndicator()
         }
     } else {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Title
-            Text(
-                text = "Preferences",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            // Error message
-            if (errorMessage != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.errorContainer,
-                            shape = MaterialTheme.shapes.small
-                        )
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = errorMessage!!,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 14.sp
-                    )
-                }
+            val horizontalPadding = when {
+                maxWidth < 600.dp -> 16.dp
+                maxWidth < 900.dp -> 24.dp
+                else -> 32.dp
+            }
+            val contentMaxWidth = when {
+                maxWidth < 600.dp -> maxWidth
+                maxWidth < 900.dp -> 760.dp
+                else -> 940.dp
             }
 
-            // Theme Selection
-            ThemeSelector(
-                selectedTheme = theme,
-                onThemeSelected = { viewModel.updateTheme(it) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Notification Preferences
-            NotificationPreferencesPanel(
-                preferences = notificationPreferences,
-                onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
-                onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Daily Reset Time
-            TimePickerField(
-                label = "Daily Reset Time",
-                value = dailyResetTime,
-                onValueChanged = { viewModel.updateDailyResetTime(it) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Affirmation Frequency
-            FrequencySlider(
-                label = "Affirmation Frequency",
-                value = affirmationFrequency,
-                onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Gamification Toggle
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .widthIn(max = contentMaxWidth)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = horizontalPadding, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Enable Gamification",
-                    fontSize = 16.sp,
+                    text = "Preferences",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Switch(
-                    checked = gamificationEnabled,
-                    onCheckedChange = { viewModel.updateGamificationEnabled(it) }
-                )
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Timer Default Duration
-            DurationInput(
-                label = "Timer Default Duration (minutes)",
-                value = timerDefaultDuration,
-                onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Auto-Logout Timeout
-            DurationInput(
-                label = "Auto-Logout Timeout (minutes, 0 = disabled)",
-                value = autoLogoutTimeout,
-                onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Action Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.resetToDefaults() },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    enabled = !isSaving
-                ) {
-                    Text("Reset to Defaults")
+                if (errorMessage != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
 
-                Button(
-                    onClick = onBackClick,
+                ThemeSelector(
+                    selectedTheme = theme,
+                    onThemeSelected = { viewModel.updateTheme(it) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                NotificationPreferencesPanel(
+                    preferences = notificationPreferences,
+                    onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                    onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TimePickerField(
+                    label = "Daily Reset Time",
+                    value = dailyResetTime,
+                    onValueChanged = { viewModel.updateDailyResetTime(it) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FrequencySlider(
+                    label = "Affirmation Frequency",
+                    value = affirmationFrequency,
+                    onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    enabled = !isSaving
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Done")
+                    Text(
+                        text = "Enable Gamification",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Switch(
+                        checked = gamificationEnabled,
+                        onCheckedChange = { viewModel.updateGamificationEnabled(it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DurationInput(
+                    label = "Timer Default Duration (minutes)",
+                    value = timerDefaultDuration,
+                    onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DurationInput(
+                    label = "Auto-Logout Timeout (minutes, 0 = disabled)",
+                    value = autoLogoutTimeout,
+                    onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.resetToDefaults() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        enabled = !isSaving
+                    ) {
+                        Text("Reset to Defaults")
+                    }
+
+                    Button(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        enabled = !isSaving
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text("Done")
+                        }
                     }
                 }
             }

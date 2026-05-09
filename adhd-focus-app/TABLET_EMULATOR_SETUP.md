@@ -1,14 +1,14 @@
-# ADHD Focus App - 7" Tablet Emulator Setup Guide
+# ADHD Focus App - 10.1" Tablet Emulator Setup Guide
 
-This guide explains how to run the ADHD Focus App in a 7" tablet emulator (1024x600 resolution).
+This guide explains how to run the ADHD Focus App in a 10.1" tablet emulator (1280x800 resolution).
 
 ## Prerequisites
 
 Before running the emulator, ensure you have:
 
 1. **Android SDK** installed with:
-   - Android SDK Platform 34 (API level 34)
-   - Google APIs system image for Android 34
+   - Android SDK Platform 36 (API level 36)
+   - Google APIs system image for Android 36
    - Android Emulator
    - Android Platform Tools (ADB)
 
@@ -86,7 +86,7 @@ Example:
 ## What the Scripts Do
 
 1. **Check Prerequisites**: Verifies Android SDK, emulator, and ADB are installed
-2. **Create AVD**: Creates a 7" tablet Android Virtual Device (if not exists)
+2. **Create AVD**: Creates a 10.1" tablet Android Virtual Device (if not exists)
 3. **Start Emulator**: Launches the emulator with tablet specifications
 4. **Build App**: Compiles the app using Gradle
 5. **Install App**: Installs the APK on the emulator
@@ -95,8 +95,8 @@ Example:
 
 ## Emulator Specifications
 
-- **Screen Size**: 7 inches
-- **Resolution**: 1024x600 pixels
+- **Screen Size**: 10.1 inches
+- **Resolution**: 1280x800 pixels
 - **DPI**: 160 (mdpi)
 - **Memory**: 2048 MB
 - **CPU Cores**: 4
@@ -166,9 +166,9 @@ adb shell getprop ro.build.version.release    # Android version
 4. Try manually creating the AVD:
    ```bash
    $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager create avd \
-     -n tablet_7inch_avd \
-     -k "system-images;android;34;google_apis" \
-     -d "7in WSVGA"
+     -n tablet_10inch_avd \
+     -k "system-images;android-36;google_apis;x86_64" \
+     -d "10.1in WXGA (Tablet)"
    ```
 
 ### Build Fails
@@ -232,7 +232,7 @@ adb shell getprop ro.build.version.release    # Android version
 1. Enable GPU acceleration (already enabled in scripts)
 2. Increase allocated memory:
    ```bash
-   emulator -avd tablet_7inch_avd -memory 4096
+   emulator -avd tablet_10inch_avd -memory 4096
    ```
 3. Use hardware acceleration (KVM on Linux, HAXM on Windows)
 4. Close other applications
@@ -242,11 +242,11 @@ adb shell getprop ro.build.version.release    # Android version
 1. **First Run**: Initial startup takes 2-3 minutes. Subsequent runs are faster.
 2. **Snapshots**: Scripts disable snapshots for clean state. Enable for faster restarts:
    ```bash
-   emulator -avd tablet_7inch_avd -snapshot-save
+   emulator -avd tablet_10inch_avd -snapshot-save
    ```
 3. **Headless Mode**: Run without GUI for better performance:
    ```bash
-   emulator -avd tablet_7inch_avd -no-window
+   emulator -avd tablet_10inch_avd -no-window
    ```
 
 ## Testing on Emulator
@@ -301,17 +301,17 @@ taskkill /IM emulator.exe  # Windows
 ```bash
 $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager create avd \
   -n custom_tablet \
-  -k "system-images;android;34;google_apis" \
+     -k "system-images;android-36;google_apis;x86_64" \
   -c 512M \
-  -d "7in WSVGA"
+     -d "10.1in WXGA (Tablet)"
 ```
 
 ### Modify AVD Configuration
 
-Edit `~/.android/avd/tablet_7inch_avd/config.ini`:
+Edit `~/.android/avd/tablet_10inch_avd/config.ini`:
 
 ```ini
-hw.device.name=7in WSVGA
+hw.device.name=10.1in WXGA (Tablet)
 hw.lcd.density=160
 hw.lcd.height=600
 hw.lcd.width=1024

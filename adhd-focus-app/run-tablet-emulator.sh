@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# ADHD Focus App - 7" Tablet Emulator Runner
-# This script sets up and runs the app in a 7" tablet emulator (1024x600 resolution)
+# ADHD Focus App - 10" Tablet Emulator Runner
+# This script sets up and runs the app in a 10" tablet emulator (1280x800 resolution)
 
 set -e
 
@@ -13,16 +13,16 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-EMULATOR_NAME="tablet_7inch"
-AVD_NAME="tablet_7inch_avd"
+EMULATOR_NAME="tablet_10inch"
+AVD_NAME="tablet_10inch_avd"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
 EMULATOR_PATH="$ANDROID_SDK_ROOT/emulator/emulator"
 ADB_PATH="$ANDROID_SDK_ROOT/platform-tools/adb"
 GRADLE_WRAPPER="./gradlew"
 
-# Tablet specifications (7" tablet - 1024x600)
-TABLET_WIDTH=1024
-TABLET_HEIGHT=600
+# Tablet specifications (10.1" tablet - 1280x800)
+TABLET_WIDTH=1280
+TABLET_HEIGHT=800
 TABLET_DPI=160
 
 echo -e "${BLUE}========================================${NC}"
@@ -69,13 +69,13 @@ create_avd_if_needed() {
         return
     fi
     
-    echo -e "${YELLOW}Creating new 7\" tablet AVD...${NC}"
+    echo -e "${YELLOW}Creating new 10\" tablet AVD...${NC}"
     
     # Create AVD with tablet specifications
     echo "no" | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" create avd \
         -n "$AVD_NAME" \
-        -k "system-images;android;34;google_apis" \
-        -d "7in WSVGA" \
+        -k "system-images;android-36;google_apis;x86_64" \
+        -d "10.1in WXGA (Tablet)" \
         -f || {
         echo -e "${RED}✗ Failed to create AVD${NC}"
         echo "Trying alternative method..."
@@ -83,7 +83,7 @@ create_avd_if_needed() {
         # Alternative: use generic tablet profile
         echo "no" | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" create avd \
             -n "$AVD_NAME" \
-            -k "system-images;android;34;google_apis" \
+            -k "system-images;android-36;google_apis;x86_64" \
             -f || {
             echo -e "${RED}✗ Could not create AVD${NC}"
             exit 1
@@ -96,7 +96,7 @@ create_avd_if_needed() {
 # Function to start emulator
 start_emulator() {
     echo ""
-    echo -e "${YELLOW}Starting 7\" tablet emulator...${NC}"
+    echo -e "${YELLOW}Starting 10\" tablet emulator...${NC}"
     
     # Check if emulator is already running
     if "$ADB_PATH" devices | grep -q "$EMULATOR_NAME"; then

@@ -23,7 +23,7 @@ interface RestApiClient {
      * @throws NetworkException if network error occurs
      * @throws ApiException if API returns error
      */
-    suspend fun createTask(householdId: String, task: Task): Task
+    suspend fun createTask(householdId: String, task: Task, memberName: String? = null): Task
 
     /**
      * Updates an existing task on calendar-cloud.

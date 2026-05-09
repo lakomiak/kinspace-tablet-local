@@ -127,7 +127,7 @@ class FocusViewModel @Inject constructor(
         }
     }
 
-    fun refreshCurrentTasks() {
+    fun refreshCurrentTasks(fromCloud: Boolean = true) {
         val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
         val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
 
@@ -135,7 +135,11 @@ class FocusViewModel @Inject constructor(
             return
         }
 
-        refreshFromCloud(householdId, userId)
+        if (fromCloud) {
+            refreshFromCloud(householdId, userId)
+        } else {
+            loadTodaysTasks(householdId, userId)
+        }
     }
 
     /**

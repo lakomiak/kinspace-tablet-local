@@ -80,6 +80,7 @@ class CreateTodoViewModel @Inject constructor(
                     todoGroup = resolvedGroup,
                     householdId = householdId,
                     assignedUserId = memberId,
+                    assignedMemberName = setupManager.getAssignedMemberName(),
                     dueDate = dueDate,
                     estimatedDurationMinutes = estimatedDurationMinutes,
                     estimatedDurationSeconds = estimatedDurationSeconds,

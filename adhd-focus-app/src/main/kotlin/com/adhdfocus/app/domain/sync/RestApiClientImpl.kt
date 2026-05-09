@@ -40,17 +40,22 @@ class RestApiClientImpl @Inject constructor(
 
     private val tag = "RestApiClient"
 
-    override suspend fun createTask(householdId: String, task: Task): Task {
+    override suspend fun createTask(householdId: String, task: Task, memberName: String?): Task {
         return retryWithBackoff {
             val request = CreateTaskRequest(
+                id = task.id,
                 title = task.title,
+                text = task.title,
                 description = task.description,
                 todoGroup = task.todoGroup,
+                group = task.todoGroup,
+                category = task.todoGroup,
                 estimatedDurationMinutes = task.estimatedDurationMinutes,
                 actualDurationMinutes = task.actualDurationMinutes,
                 repeat = task.repeatRule,
                 repeatRule = task.repeatRule,
                 dueDate = task.dueDate?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString(),
+                member = memberName?.trim()?.takeIf { it.isNotBlank() },
                 assignedUserId = task.assignedUserId
             )
 
@@ -218,7 +223,8 @@ class RestApiClientImpl @Inject constructor(
         response: com.adhdfocus.app.data.network.TodoResponse,
         householdId: String
     ): Task {
-        val assignedUserId = response.familyMemberId
+            val assignedUserId = response.familyMemberId
+            ?: response.assignedUserId
             ?: response.assignedTo
             ?: response.member
             ?: householdId

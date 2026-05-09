@@ -60,6 +60,8 @@ data class TodoResponse(
     val createdAt: String,
     @SerializedName("dueDate")
     val dueDate: String?,
+    @SerializedName("assignedUserId")
+    val assignedUserId: String? = null,
     @SerializedName("repeat")
     val repeat: String? = null,
     @SerializedName("repeatRule")
@@ -108,6 +110,8 @@ data class TodoScheduleResponse(
     val createdAt: String? = null,
     @SerializedName("dueDate")
     val dueDate: String? = null,
+    @SerializedName("assignedUserId")
+    val assignedUserId: String? = null,
     @SerializedName("repeat")
     val repeat: String? = null,
     @SerializedName("repeatRule")
@@ -160,6 +164,8 @@ data class TodoStateResponse(
     val text: String? = null,
     @SerializedName("dueDate")
     val dueDate: String? = null,
+    @SerializedName("assignedUserId")
+    val assignedUserId: String? = null,
     @SerializedName("repeat")
     val repeat: String? = null,
     @SerializedName("repeatRule")
@@ -222,10 +228,17 @@ data class TasksResponse(
 )
 
 data class CreateTaskRequest(
+    val id: String? = null,
     val title: String,
+    @SerializedName("text")
+    val text: String? = null,
     val description: String?,
     @SerializedName("todo_group")
     val todoGroup: String,
+    @SerializedName("group")
+    val group: String? = null,
+    @SerializedName("category")
+    val category: String? = null,
     @SerializedName("repeat")
     val repeat: String? = null,
     @SerializedName("repeatRule")
@@ -235,6 +248,8 @@ data class CreateTaskRequest(
     @SerializedName("actual_duration_minutes")
     val actualDurationMinutes: Int?,
     val dueDate: String?,
+    @SerializedName("member")
+    val member: String? = null,
     @SerializedName("assigned_user_id")
     val assignedUserId: String
 )

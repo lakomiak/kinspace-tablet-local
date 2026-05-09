@@ -2,16 +2,42 @@ package com.adhdfocus.app.ui.timer
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,60 +91,61 @@ fun TimerScreen(
     )
 
     val progressColor = when {
-        animatedProgress < 0.5f -> Color(0xFF43A047) // Green
-        animatedProgress < 0.9f -> Color(0xFFFB8C00) // Orange
-        else -> Color(0xFFE53935) // Red
+        animatedProgress < 0.5f -> Color(0xFF43A047)
+        animatedProgress < 0.9f -> Color(0xFFFB8C00)
+        else -> Color(0xFFE53935)
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
+        val compact = maxWidth < 520.dp || maxHeight < 700.dp
+        val pagePadding = if (compact) 20.dp else 32.dp
+        val ringSize = when {
+            maxWidth < 360.dp -> 200.dp
+            maxWidth < 600.dp -> 240.dp
+            else -> 280.dp
+        }
+        val ringStroke = if (compact) 6.dp else 8.dp
+        val sectionSpacing = if (compact) 20.dp else 32.dp
+        val actionButtonSpacing = if (compact) 10.dp else 12.dp
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .widthIn(max = if (maxWidth < 700.dp) maxWidth else 720.dp)
+                .padding(pagePadding),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing)
         ) {
-            // Progress Ring with Countdown Display
             Box(
-                modifier = Modifier
-                    .size(280.dp),
+                modifier = Modifier.size(ringSize),
                 contentAlignment = Alignment.Center
             ) {
                 val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
-                
-                // Background circle
-                Canvas(
-                    modifier = Modifier.size(280.dp)
-                ) {
+
+                Canvas(modifier = Modifier.size(ringSize)) {
                     drawCircle(
                         color = surfaceVariantColor,
                         radius = size.minDimension / 2,
-                        style = Stroke(width = 8.dp.toPx())
+                        style = Stroke(width = ringStroke.toPx())
                     )
                 }
 
-                // Progress ring
-                Canvas(
-                    modifier = Modifier.size(280.dp)
-                ) {
-                    val radius = size.minDimension / 2
+                Canvas(modifier = Modifier.size(ringSize)) {
                     val sweepAngle = animatedProgress * 360f
-
                     drawArc(
                         color = progressColor,
                         startAngle = -90f,
                         sweepAngle = sweepAngle,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx())
+                        style = Stroke(width = ringStroke.toPx())
                     )
                 }
 
-                // Countdown display
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -137,9 +164,9 @@ fun TimerScreen(
                 }
             }
 
-            // Status indicator
             if (isPaused) {
                 Card(
+                    modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFFFB8C00).copy(alpha = 0.1f)
                     )
@@ -152,7 +179,7 @@ fun TimerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "⏸ Paused",
+                            text = "Paused",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFB8C00)
@@ -185,88 +212,82 @@ fun TimerScreen(
                 }
             }
 
-            // Control buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+                )
             ) {
-                // Pause/Resume button
-                Button(
-                    onClick = {
-                        if (isPaused) {
-                            viewModel.resumeTimer()
-                        } else {
-                            viewModel.pauseTimer()
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    enabled = isRunning,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFB8C00)
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                        contentDescription = if (isPaused) "Resume" else "Pause",
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isPaused) "Resume" else "Pause")
-                }
-
-                // Cancel button
-                Button(
-                    onClick = {
-                        viewModel.cancelTimer()
-                        onCancel()
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE53935)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cancel",
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Cancel")
-                }
-            }
-
-            // Reset timer button
-            OutlinedButton(
-                onClick = {
-                    viewModel.resetTimer()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Text("Reset Timer")
-            }
-
-            if (taskId.isNotBlank()) {
-                Button(
-                    onClick = {
-                        viewModel.completeCurrentTask(onTaskCompleted)
-                    },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF43A047)
-                    )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(actionButtonSpacing)
                 ) {
-                    Text("Complete To Do")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(actionButtonSpacing)
+                    ) {
+                        TimerActionButton(
+                            text = if (isPaused) "Resume" else "Pause",
+                            icon = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            modifier = Modifier.weight(1f),
+                            containerColor = Color(0xFFFB8C00),
+                            enabled = isRunning
+                        ) {
+                            if (isPaused) {
+                                viewModel.resumeTimer()
+                            } else {
+                                viewModel.pauseTimer()
+                            }
+                        }
+
+                        TimerActionButton(
+                            text = "Complete To Do",
+                            icon = Icons.Default.Check,
+                            modifier = Modifier.weight(1f),
+                            containerColor = Color(0xFF43A047)
+                        ) {
+                            viewModel.completeCurrentTask(onTaskCompleted)
+                        }
+                    }
+
+                    if (taskId.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(actionButtonSpacing)
+                        ) {
+                            TimerActionButton(
+                                text = "Reset Timer",
+                                icon = Icons.Default.Refresh,
+                                modifier = Modifier.weight(1f),
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                viewModel.resetTimer()
+                            }
+
+                            TimerActionButton(
+                                text = "Cancel",
+                                icon = Icons.Default.Close,
+                                modifier = Modifier.weight(1f),
+                                containerColor = Color(0xFFE53935)
+                            ) {
+                                viewModel.cancelTimer()
+                                onCancel()
+                            }
+                        }
+                    } else {
+                        TimerActionButton(
+                            text = "Cancel",
+                            icon = Icons.Default.Close,
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = Color(0xFFE53935)
+                        ) {
+                            viewModel.cancelTimer()
+                            onCancel()
+                        }
+                    }
                 }
             }
         }
@@ -292,9 +313,9 @@ fun CompactTimerDisplay(
     viewModel: TimerViewModel = hiltViewModel()
 ) {
     val progressColor = when {
-        progress < 0.5f -> Color(0xFF43A047) // Green
-        progress < 0.9f -> Color(0xFFFB8C00) // Orange
-        else -> Color(0xFFE53935) // Red
+        progress < 0.5f -> Color(0xFF43A047)
+        progress < 0.9f -> Color(0xFFFB8C00)
+        else -> Color(0xFFE53935)
     }
 
     Card(
@@ -310,7 +331,6 @@ fun CompactTimerDisplay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Countdown display
             Text(
                 text = viewModel.getFormattedTime(timeRemaining),
                 style = MaterialTheme.typography.headlineMedium,
@@ -318,7 +338,6 @@ fun CompactTimerDisplay(
                 color = progressColor
             )
 
-            // Progress bar
             LinearProgressIndicator(
                 progress = progress,
                 modifier = Modifier
@@ -329,7 +348,6 @@ fun CompactTimerDisplay(
                 trackColor = MaterialTheme.colorScheme.surface
             )
 
-            // Control buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -337,7 +355,7 @@ fun CompactTimerDisplay(
                 Button(
                     onClick = onPauseResume,
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth(0.48f)
                         .height(40.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFB8C00)
@@ -353,7 +371,7 @@ fun CompactTimerDisplay(
                 Button(
                     onClick = onCancel,
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth(0.48f)
                         .height(40.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFE53935)
@@ -367,5 +385,40 @@ fun CompactTimerDisplay(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TimerActionButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    containerColor: Color,
+    contentColor: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 56.dp),
+        enabled = enabled,
+        shape = MaterialTheme.shapes.large,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = containerColor.copy(alpha = 0.45f),
+            disabledContentColor = contentColor.copy(alpha = 0.6f)
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }

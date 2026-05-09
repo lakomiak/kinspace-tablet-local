@@ -14,6 +14,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -58,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val backStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = backStackEntry?.destination
+                    var focusRefreshToken by remember { mutableStateOf(0) }
                     val showChrome = currentDestination?.route != "signin" && currentDestination?.route != "member_selection"
 
                     Scaffold(
@@ -138,6 +142,7 @@ class MainActivity : ComponentActivity() {
                             composable("focus") {
                                 DailyFocusViewScreen(
                                     memberName = setupManager.getAssignedMemberName(),
+                                    refreshToken = focusRefreshToken,
                                     onTimerStartRequested = { task ->
                                         val durationSeconds = ((task.timerDurationMs ?: 0L) / 1000L).toInt()
                                         if (durationSeconds > 0) {
@@ -151,6 +156,7 @@ class MainActivity : ComponentActivity() {
                                 CreateTodoScreen(
                                     onBackClick = { navController.popBackStack() },
                                     onCreateSuccess = {
+                                        focusRefreshToken += 1
                                         navController.popBackStack()
                                     }
                                 )

@@ -5,9 +5,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,63 +63,84 @@ fun SignInScreen(
         if (authState is AuthState.Authenticated) onSignInSuccess()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Kinspace logo
-        Image(
-            painter = painterResource(id = R.drawable.kinspace_logo),
-            contentDescription = "Kinspace logo",
-            modifier = Modifier.size(180.dp)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            text = "Kinspace",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Family To Do's management",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        if (isLoading) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        } else {
-            Button(
-                onClick = { viewModel.startSignIn() },
-                modifier = Modifier
-                    .widthIn(min = 240.dp)
-                    .height(52.dp)
-            ) {
-                Text(
-                    text = "Sign in with Kinspace",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        val outerPadding = when {
+            maxWidth < 360.dp -> 20.dp
+            maxWidth < 600.dp -> 32.dp
+            else -> 48.dp
+        }
+        val logoSize = when {
+            maxWidth < 360.dp -> 140.dp
+            maxWidth < 600.dp -> 180.dp
+            else -> 220.dp
+        }
+        val contentWidth = when {
+            maxWidth < 360.dp -> maxWidth
+            maxWidth < 600.dp -> 320.dp
+            else -> 420.dp
         }
 
-        errorMessage?.let { msg ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = msg,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 14.sp
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(outerPadding)
+                .widthIn(max = contentWidth),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.kinspace_logo),
+                contentDescription = "Kinspace logo",
+                modifier = Modifier.size(logoSize)
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "Kinspace",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Family To Do's management",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            if (isLoading) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            } else {
+                Button(
+                    onClick = { viewModel.startSignIn() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(min = 240.dp)
+                        .height(52.dp)
+                ) {
+                    Text(
+                        text = "Sign in with Kinspace",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            errorMessage?.let { msg ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+            }
         }
     }
 }

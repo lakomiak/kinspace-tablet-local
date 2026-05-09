@@ -1,5 +1,5 @@
-# ADHD Focus App - 7" Tablet Emulator Runner (PowerShell)
-# This script sets up and runs the app in a 7" tablet emulator (1024x600 resolution)
+# ADHD Focus App - 10" Tablet Emulator Runner (PowerShell)
+# This script sets up and runs the app in a 10" tablet emulator (1280x800 resolution)
 
 param(
     [switch]$SkipBuild = $false,
@@ -8,8 +8,8 @@ param(
 )
 
 # Configuration
-$EMULATOR_NAME = "tablet_7inch"
-$AVD_NAME = "tablet_7inch_avd"
+$EMULATOR_NAME = "tablet_10inch"
+$AVD_NAME = "tablet_10inch_avd"
 $ANDROID_SDK_ROOT = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { "$env:USERPROFILE\AppData\Local\Android\Sdk" }
 $EMULATOR_PATH = "$ANDROID_SDK_ROOT\emulator\emulator.exe"
 $ADB_PATH = "$ANDROID_SDK_ROOT\platform-tools\adb.exe"
@@ -19,9 +19,9 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $parentDir = Split-Path -Parent $scriptDir
 $GRADLE_WRAPPER = "$parentDir\gradlew.bat"
 
-# Tablet specifications (7 inch tablet - 1024x600)
-$TABLET_WIDTH = 1024
-$TABLET_HEIGHT = 600
+# Tablet specifications (10.1 inch tablet - 1280x800)
+$TABLET_WIDTH = 1280
+$TABLET_HEIGHT = 800
 $TABLET_DPI = 160
 
 # Colors
@@ -82,7 +82,7 @@ function Create-AVD-IfNeeded {
         return
     }
     
-    Write-ColorOutput "Creating new 7 inch tablet AVD..." $colors['Yellow']
+    Write-ColorOutput "Creating new 10 inch tablet AVD..." $colors['Yellow']
     
     $avdManagerPath = "$ANDROID_SDK_ROOT\cmdline-tools\latest\bin\avdmanager.bat"
     
@@ -93,10 +93,10 @@ function Create-AVD-IfNeeded {
     }
     
     # Create AVD using cmd to handle input properly
-    # Try Android 36 first (most commonly available)
-    $cmdScript = @"
+# Try Android 36 first (matches the existing tablet AVD image family)
+$cmdScript = @"
 @echo off
-echo no | "$avdManagerPath" create avd -n "$AVD_NAME" -k "system-images;android-36;google_apis;x86_64" -d "7in WSVGA" -f
+echo no | "$avdManagerPath" create avd -n "$AVD_NAME" -k "system-images;android-36;google_apis;x86_64" -d "10.1in WXGA (Tablet)" -f
 "@
     
     $tempScript = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.bat'
@@ -328,6 +328,6 @@ Show-Device-Info
 Show-Usage
 
 Write-Header "Setup Complete"
-Write-ColorOutput "OK App is running on the 7 inch tablet emulator" $colors['Green']
+Write-ColorOutput "OK App is running on the 10 inch tablet emulator" $colors['Green']
 
 Show-Logcat

@@ -1,12 +1,12 @@
 @echo off
-REM ADHD Focus App - 7" Tablet Emulator Runner (Windows)
-REM This script sets up and runs the app in a 7" tablet emulator (1024x600 resolution)
+REM ADHD Focus App - 10" Tablet Emulator Runner (Windows)
+REM This script sets up and runs the app in a 10" tablet emulator (1280x800 resolution)
 
 setlocal enabledelayedexpansion
 
 REM Configuration
-set EMULATOR_NAME=tablet_7inch
-set AVD_NAME=tablet_7inch_avd
+set EMULATOR_NAME=tablet_10inch
+set AVD_NAME=tablet_10inch_avd
 if not defined ANDROID_SDK_ROOT (
     set ANDROID_SDK_ROOT=%USERPROFILE%\AppData\Local\Android\Sdk
 )
@@ -14,9 +14,9 @@ set EMULATOR_PATH=%ANDROID_SDK_ROOT%\emulator\emulator.exe
 set ADB_PATH=%ANDROID_SDK_ROOT%\platform-tools\adb.exe
 set GRADLE_WRAPPER=gradlew.bat
 
-REM Tablet specifications (7" tablet - 1024x600)
-set TABLET_WIDTH=1024
-set TABLET_HEIGHT=600
+REM Tablet specifications (10.1" tablet - 1280x800)
+set TABLET_WIDTH=1280
+set TABLET_HEIGHT=800
 set TABLET_DPI=160
 
 echo.
@@ -53,11 +53,11 @@ echo Checking for existing AVD: %AVD_NAME%
 if exist "%USERPROFILE%\.android\avd\%AVD_NAME%.avd" (
     echo [OK] AVD already exists
 ) else (
-    echo Creating new 7" tablet AVD...
+    echo Creating new 10" tablet AVD...
     echo no | "%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\avdmanager.bat" create avd ^
         -n "%AVD_NAME%" ^
-        -k "system-images;android;34;google_apis" ^
-        -d "7in WSVGA" ^
+        -k "system-images;android-36;google_apis;x86_64" ^
+        -d "10.1in WXGA (Tablet)" ^
         -f
     
     if errorlevel 1 (
@@ -65,7 +65,7 @@ if exist "%USERPROFILE%\.android\avd\%AVD_NAME%.avd" (
         echo Trying alternative method...
         echo no | "%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\avdmanager.bat" create avd ^
             -n "%AVD_NAME%" ^
-            -k "system-images;android;34;google_apis" ^
+            -k "system-images;android-36;google_apis;x86_64" ^
             -f
         
         if errorlevel 1 (
@@ -78,7 +78,7 @@ if exist "%USERPROFILE%\.android\avd\%AVD_NAME%.avd" (
 
 REM Start emulator
 echo.
-echo Starting 7" tablet emulator...
+echo Starting 10" tablet emulator...
 
 REM Check if emulator is already running
 "%ADB_PATH%" devices | find "%EMULATOR_NAME%" >nul
