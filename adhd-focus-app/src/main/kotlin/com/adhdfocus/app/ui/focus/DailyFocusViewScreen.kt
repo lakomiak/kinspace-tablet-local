@@ -57,7 +57,7 @@ fun DailyFocusViewScreen(
     viewModel: FocusViewModel = hiltViewModel()
 ) {
     LaunchedEffect(memberName, refreshToken) {
-        viewModel.refreshCurrentTasks(fromCloud = false)
+        viewModel.refreshCurrentTasks(fromCloud = true)
     }
 
     val todaysTasks by viewModel.todaysTasks.collectAsStateWithLifecycle()
