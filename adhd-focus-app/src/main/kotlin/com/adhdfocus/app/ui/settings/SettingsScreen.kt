@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,6 +97,15 @@ fun SettingsScreen(
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var unlockPasscode by remember { mutableStateOf("") }
+
+    DisposableEffect(hasSettingsPasscode) {
+        onDispose {
+            if (hasSettingsPasscode) {
+                viewModel.lockSettings()
+                unlockPasscode = ""
+            }
+        }
+    }
 
     val recoveryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
