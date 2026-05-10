@@ -60,8 +60,8 @@ class TaskParser {
 
         // Extract optional fields
         val description = json.optString("description", null).takeIf { it?.isNotBlank() == true }
-        val estimatedDurationMinutes = json.optInt("estimatedDurationMinutes", -1).takeIf { it > 0 }
-        val estimatedDurationSeconds = json.optInt("estimatedDurationSeconds", -1).takeIf { it > 0 }
+        val estimatedDurationMinutes = json.optInt("estimatedDurationMinutes", -1).takeIf { it >= 0 }
+        val estimatedDurationSeconds = json.optInt("estimatedDurationSeconds", -1).takeIf { it >= 0 }
         val actualDurationMinutes = json.optInt("actualDurationMinutes", -1).takeIf { it >= 0 }
         val timerDurationMs = parseTimer(json)
 
@@ -163,6 +163,6 @@ class TaskParser {
         if (!json.has("timer") || json.isNull("timer")) return null
         val timerObj = json.optJSONObject("timer") ?: return null
         val durationMs = timerObj.optLong("durationMs", 0L)
-        return durationMs.takeIf { it > 0 }
+        return durationMs.takeIf { it >= 0 }
     }
 }

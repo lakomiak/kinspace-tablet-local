@@ -59,6 +59,9 @@ class FocusViewModel @Inject constructor(
     private val _syncStatus = MutableStateFlow(SyncStatus.IDLE)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus
 
+    private val _allowTodoEditing = MutableStateFlow(false)
+    val allowTodoEditing: StateFlow<Boolean> = _allowTodoEditing
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -195,6 +198,18 @@ class FocusViewModel @Inject constructor(
         }
     }
 
+    fun deleteTask(taskId: String) {
+        viewModelScope.launch {
+            try {
+                taskManager.deleteTask(taskId)
+                _todaysTasks.value = _todaysTasks.value.filterNot { it.id == taskId }
+                _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
+            } catch (e: Exception) {
+                Log.e(tag, "deleteTask failed taskId=$taskId", e)
+            }
+        }
+    }
+
     fun toggleTaskCompletion(taskId: String, isCompleted: Boolean) {
         viewModelScope.launch {
             try {
@@ -265,6 +280,7 @@ class FocusViewModel @Inject constructor(
     ) {
         val preferences = userPreferencesManager.getPreferencesOrDefault(userId)
         taskManager.setAffirmationFrequency(preferences.affirmationFrequency)
+        _allowTodoEditing.value = preferences.enableTodoEditing
         _todaysTasks.value = tasks
         _completionPercentage.value = progressTracker.calculateCompletionPercentage(tasks)
         _currentStreak.value = progressTracker.getCurrentStreak(userId, householdId)

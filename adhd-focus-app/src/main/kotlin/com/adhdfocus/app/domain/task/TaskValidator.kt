@@ -44,8 +44,8 @@ class TaskValidator {
         }
 
         // Validate optional fields
-        if (task.estimatedDurationMinutes != null && task.estimatedDurationMinutes <= 0) {
-            errors.add("Estimated duration must be positive")
+        if (task.estimatedDurationMinutes != null && task.estimatedDurationMinutes < 0) {
+            errors.add("Estimated duration cannot be negative")
         }
         if (task.actualDurationMinutes != null && task.actualDurationMinutes < 0) {
             errors.add("Actual duration cannot be negative")
@@ -108,8 +108,8 @@ class TaskValidator {
         if (assignedUserId.isBlank()) {
             errors.add("Assigned user ID cannot be empty")
         }
-        if (estimatedDurationMinutes != null && estimatedDurationMinutes <= 0) {
-            errors.add("Estimated duration must be positive if provided")
+        if (estimatedDurationMinutes != null && estimatedDurationMinutes < 0) {
+            errors.add("Estimated duration cannot be negative if provided")
         }
         if (estimatedDurationMinutes != null && estimatedDurationMinutes > 1440) {
             errors.add("Estimated duration cannot exceed 1440 minutes (24 hours)")
@@ -151,8 +151,8 @@ class TaskValidator {
         }
 
         if (estimatedDurationMinutes != null) {
-            if (estimatedDurationMinutes <= 0) {
-                errors.add("Estimated duration must be positive")
+            if (estimatedDurationMinutes < 0) {
+                errors.add("Estimated duration cannot be negative")
             }
             if (estimatedDurationMinutes > 1440) {
                 errors.add("Estimated duration cannot exceed 1440 minutes (24 hours)")

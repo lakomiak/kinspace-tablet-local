@@ -9,6 +9,7 @@ import com.adhdfocus.app.data.network.TaskService
 import com.adhdfocus.app.data.network.SyncService
 import com.adhdfocus.app.data.network.CreateTaskRequest
 import com.adhdfocus.app.data.network.UpdateTaskRequest
+import com.adhdfocus.app.data.network.TimerRequest
 import com.adhdfocus.app.data.network.BatchSyncRequest
 import com.adhdfocus.app.data.network.SyncQueueItem as ApiSyncQueueItem
 import com.google.gson.Gson
@@ -51,12 +52,14 @@ class RestApiClientImpl @Inject constructor(
                 group = task.todoGroup,
                 category = task.todoGroup,
                 estimatedDurationMinutes = task.estimatedDurationMinutes,
+                estimatedDurationSeconds = task.estimatedDurationSeconds?.takeIf { it > 0 },
                 actualDurationMinutes = task.actualDurationMinutes,
                 repeat = task.repeatRule,
                 repeatRule = task.repeatRule,
                 dueDate = task.dueDate?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString(),
                 member = memberName?.trim()?.takeIf { it.isNotBlank() },
-                assignedUserId = task.assignedUserId
+                assignedUserId = task.assignedUserId,
+                timer = buildTimerRequest(task.timerDurationMs, task.estimatedDurationMinutes, task.estimatedDurationSeconds)
             )
 
             val response = taskService.createTask(householdId, request).execute()
@@ -77,6 +80,7 @@ class RestApiClientImpl @Inject constructor(
         return retryWithBackoff {
             val request = UpdateTaskRequest(
                 title = updates["title"] as? String,
+                text = (updates["text"] as? String) ?: (updates["title"] as? String),
                 description = updates["description"] as? String,
                 status = when (val status = updates["status"]) {
                     is TaskStatus -> status.name
@@ -86,10 +90,15 @@ class RestApiClientImpl @Inject constructor(
                 done = updates["done"] as? Boolean,
                 actualDurationMinutes = updates["actualDurationMinutes"] as? Int,
                 estimatedDurationMinutes = updates["estimatedDurationMinutes"] as? Int,
+                estimatedDurationSeconds = (updates["estimatedDurationSeconds"] as? Int)?.takeIf { it > 0 },
+                todoGroup = (updates["todoGroup"] as? String),
+                group = (updates["group"] as? String) ?: (updates["todoGroup"] as? String),
+                category = (updates["category"] as? String) ?: (updates["group"] as? String) ?: (updates["todoGroup"] as? String),
                 repeat = updates["repeat"] as? String,
                 repeatRule = updates["repeatRule"] as? String,
                 dueDate = (updates["dueDate"] as? Instant)?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString(),
-                completedAt = (updates["completedAt"] as? Instant)?.toString()
+                completedAt = (updates["completedAt"] as? Instant)?.toString(),
+                timer = extractTimerRequest(updates["timer"])
             )
 
             val response = taskService.updateTask(householdId, taskId, request).execute()
@@ -280,6 +289,37 @@ class RestApiClientImpl @Inject constructor(
         val totalSeconds = (durationMs / 1000L).toInt()
         if (totalSeconds <= 0) return null
         return (totalSeconds / 60) to (totalSeconds % 60)
+    }
+
+    private fun buildTimerRequest(
+        timerDurationMs: Long?,
+        estimatedDurationMinutes: Int?,
+        estimatedDurationSeconds: Int?
+    ): TimerRequest? {
+        val durationMs = when {
+            timerDurationMs != null && timerDurationMs > 0 -> timerDurationMs
+            (estimatedDurationMinutes ?: 0) > 0 || (estimatedDurationSeconds ?: 0) > 0 ->
+                ((estimatedDurationMinutes ?: 0) * 60L + (estimatedDurationSeconds ?: 0).toLong()) * 1000L
+            else -> 0L
+        }
+        return durationMs.takeIf { it > 0L }?.let { TimerRequest(it) }
+    }
+
+    private fun extractTimerRequest(timerValue: Any?): TimerRequest? {
+        return when (timerValue) {
+            null -> null
+            is TimerRequest -> timerValue
+            is Map<*, *> -> {
+                val durationMs = when (val raw = timerValue["durationMs"]) {
+                    is Number -> raw.toLong()
+                    is String -> raw.toLongOrNull()
+                    else -> null
+                }
+                durationMs?.takeIf { it > 0L }?.let { TimerRequest(it) }
+            }
+            is Number -> timerValue.toLong().takeIf { it > 0L }?.let { TimerRequest(it) }
+            else -> null
+        }
     }
 
     private fun normalizeRepeatRule(value: String?): String {

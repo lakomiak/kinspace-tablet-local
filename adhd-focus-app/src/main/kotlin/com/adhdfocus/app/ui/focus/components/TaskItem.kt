@@ -1,7 +1,6 @@
 package com.adhdfocus.app.ui.focus.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,13 +15,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,10 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,7 +48,7 @@ import com.adhdfocus.app.data.model.TaskStatus
  *
  * Displays a single todo with high-contrast visual cues:
  * - INCOMPLETE: Red indicator, bold text
- * - IN_PROGRESS: Orange/yellow indicator, pulsing animation
+ * - IN_PROGRESS: Orange/yellow indicator
  * - COMPLETED: Green checkmark, dimmed text
  *
  * Also shows:
@@ -62,6 +61,9 @@ fun TaskItem(
     task: Task,
     onClick: () -> Unit,
     onStart: () -> Unit,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    showManagementActions: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -94,15 +96,13 @@ fun TaskItem(
             TaskStatus.IN_PROGRESS -> Color(0xFFFB8C00)
             TaskStatus.COMPLETED -> Color(0xFF43A047)
         }
-
+        val timerLabel = remember(task.timerDurationMs, task.estimatedDurationMinutes, task.estimatedDurationSeconds) {
+            buildTimerLabel(task)
+        }
         val statusDescription = when (task.status) {
             TaskStatus.INCOMPLETE -> "Incomplete To Do"
             TaskStatus.IN_PROGRESS -> "To Do in progress"
             TaskStatus.COMPLETED -> "Completed To Do"
-        }
-
-        val timerLabel = remember(task.timerDurationMs, task.estimatedDurationMinutes, task.estimatedDurationSeconds) {
-            buildTimerLabel(task)
         }
 
         Card(
@@ -127,7 +127,7 @@ fun TaskItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontalPadding),
+                    .padding(horizontalPadding, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
@@ -147,43 +147,33 @@ fun TaskItem(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         when (task.status) {
-                            TaskStatus.INCOMPLETE -> {
-                                Icon(
-                                    imageVector = Icons.Default.RadioButtonUnchecked,
-                                    contentDescription = "Mark task complete",
-                                    tint = statusColor,
-                                    modifier = Modifier.size(statusIconSize)
-                                )
-                            }
+                            TaskStatus.INCOMPLETE -> Icon(
+                                imageVector = Icons.Default.RadioButtonUnchecked,
+                                contentDescription = "Mark task complete",
+                                tint = statusColor,
+                                modifier = Modifier.size(statusIconSize)
+                            )
 
-                            TaskStatus.IN_PROGRESS -> {
-                                Icon(
-                                    imageVector = Icons.Default.Timer,
-                                    contentDescription = "In Progress",
-                                    tint = statusColor.copy(alpha = 0.9f),
-                                    modifier = Modifier.size(statusIconSize)
-                                )
-                            }
+                            TaskStatus.IN_PROGRESS -> Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "In Progress",
+                                tint = statusColor.copy(alpha = 0.9f),
+                                modifier = Modifier.size(statusIconSize)
+                            )
 
-                            TaskStatus.COMPLETED -> {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Completed",
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(statusIconSize)
-                                )
-                            }
+                            TaskStatus.COMPLETED -> Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Completed",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                modifier = Modifier.size(statusIconSize)
+                            )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(itemSpacing))
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(
-                        if (timerLabel != null) 0.74f else 0.88f
-                    )
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.bodyLarge,
@@ -258,9 +248,13 @@ fun TaskItem(
                     }
                 }
 
-                when (task.status) {
-                    TaskStatus.INCOMPLETE -> {
-                        if (timerLabel != null) {
+                if (showManagementActions || (task.status == TaskStatus.INCOMPLETE && timerLabel != null)) {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        if (task.status == TaskStatus.INCOMPLETE && timerLabel != null) {
                             ActionButton(
                                 onClick = onStart,
                                 icon = Icons.Default.PlayArrow,
@@ -269,11 +263,29 @@ fun TaskItem(
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         }
+
+                        if (showManagementActions) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ActionPillButton(
+                                    onClick = onEdit,
+                                    icon = Icons.Default.Edit,
+                                    label = "Edit",
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                ActionPillButton(
+                                    onClick = onDelete,
+                                    icon = Icons.Default.Delete,
+                                    label = "Delete",
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
                     }
-
-                    TaskStatus.IN_PROGRESS -> Unit
-
-                    TaskStatus.COMPLETED -> Unit
                 }
             }
         }
@@ -302,6 +314,39 @@ private fun ActionButton(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(label)
+    }
+}
+
+@Composable
+private fun ActionPillButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(999.dp),
+        color = containerColor,
+        contentColor = contentColor
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 

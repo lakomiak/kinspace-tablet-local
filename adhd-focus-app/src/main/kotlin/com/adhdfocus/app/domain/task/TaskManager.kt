@@ -57,7 +57,7 @@ class TaskManager @Inject constructor(
      *
      * @param title Task title (required, non-blank)
      * @param description Task description (optional)
-     * @param estimatedDurationMinutes Estimated duration in minutes (optional, must be positive if provided)
+     * @param estimatedDurationMinutes Estimated duration in minutes (optional, must be non-negative if provided)
      * @param todoGroup Todo group assignment (required, non-blank)
      * @param householdId Household ID (required, non-blank)
      * @param assignedUserId User ID this task is assigned to (required, non-blank)
@@ -82,11 +82,11 @@ class TaskManager @Inject constructor(
         require(householdId.isNotBlank()) { "Household ID cannot be empty" }
         require(assignedUserId.isNotBlank()) { "Assigned user ID cannot be empty" }
         require(repeatRule.isNotBlank()) { "Repeat rule cannot be empty" }
-        require(estimatedDurationMinutes == null || estimatedDurationMinutes > 0) {
-            "Estimated duration must be positive if provided"
+        require(estimatedDurationMinutes == null || estimatedDurationMinutes >= 0) {
+            "Estimated duration must be non-negative if provided"
         }
-        require(estimatedDurationSeconds == null || estimatedDurationSeconds > 0) {
-            "Estimated duration seconds must be positive if provided"
+        require(estimatedDurationSeconds == null || estimatedDurationSeconds >= 0) {
+            "Estimated duration seconds must be non-negative if provided"
         }
 
         val now = Instant.now()
@@ -130,7 +130,7 @@ class TaskManager @Inject constructor(
      * @param taskId ID of the task to update (required, non-blank)
      * @param title New title (optional, if provided must be non-blank)
      * @param description New description (optional)
-     * @param estimatedDurationMinutes New estimated duration (optional, must be positive if provided)
+     * @param estimatedDurationMinutes New estimated duration (optional, must be non-negative if provided)
      * @param todoGroup New todo group (optional, if provided must be non-blank)
      * @param status New task status (optional)
      * @return Updated task with PENDING sync status
@@ -141,8 +141,12 @@ class TaskManager @Inject constructor(
         title: String? = null,
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
+        estimatedDurationSeconds: Int? = null,
         todoGroup: String? = null,
-        status: TaskStatus? = null
+        status: TaskStatus? = null,
+        dueDate: Instant? = null,
+        clearDueDate: Boolean = false,
+        repeatRule: String? = null
     ): Task {
         require(taskId.isNotBlank()) { "Task ID cannot be empty" }
 
@@ -157,21 +161,42 @@ class TaskManager @Inject constructor(
             require(todoGroup.isNotBlank()) { "Todo group cannot be empty" }
         }
         if (estimatedDurationMinutes != null) {
-            require(estimatedDurationMinutes > 0) { "Estimated duration must be positive" }
+            require(estimatedDurationMinutes >= 0) { "Estimated duration must be non-negative" }
+        }
+        if (estimatedDurationSeconds != null) {
+            require(estimatedDurationSeconds >= 0) { "Estimated duration seconds must be non-negative" }
         }
 
-        val timerDurationMs = computeTimerDurationMs(
-            estimatedDurationMinutes ?: existingTask.estimatedDurationMinutes,
-            existingTask.estimatedDurationSeconds
-        )
+        val resolvedDueDate = when {
+            clearDueDate -> null
+            dueDate != null -> dueDate
+            else -> existingTask.dueDate
+        }
+        val resolvedRepeatRule = repeatRule?.trim()?.takeIf { it.isNotBlank() } ?: existingTask.repeatRule
+
+        val resolvedEstimatedMinutes = estimatedDurationMinutes ?: existingTask.estimatedDurationMinutes
+        val resolvedEstimatedSeconds = estimatedDurationSeconds ?: existingTask.estimatedDurationSeconds
+        val timerDurationMs = when {
+            estimatedDurationMinutes != null || estimatedDurationSeconds != null ->
+                computeTimerDurationMs(resolvedEstimatedMinutes, resolvedEstimatedSeconds)
+            else -> existingTask.timerDurationMs
+        }
 
         val updatedTask = existingTask.copy(
             title = title ?: existingTask.title,
             description = description ?: existingTask.description,
             todoGroup = todoGroup ?: existingTask.todoGroup,
-            estimatedDurationMinutes = estimatedDurationMinutes ?: existingTask.estimatedDurationMinutes,
+            repeatRule = resolvedRepeatRule,
+            estimatedDurationMinutes = resolvedEstimatedMinutes,
+            estimatedDurationSeconds = resolvedEstimatedSeconds,
             timerDurationMs = timerDurationMs,
+            dueDate = resolvedDueDate,
             status = status ?: existingTask.status,
+            completedAt = when (status) {
+                TaskStatus.COMPLETED -> existingTask.completedAt ?: Instant.now()
+                TaskStatus.INCOMPLETE -> null
+                TaskStatus.IN_PROGRESS, null -> existingTask.completedAt
+            },
             updatedAt = Instant.now(),
             syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
         )
@@ -182,7 +207,9 @@ class TaskManager @Inject constructor(
         // Queue for sync
         queueTaskForSync(updatedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
 
-        return updatedTask
+        val syncedTask = syncTaskUpdateToCloud(updatedTask)
+
+        return syncedTask ?: updatedTask
     }
 
     /**
@@ -310,6 +337,8 @@ class TaskManager @Inject constructor(
 
         // Queue for sync
         queueTaskForSync(deletedTask, SyncOperation.DELETE, existingTask.assignedUserId)
+
+        syncTaskDeletionToCloud(deletedTask)
     }
 
     /**
@@ -443,6 +472,52 @@ class TaskManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(tag, "Failed to sync task creation to cloud taskId=${task.id}", e)
             null
+        }
+    }
+
+    private suspend fun syncTaskUpdateToCloud(task: Task): Task? {
+        return try {
+            val updatedTask = withContext(Dispatchers.IO) {
+                restApiClient.updateTask(
+                    task.householdId,
+                    task.id,
+                    mapOf(
+                        "title" to task.title,
+                        "text" to task.title,
+                        "description" to task.description,
+                        "todoGroup" to task.todoGroup,
+                        "group" to task.todoGroup,
+                        "category" to task.todoGroup,
+                        "estimatedDurationMinutes" to task.estimatedDurationMinutes,
+                        "estimatedDurationSeconds" to task.estimatedDurationSeconds?.takeIf { it > 0 },
+                        "repeat" to task.repeatRule,
+                        "repeatRule" to task.repeatRule,
+                        "dueDate" to task.dueDate,
+                        "status" to task.status,
+                        "done" to (task.status == TaskStatus.COMPLETED),
+                        "completedAt" to task.completedAt,
+                        "timer" to task.timerDurationMs?.let { mapOf("durationMs" to it) }
+                    )
+                )
+            }
+
+            taskDao.update(updatedTask)
+            syncQueueManager.removeItemsByTask(task.id)
+            updatedTask
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to sync task update to cloud taskId=${task.id}", e)
+            null
+        }
+    }
+
+    private suspend fun syncTaskDeletionToCloud(task: Task) {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                restApiClient.deleteTask(task.householdId, task.id)
+            }
+            syncQueueManager.removeItemsByTask(task.id)
+        }.onFailure { error ->
+            Log.e(tag, "Failed to sync task deletion to cloud taskId=${task.id}", error)
         }
     }
 

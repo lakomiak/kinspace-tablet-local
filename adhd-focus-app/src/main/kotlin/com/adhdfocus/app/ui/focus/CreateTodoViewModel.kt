@@ -2,6 +2,7 @@ package com.adhdfocus.app.ui.focus
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.task.TaskManager
 import com.adhdfocus.app.domain.visibility.TodoGroupVisibilityManager
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,6 +26,9 @@ class CreateTodoViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+
+    private val _editingTask = MutableStateFlow<Task?>(null)
+    val editingTask: StateFlow<Task?> = _editingTask
 
     val todoGroups: List<String> = todoGroupVisibilityManager.getAllTodoGroups()
 
@@ -68,8 +72,8 @@ class CreateTodoViewModel @Inject constructor(
             return
         }
 
-        val estimatedDurationMinutes = durationMinutes.takeIf { it > 0 }
-        val estimatedDurationSeconds = durationSeconds.takeIf { it > 0 }
+        val estimatedDurationMinutes = durationMinutes.takeIf { it >= 0 }
+        val estimatedDurationSeconds = durationSeconds.takeIf { it >= 0 }
 
         viewModelScope.launch {
             _isSaving.value = true
@@ -95,6 +99,77 @@ class CreateTodoViewModel @Inject constructor(
         }
     }
 
+    fun loadTaskForEdit(taskId: String) {
+        if (taskId.isBlank()) {
+            _editingTask.value = null
+            return
+        }
+        viewModelScope.launch {
+            _editingTask.value = taskManager.getTaskById(taskId)
+        }
+    }
+
+    fun clearTaskForEdit() {
+        _editingTask.value = null
+    }
+
+    fun updateTodo(
+        taskId: String,
+        title: String,
+        dueDateText: String,
+        todoGroup: String,
+        repeatRule: String,
+        timerMinutesText: String,
+        timerSecondsText: String,
+        onSuccess: () -> Unit
+    ) {
+        val trimmedTitle = title.trim()
+        if (trimmedTitle.isBlank()) {
+            _error.value = "Please enter a To Do title."
+            return
+        }
+
+        val dueDate = parseDueDate(dueDateText)
+        if (dueDateText.isNotBlank() && dueDate == null) {
+            _error.value = "Use YYYY-MM-DD for the due date."
+            return
+        }
+
+        val resolvedGroup = todoGroup.trim().ifBlank { "Other" }
+        val durationMinutes = timerMinutesText.trim().toIntOrNull() ?: 0
+        val durationSeconds = timerSecondsText.trim().toIntOrNull() ?: 0
+        if (durationMinutes < 0) {
+            _error.value = "Timer minutes must be 0 or greater."
+            return
+        }
+        if (durationSeconds < 0 || durationSeconds > 59) {
+            _error.value = "Timer seconds must be between 0 and 59."
+            return
+        }
+
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                taskManager.updateTask(
+                    taskId = taskId,
+                    title = trimmedTitle,
+                    todoGroup = resolvedGroup,
+                    dueDate = dueDate,
+                    clearDueDate = dueDateText.isBlank(),
+                    estimatedDurationMinutes = durationMinutes,
+                    estimatedDurationSeconds = durationSeconds,
+                    repeatRule = repeatRule
+                )
+                onSuccess()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to update To Do."
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
     fun clearError() {
         _error.value = null
     }
@@ -106,7 +181,7 @@ class CreateTodoViewModel @Inject constructor(
         }
 
         return runCatching {
-            LocalDate.parse(trimmed).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            LocalDate.parse(trimmed).atStartOfDay(ZoneOffset.UTC).toInstant()
         }.getOrNull()
     }
 }

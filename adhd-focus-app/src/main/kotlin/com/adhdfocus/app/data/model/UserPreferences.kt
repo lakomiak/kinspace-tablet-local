@@ -6,15 +6,7 @@ import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 @Entity(
-    tableName = "user_preferences",
-    foreignKeys = [
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ]
+    tableName = "user_preferences"
 )
 data class UserPreferences(
     @PrimaryKey
@@ -22,6 +14,8 @@ data class UserPreferences(
     val theme: Theme = Theme.LIGHT,
     val visibleTodoGroups: String = "", // JSON serialized list
     val notificationPreferences: String = "", // JSON serialized NotificationPreferences
+    val settingsPasscodeHash: String? = null,
+    val enableTodoEditing: Boolean = false,
     val dailyResetTime: String = "00:00",
     val affirmationFrequency: Int = 3,
     val enableGamification: Boolean = true,

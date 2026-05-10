@@ -143,6 +143,9 @@ class MainActivity : ComponentActivity() {
                                 DailyFocusViewScreen(
                                     memberName = setupManager.getAssignedMemberName(),
                                     refreshToken = focusRefreshToken,
+                                    onTaskEditRequested = { task ->
+                                        navController.navigate("edit_todo/${Uri.encode(task.id)}")
+                                    },
                                     onTimerStartRequested = { task ->
                                         val durationSeconds = ((task.timerDurationMs ?: 0L) / 1000L).toInt()
                                         if (durationSeconds > 0) {
@@ -155,7 +158,19 @@ class MainActivity : ComponentActivity() {
                             composable("create_todo") {
                                 CreateTodoScreen(
                                     onBackClick = { navController.popBackStack() },
-                                    onCreateSuccess = {
+                                    onSaveSuccess = {
+                                        focusRefreshToken += 1
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
+
+                            composable("edit_todo/{taskId}") { backStackEntry ->
+                                val taskId = Uri.decode(backStackEntry.arguments?.getString("taskId").orEmpty())
+                                CreateTodoScreen(
+                                    taskId = taskId,
+                                    onBackClick = { navController.popBackStack() },
+                                    onSaveSuccess = {
                                         focusRefreshToken += 1
                                         navController.popBackStack()
                                     }
@@ -171,7 +186,10 @@ class MainActivity : ComponentActivity() {
                                             popUpTo("settings") { inclusive = true }
                                         }
                                     },
-                                    onBackClick = { navController.popBackStack() }
+                                    onBackClick = {
+                                        focusRefreshToken += 1
+                                        navController.popBackStack()
+                                    }
                                 )
                             }
 

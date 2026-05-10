@@ -22,6 +22,9 @@ fun TaskListByGroup(
     tasks: List<Task>,
     onTaskToggle: (String, Boolean) -> Unit,
     onTaskStart: (String) -> Unit,
+    onTaskEdit: (Task) -> Unit = {},
+    onTaskDelete: (Task) -> Unit = {},
+    showManagementActions: Boolean = false,
     onTimerStartRequested: (Task) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -62,7 +65,10 @@ fun TaskListByGroup(
                         if ((task.timerDurationMs ?: 0L) > 0L) {
                             onTimerStartRequested(task)
                         }
-                    }
+                    },
+                    onEdit = { onTaskEdit(task) },
+                    onDelete = { onTaskDelete(task) },
+                    showManagementActions = showManagementActions
                 )
             }
         }

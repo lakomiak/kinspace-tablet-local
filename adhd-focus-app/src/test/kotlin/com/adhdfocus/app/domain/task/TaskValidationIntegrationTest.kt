@@ -156,7 +156,29 @@ class TaskValidationIntegrationTest : BehaviorSpec({
 
                 // Assert
                 result.isValid() shouldBe false
-                result.getErrors() shouldContain "Estimated duration must be positive"
+                result.getErrors() shouldContain "Estimated duration cannot be negative"
+            }
+        }
+
+        When("validating a task with zero estimated duration") {
+            Then("should pass validation") {
+                // Arrange
+                val task = Task(
+                    id = UUID.randomUUID().toString(),
+                    householdId = "household1",
+                    assignedUserId = "user1",
+                    title = "Test Task",
+                    todoGroup = "Morning",
+                    estimatedDurationMinutes = 0,
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now()
+                )
+
+                // Act
+                val result = validator.validateTask(task)
+
+                // Assert
+                result.isValid() shouldBe true
             }
         }
 
@@ -364,7 +386,7 @@ class TaskValidationIntegrationTest : BehaviorSpec({
 
                 // Assert
                 result.isValid() shouldBe false
-                result.getErrors() shouldContain "Estimated duration must be positive"
+                result.getErrors() shouldContain "Estimated duration cannot be negative"
             }
         }
     }

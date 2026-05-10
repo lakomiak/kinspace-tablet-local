@@ -1,13 +1,16 @@
 package com.adhdfocus.app.ui.settings
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.auth.AuthResult
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.theme.ThemeManager
+import com.adhdfocus.app.util.PinValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +70,22 @@ class SettingsViewModel @Inject constructor(
 
     private val _autoLogoutTimeout = MutableStateFlow(0)
     val autoLogoutTimeout: StateFlow<Int> = _autoLogoutTimeout
+
+    private val _settingsPasscodeHash = MutableStateFlow<String?>(null)
+    private val _hasSettingsPasscode = MutableStateFlow(false)
+    val hasSettingsPasscode: StateFlow<Boolean> = _hasSettingsPasscode
+
+    private val _settingsUnlocked = MutableStateFlow(true)
+    val settingsUnlocked: StateFlow<Boolean> = _settingsUnlocked
+
+    private val _allowTodoEditing = MutableStateFlow(false)
+    val allowTodoEditing: StateFlow<Boolean> = _allowTodoEditing
+
+    private val _showPasscodeSetupDialog = MutableStateFlow(false)
+    val showPasscodeSetupDialog: StateFlow<Boolean> = _showPasscodeSetupDialog
+
+    private val _recoverySignInIntent = MutableStateFlow<Intent?>(null)
+    val recoverySignInIntent: StateFlow<Intent?> = _recoverySignInIntent
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -132,6 +151,11 @@ class SettingsViewModel @Inject constructor(
                 _efficiencyMetricsEnabled.value = preferences.enableEfficiencyMetrics
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
+                _settingsPasscodeHash.value = preferences.settingsPasscodeHash
+                _hasSettingsPasscode.value = !preferences.settingsPasscodeHash.isNullOrBlank()
+                _settingsUnlocked.value = preferences.settingsPasscodeHash.isNullOrBlank()
+                _allowTodoEditing.value = preferences.enableTodoEditing
+                _showPasscodeSetupDialog.value = false
                 
                 // Load theme into ThemeManager
                 themeManager.loadThemeForUser(userId)
@@ -141,6 +165,107 @@ class SettingsViewModel @Inject constructor(
                 _isLoading.value = false
             }
         }
+    }
+
+    fun lockSettings() {
+        if (_settingsPasscodeHash.value.isNullOrBlank()) return
+        _settingsUnlocked.value = false
+    }
+
+    fun unlockSettings(passcode: String) {
+        val storedHash = _settingsPasscodeHash.value
+        if (storedHash.isNullOrBlank()) {
+            _settingsUnlocked.value = true
+            return
+        }
+        if (!isValidSettingsPasscode(passcode)) {
+            _errorMessage.value = "Passcode must be exactly 5 digits"
+            return
+        }
+        if (PinValidator.validatePin(passcode, storedHash)) {
+            _settingsUnlocked.value = true
+            _errorMessage.value = null
+        } else {
+            _errorMessage.value = "Incorrect passcode"
+        }
+    }
+
+    fun beginPasscodeSetup() {
+        _errorMessage.value = null
+        _showPasscodeSetupDialog.value = true
+    }
+
+    fun dismissPasscodeSetup() {
+        _showPasscodeSetupDialog.value = false
+    }
+
+    fun saveSettingsPasscode(passcode: String) {
+        if (!isValidSettingsPasscode(passcode)) {
+            _errorMessage.value = "Passcode must be exactly 5 digits"
+            return
+        }
+        _settingsPasscodeHash.value = PinValidator.hashPin(passcode)
+        _settingsUnlocked.value = true
+        _showPasscodeSetupDialog.value = false
+        _hasSettingsPasscode.value = true
+        saveCurrentSettings()
+    }
+
+    fun clearSettingsPasscode() {
+        _settingsPasscodeHash.value = null
+        _settingsUnlocked.value = true
+        _hasSettingsPasscode.value = false
+        saveCurrentSettings()
+    }
+
+    fun updateTodoEditingEnabled(enabled: Boolean) {
+        _allowTodoEditing.value = enabled
+        saveCurrentSettings()
+    }
+
+    fun startCloudRecoverySignIn() {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+            try {
+                _recoverySignInIntent.value = authManager.buildSignInIntent()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to start Kinspace login: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun handleCloudRecoveryResult(data: Intent?) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+            try {
+                val response = data?.let { net.openid.appauth.AuthorizationResponse.fromIntent(it) }
+                val exception = data?.let { net.openid.appauth.AuthorizationException.fromIntent(it) }
+                when (val result = authManager.handleAuthorizationResponse(response, exception)) {
+                    is AuthResult.Success -> {
+                        _settingsPasscodeHash.value = null
+                        _settingsUnlocked.value = true
+                        _showPasscodeSetupDialog.value = true
+                        saveCurrentSettings()
+                    }
+                    is AuthResult.Error -> {
+                        _errorMessage.value = result.message
+                    }
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Kinspace login failed: ${e.message}"
+            } finally {
+                _recoverySignInIntent.value = null
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun clearRecoverySignInIntent() {
+        _recoverySignInIntent.value = null
     }
 
     /**
@@ -310,6 +435,8 @@ class SettingsViewModel @Inject constructor(
                     theme = _theme.value,
                     visibleTodoGroups = "[]",
                     notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
+                    settingsPasscodeHash = _settingsPasscodeHash.value,
+                    enableTodoEditing = _allowTodoEditing.value,
                     dailyResetTime = _dailyResetTime.value,
                     affirmationFrequency = _affirmationFrequency.value,
                     enableGamification = _gamificationEnabled.value,
@@ -389,5 +516,9 @@ class SettingsViewModel @Inject constructor(
      */
     private fun serializeNotificationPreferences(prefs: NotificationPreferences): String {
         return json.encodeToString(prefs)
+    }
+
+    private fun isValidSettingsPasscode(passcode: String): Boolean {
+        return passcode.length == 5 && passcode.all { it.isDigit() }
     }
 }

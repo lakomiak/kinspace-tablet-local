@@ -48,6 +48,11 @@ data class TimerResponse(
     val durationMs: Long?
 )
 
+data class TimerRequest(
+    @SerializedName("durationMs")
+    val durationMs: Long?
+)
+
 data class TodoResponse(
     val id: String,
     @SerializedName("householdId")
@@ -245,17 +250,23 @@ data class CreateTaskRequest(
     val repeatRule: String? = null,
     @SerializedName("estimated_duration_minutes")
     val estimatedDurationMinutes: Int?,
+    @SerializedName("estimated_duration_seconds")
+    val estimatedDurationSeconds: Int? = null,
     @SerializedName("actual_duration_minutes")
     val actualDurationMinutes: Int?,
     val dueDate: String?,
     @SerializedName("member")
     val member: String? = null,
     @SerializedName("assigned_user_id")
-    val assignedUserId: String
+    val assignedUserId: String,
+    @SerializedName("timer")
+    val timer: TimerRequest? = null
 )
 
 data class UpdateTaskRequest(
     val title: String?,
+    @SerializedName("text")
+    val text: String? = null,
     val description: String?,
     val status: String?,
     val done: Boolean? = null,
@@ -263,13 +274,23 @@ data class UpdateTaskRequest(
     val actualDurationMinutes: Int?,
     @SerializedName("estimated_duration_minutes")
     val estimatedDurationMinutes: Int?,
+    @SerializedName("estimated_duration_seconds")
+    val estimatedDurationSeconds: Int? = null,
+    @SerializedName("todo_group")
+    val todoGroup: String? = null,
+    @SerializedName("group")
+    val group: String? = null,
+    @SerializedName("category")
+    val category: String? = null,
     @SerializedName("repeat")
     val repeat: String? = null,
     @SerializedName("repeatRule")
     val repeatRule: String? = null,
     val dueDate: String?,
     @SerializedName("completedAt")
-    val completedAt: String?
+    val completedAt: String?,
+    @SerializedName("timer")
+    val timer: TimerRequest? = null
 )
 
 // Sync Models

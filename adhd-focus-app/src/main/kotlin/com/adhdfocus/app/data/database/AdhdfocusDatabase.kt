@@ -39,7 +39,7 @@ import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
         SyncQueueItem::class,
         OfflineUpdateQueueItem::class
     ],
-    version = 6,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -154,6 +154,71 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_preferences ADD COLUMN settingsPasscodeHash TEXT")
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_preferences ADD COLUMN enableTodoEditing INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_preferences RENAME TO user_preferences_old")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_preferences (
+                        userId TEXT NOT NULL,
+                        theme TEXT NOT NULL,
+                        visibleTodoGroups TEXT NOT NULL,
+                        notificationPreferences TEXT NOT NULL,
+                        settingsPasscodeHash TEXT,
+                        enableTodoEditing INTEGER NOT NULL,
+                        dailyResetTime TEXT NOT NULL,
+                        affirmationFrequency INTEGER NOT NULL,
+                        enableGamification INTEGER NOT NULL,
+                        enableBadges INTEGER NOT NULL,
+                        enableStreaks INTEGER NOT NULL,
+                        enableEfficiencyMetrics INTEGER NOT NULL,
+                        timerDefaultDuration INTEGER NOT NULL,
+                        autoLogoutTimeout INTEGER NOT NULL,
+                        PRIMARY KEY(userId)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO user_preferences (
+                        userId, theme, visibleTodoGroups, notificationPreferences, settingsPasscodeHash,
+                        enableTodoEditing, dailyResetTime, affirmationFrequency, enableGamification,
+                        enableBadges, enableStreaks, enableEfficiencyMetrics, timerDefaultDuration, autoLogoutTimeout
+                    )
+                    SELECT
+                        userId,
+                        theme,
+                        visibleTodoGroups,
+                        notificationPreferences,
+                        settingsPasscodeHash,
+                        COALESCE(enableTodoEditing, 0),
+                        dailyResetTime,
+                        affirmationFrequency,
+                        enableGamification,
+                        enableBadges,
+                        enableStreaks,
+                        enableEfficiencyMetrics,
+                        timerDefaultDuration,
+                        autoLogoutTimeout
+                    FROM user_preferences_old
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE user_preferences_old")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -164,7 +229,10 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_2_3,
             MIGRATION_3_4,
             MIGRATION_4_5,
-            MIGRATION_5_6
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8,
+            MIGRATION_8_9
         )
     }
 }

@@ -54,11 +54,11 @@ data class Task(
         require(title.isNotBlank()) { "title cannot be blank" }
         require(todoGroup.isNotBlank()) { "todoGroup cannot be blank" }
         require(repeatRule.isNotBlank()) { "repeatRule cannot be blank" }
-        require(estimatedDurationMinutes == null || estimatedDurationMinutes > 0) {
-            "estimatedDurationMinutes must be positive if provided"
+        require(estimatedDurationMinutes == null || estimatedDurationMinutes >= 0) {
+            "estimatedDurationMinutes must be non-negative if provided"
         }
-        require(estimatedDurationSeconds == null || estimatedDurationSeconds > 0) {
-            "estimatedDurationSeconds must be positive if provided"
+        require(estimatedDurationSeconds == null || estimatedDurationSeconds >= 0) {
+            "estimatedDurationSeconds must be non-negative if provided"
         }
         require(actualDurationMinutes == null || actualDurationMinutes >= 0) {
             "actualDurationMinutes must be non-negative if provided"

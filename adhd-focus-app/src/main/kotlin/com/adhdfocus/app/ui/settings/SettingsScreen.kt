@@ -1,5 +1,8 @@
 package com.adhdfocus.app.ui.settings
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,10 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -25,9 +30,14 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -76,9 +86,30 @@ fun SettingsScreen(
     val efficiencyMetricsEnabled by viewModel.efficiencyMetricsEnabled.collectAsStateWithLifecycle()
     val timerDefaultDuration by viewModel.timerDefaultDuration.collectAsStateWithLifecycle()
     val autoLogoutTimeout by viewModel.autoLogoutTimeout.collectAsStateWithLifecycle()
+    val settingsUnlocked by viewModel.settingsUnlocked.collectAsStateWithLifecycle()
+    val hasSettingsPasscode by viewModel.hasSettingsPasscode.collectAsStateWithLifecycle()
+    val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
+    val showPasscodeSetupDialog by viewModel.showPasscodeSetupDialog.collectAsStateWithLifecycle()
+    val recoverySignInIntent by viewModel.recoverySignInIntent.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+
+    var unlockPasscode by remember { mutableStateOf("") }
+
+    val recoveryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK || result.data != null) {
+            viewModel.handleCloudRecoveryResult(result.data)
+        } else {
+            viewModel.clearRecoverySignInIntent()
+        }
+    }
+
+    LaunchedEffect(recoverySignInIntent) {
+        recoverySignInIntent?.let { recoveryLauncher.launch(it) }
+    }
 
     if (isLoading) {
         Box(
@@ -139,110 +170,201 @@ fun SettingsScreen(
                     }
                 }
 
-                SettingSection(title = "Display") {
-                    ThemeSelector(
-                        selectedTheme = theme,
-                        onThemeSelected = { viewModel.updateTheme(it) }
-                    )
-                }
+                if (hasSettingsPasscode && !settingsUnlocked) {
+                    SettingSection(title = "Settings Locked") {
+                        Text(
+                            text = "Enter the 5-digit passcode to make changes to settings.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = unlockPasscode,
+                            onValueChange = { newValue ->
+                                unlockPasscode = newValue.filter { it.isDigit() }.take(5)
+                            },
+                            label = { Text("Passcode") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
 
-                SettingSection(title = "Notifications") {
-                    NotificationPreferencesPanel(
-                        preferences = notificationPreferences,
-                        onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
-                        onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SettingSection(title = "Behavior") {
-                    TimePickerField(
-                        label = "Daily Reset Time",
-                        value = dailyResetTime,
-                        onValueChanged = { viewModel.updateDailyResetTime(it) }
-                    )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.unlockSettings(unlockPasscode) },
+                                modifier = Modifier.weight(1f),
+                                enabled = unlockPasscode.length == 5 && !isSaving
+                            ) {
+                                Text("Unlock")
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.startCloudRecoverySignIn() },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSaving
+                            ) {
+                                Text("Reset via Cloud")
+                            }
+                        }
+                    }
+                } else {
+                    SettingSection(title = "Settings Passcode") {
+                        Text(
+                            text = if (hasSettingsPasscode) {
+                                "Settings are protected by a 5-digit passcode."
+                            } else {
+                                "Protect settings with a 5-digit passcode."
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.beginPasscodeSetup() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (hasSettingsPasscode) "Change Passcode" else "Set Passcode")
+                            }
+                            if (hasSettingsPasscode) {
+                                OutlinedButton(
+                                    onClick = { viewModel.lockSettings() },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Lock Now")
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    DurationInput(
-                        label = "Auto-Logout Timeout (minutes, 0 = disabled)",
-                        value = autoLogoutTimeout,
-                        onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SettingSection(title = "Affirmations") {
-                    FrequencySlider(
-                        label = "Affirmation Frequency",
-                        value = affirmationFrequency,
-                        onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SettingSection(title = "Gamification") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    SettingSection(title = "Todo Management") {
                         Text(
-                            text = "Enable Gamification",
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onBackground
+                            text = "Allow editing or deleting todos from the Home screen.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Switch(
-                            checked = gamificationEnabled,
-                            onCheckedChange = { viewModel.updateGamificationEnabled(it) }
+
+                        SettingToggle(
+                            label = "Allow edit/delete To Dos",
+                            checked = allowTodoEditing,
+                            onCheckedChange = { viewModel.updateTodoEditingEnabled(it) }
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "Gamification Elements",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(8.dp)
-                    )
-
-                    SettingToggle(
-                        label = "Badges",
-                        checked = badgesEnabled,
-                        onCheckedChange = { viewModel.updateBadgesEnabled(it) }
-                    )
-
-                    SettingToggle(
-                        label = "Streaks",
-                        checked = streaksEnabled,
-                        onCheckedChange = { viewModel.updateStreaksEnabled(it) }
-                    )
-
-                    SettingToggle(
-                        label = "Efficiency Metrics",
-                        checked = efficiencyMetricsEnabled,
-                        onCheckedChange = { viewModel.updateEfficiencyMetricsEnabled(it) }
-                    )
+                    SettingSection(title = "Display") {
+                        ThemeSelector(
+                            selectedTheme = theme,
+                            onThemeSelected = { viewModel.updateTheme(it) }
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    DurationInput(
-                        label = "Timer Default Duration (minutes)",
-                        value = timerDefaultDuration,
-                        onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
-                    )
-                }
+                    SettingSection(title = "Notifications") {
+                        NotificationPreferencesPanel(
+                            preferences = notificationPreferences,
+                            onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                            onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Behavior") {
+                        TimePickerField(
+                            label = "Daily Reset Time",
+                            value = dailyResetTime,
+                            onValueChanged = { viewModel.updateDailyResetTime(it) }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        DurationInput(
+                            label = "Auto-Logout Timeout (minutes, 0 = disabled)",
+                            value = autoLogoutTimeout,
+                            onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Affirmations") {
+                        FrequencySlider(
+                            label = "Affirmation Frequency",
+                            value = affirmationFrequency,
+                            onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Gamification") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Enable Gamification",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Switch(
+                                checked = gamificationEnabled,
+                                onCheckedChange = { viewModel.updateGamificationEnabled(it) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Gamification Elements",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(8.dp)
+                        )
+
+                        SettingToggle(
+                            label = "Badges",
+                            checked = badgesEnabled,
+                            onCheckedChange = { viewModel.updateBadgesEnabled(it) }
+                        )
+
+                        SettingToggle(
+                            label = "Streaks",
+                            checked = streaksEnabled,
+                            onCheckedChange = { viewModel.updateStreaksEnabled(it) }
+                        )
+
+                        SettingToggle(
+                            label = "Efficiency Metrics",
+                            checked = efficiencyMetricsEnabled,
+                            onCheckedChange = { viewModel.updateEfficiencyMetricsEnabled(it) }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        DurationInput(
+                            label = "Timer Default Duration (minutes)",
+                            value = timerDefaultDuration,
+                            onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 SettingSection(title = "About") {
                     Column(
@@ -276,26 +398,6 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onChangeMemberClick,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        enabled = !isSaving
-                    ) {
-                        Text("Change member")
-                    }
-
-                    OutlinedButton(
-                        onClick = { viewModel.resetToDefaults() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        enabled = !isSaving
-                    ) {
-                        Text("Reset to Defaults")
-                    }
-
                     Button(
                         onClick = onBackClick,
                         modifier = Modifier
@@ -312,9 +414,41 @@ fun SettingsScreen(
                             Text("Done")
                         }
                     }
+
+                    if (!hasSettingsPasscode || settingsUnlocked) {
+                        OutlinedButton(
+                            onClick = onChangeMemberClick,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            enabled = !isSaving
+                        ) {
+                            Text("Change member")
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.resetToDefaults() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            enabled = !isSaving
+                        ) {
+                            Text("Reset to Defaults")
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (showPasscodeSetupDialog) {
+        SettingsPasscodeSetupDialog(
+            title = if (hasSettingsPasscode) "Change Settings Passcode" else "Set Settings Passcode",
+            onDismiss = { viewModel.dismissPasscodeSetup() },
+            onConfirm = { passcode -> viewModel.saveSettingsPasscode(passcode) },
+            isLoading = isSaving,
+            errorMessage = errorMessage
+        )
     }
 }
 

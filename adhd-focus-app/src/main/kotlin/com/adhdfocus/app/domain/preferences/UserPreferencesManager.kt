@@ -31,6 +31,7 @@ class UserPreferencesManager @Inject constructor(
         private const val DEFAULT_DAILY_RESET_TIME = "00:00"
         private const val DEFAULT_AFFIRMATION_FREQUENCY = 3
         private const val DEFAULT_ENABLE_GAMIFICATION = true
+        private const val DEFAULT_ENABLE_TODO_EDITING = false
         private const val DEFAULT_TIMER_DURATION = 25
         private const val DEFAULT_AUTO_LOGOUT_TIMEOUT = 0
     }
@@ -66,7 +67,11 @@ class UserPreferencesManager @Inject constructor(
     suspend fun savePreferences(preferences: UserPreferences): Boolean {
         return try {
             validatePreferences(preferences)
-            userPreferencesDao.update(preferences)
+            if (userPreferencesDao.preferencesExist(preferences.userId) > 0) {
+                userPreferencesDao.update(preferences)
+            } else {
+                userPreferencesDao.insert(preferences)
+            }
             true
         } catch (e: Exception) {
             false
@@ -220,6 +225,30 @@ class UserPreferencesManager @Inject constructor(
     }
 
     /**
+     * Updates whether the user can edit/delete todos from Home.
+     *
+     * @param userId User ID
+     * @param enabled Whether todo editing is enabled
+     * @return True if successful
+     */
+    suspend fun updateTodoEditingEnabled(userId: String, enabled: Boolean): Boolean {
+        return try {
+            require(userId.isNotBlank()) { "userId cannot be blank" }
+            val existing = getPreferences(userId)
+            if (existing == null) {
+                userPreferencesDao.insert(
+                    createDefaultPreferences(userId).copy(enableTodoEditing = enabled)
+                )
+            } else {
+                userPreferencesDao.updateEnableTodoEditing(userId, enabled)
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Resets preferences to defaults for a user.
      *
      * @param userId User ID
@@ -228,8 +257,15 @@ class UserPreferencesManager @Inject constructor(
     suspend fun resetToDefaults(userId: String): Boolean {
         return try {
             require(userId.isNotBlank()) { "userId cannot be blank" }
-            val defaultPrefs = createDefaultPreferences(userId)
-            userPreferencesDao.update(defaultPrefs)
+            val existing = getPreferences(userId)
+            val defaultPrefs = createDefaultPreferences(userId).copy(
+                settingsPasscodeHash = existing?.settingsPasscodeHash
+            )
+            if (existing == null) {
+                userPreferencesDao.insert(defaultPrefs)
+            } else {
+                userPreferencesDao.update(defaultPrefs)
+            }
             true
         } catch (e: Exception) {
             false
@@ -315,6 +351,8 @@ class UserPreferencesManager @Inject constructor(
             theme = Theme.LIGHT,
             visibleTodoGroups = json.encodeToString(emptyList<String>()),
             notificationPreferences = json.encodeToString(NotificationPreferences()),
+            settingsPasscodeHash = null,
+            enableTodoEditing = DEFAULT_ENABLE_TODO_EDITING,
             dailyResetTime = DEFAULT_DAILY_RESET_TIME,
             affirmationFrequency = DEFAULT_AFFIRMATION_FREQUENCY,
             enableGamification = DEFAULT_ENABLE_GAMIFICATION,

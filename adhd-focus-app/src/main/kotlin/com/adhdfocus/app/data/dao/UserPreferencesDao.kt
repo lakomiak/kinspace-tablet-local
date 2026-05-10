@@ -82,6 +82,13 @@ interface UserPreferencesDao {
     """)
     suspend fun updateAutoLogoutTimeout(userId: String, autoLogoutTimeout: Int)
 
+    @Query("""
+        UPDATE user_preferences
+        SET enableTodoEditing = :enableTodoEditing
+        WHERE userId = :userId
+    """)
+    suspend fun updateEnableTodoEditing(userId: String, enableTodoEditing: Boolean)
+
     @Query("DELETE FROM user_preferences WHERE userId = :userId")
     suspend fun deletePreferencesByUserId(userId: String)
 

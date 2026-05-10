@@ -58,26 +58,70 @@ import java.time.ZoneOffset
 @Composable
 fun CreateTodoScreen(
     onBackClick: () -> Unit,
-    onCreateSuccess: () -> Unit,
+    onSaveSuccess: () -> Unit,
+    taskId: String? = null,
     viewModel: CreateTodoViewModel = hiltViewModel()
 ) {
-    var title by rememberSaveable { mutableStateOf("") }
-    var dueDate by rememberSaveable { mutableStateOf("") }
-    var showDueDatePicker by rememberSaveable { mutableStateOf(false) }
-    var selectedGroup by rememberSaveable { mutableStateOf("Other") }
+    val isEditing = !taskId.isNullOrBlank()
+    val editingTask by viewModel.editingTask.collectAsStateWithLifecycle()
+
+    var title by rememberSaveable(taskId) { mutableStateOf("") }
+    var dueDate by rememberSaveable(taskId) { mutableStateOf("") }
+    var showDueDatePicker by rememberSaveable(taskId) { mutableStateOf(false) }
+    var selectedGroup by rememberSaveable(taskId) { mutableStateOf("Other") }
     var groupExpanded by remember { mutableStateOf(false) }
-    var repeatValue by rememberSaveable { mutableStateOf("once") }
+    var repeatValue by rememberSaveable(taskId) { mutableStateOf("once") }
     var repeatExpanded by remember { mutableStateOf(false) }
-    var customRepeatInterval by rememberSaveable { mutableStateOf("2") }
-    var customRepeatUnit by rememberSaveable { mutableStateOf("day") }
+    var customRepeatInterval by rememberSaveable(taskId) { mutableStateOf("2") }
+    var customRepeatUnit by rememberSaveable(taskId) { mutableStateOf("day") }
     var customUnitExpanded by remember { mutableStateOf(false) }
-    var timerMinutes by rememberSaveable { mutableStateOf(0) }
-    var timerSeconds by rememberSaveable { mutableStateOf(0) }
+    var timerMinutes by rememberSaveable(taskId) { mutableStateOf(0) }
+    var timerSeconds by rememberSaveable(taskId) { mutableStateOf(0) }
+    var formInitialized by rememberSaveable(taskId) { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val todoGroups = viewModel.todoGroups
     val repeatOptions = listOf("once", "daily", "weekly", "monthly", "yearly", "custom")
+
+    LaunchedEffect(taskId) {
+        if (isEditing) {
+            viewModel.loadTaskForEdit(taskId.orEmpty())
+        } else {
+            viewModel.clearTaskForEdit()
+            formInitialized = false
+        }
+    }
+
+    LaunchedEffect(editingTask?.id) {
+        val task = editingTask ?: return@LaunchedEffect
+        if (formInitialized) return@LaunchedEffect
+
+        title = task.title
+        dueDate = task.dueDate?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString().orEmpty()
+        selectedGroup = task.todoGroup
+        repeatValue = repeatValueFrom(task.repeatRule)
+        if (repeatValue == "custom") {
+            val customParts = task.repeatRule.split(":")
+            customRepeatInterval = customParts.getOrNull(1)?.takeIf { it.isNotBlank() } ?: "2"
+            customRepeatUnit = when (customParts.getOrNull(2)) {
+                "week", "weeks" -> "week"
+                "month", "months" -> "month"
+                else -> "day"
+            }
+        }
+        val timerMinutesValue = task.timerDurationMs?.let {
+            val totalSeconds = (it / 1000L).toInt()
+            totalSeconds / 60
+        } ?: task.estimatedDurationMinutes ?: 0
+        val timerSecondsValue = task.timerDurationMs?.let {
+            val totalSeconds = (it / 1000L).toInt()
+            totalSeconds % 60
+        } ?: (task.estimatedDurationSeconds ?: 0)
+        timerMinutes = timerMinutesValue
+        timerSeconds = timerSecondsValue
+        formInitialized = true
+    }
 
     Scaffold(
         topBar = {
@@ -124,7 +168,11 @@ fun CreateTodoScreen(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "Add a To Do with the same fields used on the local device.",
+                    text = if (isEditing) {
+                        "Edit this To Do using the same fields used on the local device."
+                    } else {
+                        "Add a To Do with the same fields used on the local device."
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -299,15 +347,28 @@ fun CreateTodoScreen(
                         } else {
                             repeatValue
                         }
-                        viewModel.createTodo(
-                            title = title,
-                            dueDateText = dueDate,
-                            todoGroup = selectedGroup,
-                            repeatRule = repeatRule,
-                            timerMinutesText = timerMinutes.toString(),
-                            timerSecondsText = timerSeconds.toString(),
-                            onSuccess = onCreateSuccess
-                        )
+                        if (isEditing) {
+                            viewModel.updateTodo(
+                                taskId = taskId.orEmpty(),
+                                title = title,
+                                dueDateText = dueDate,
+                                todoGroup = selectedGroup,
+                                repeatRule = repeatRule,
+                                timerMinutesText = timerMinutes.toString(),
+                                timerSecondsText = timerSeconds.toString(),
+                                onSuccess = onSaveSuccess
+                            )
+                        } else {
+                            viewModel.createTodo(
+                                title = title,
+                                dueDateText = dueDate,
+                                todoGroup = selectedGroup,
+                                repeatRule = repeatRule,
+                                timerMinutesText = timerMinutes.toString(),
+                                timerSecondsText = timerSeconds.toString(),
+                                onSuccess = onSaveSuccess
+                            )
+                        }
                     },
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth()
@@ -318,11 +379,19 @@ fun CreateTodoScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Save To Do")
+                        Text(if (isEditing) "Save Changes" else "Save To Do")
                     }
                 }
             }
         }
+    }
+}
+
+private fun repeatValueFrom(repeatRule: String): String {
+    return when {
+        repeatRule.startsWith("custom:") -> "custom"
+        repeatRule.isBlank() -> "once"
+        else -> repeatRule
     }
 }
 
