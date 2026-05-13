@@ -64,6 +64,7 @@ fun CreateTodoScreen(
 ) {
     val isEditing = !taskId.isNullOrBlank()
     val editingTask by viewModel.editingTask.collectAsStateWithLifecycle()
+    val todoGroups by viewModel.todoGroups.collectAsStateWithLifecycle()
 
     var title by rememberSaveable(taskId) { mutableStateOf("") }
     var dueDate by rememberSaveable(taskId) { mutableStateOf("") }
@@ -81,7 +82,6 @@ fun CreateTodoScreen(
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    val todoGroups = viewModel.todoGroups
     val repeatOptions = listOf("once", "daily", "weekly", "monthly", "yearly", "custom")
 
     LaunchedEffect(taskId) {
@@ -91,6 +91,7 @@ fun CreateTodoScreen(
             viewModel.clearTaskForEdit()
             formInitialized = false
         }
+        viewModel.refreshTodoGroups()
     }
 
     LaunchedEffect(editingTask?.id) {

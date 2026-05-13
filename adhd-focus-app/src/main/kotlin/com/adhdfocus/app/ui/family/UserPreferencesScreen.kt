@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
+import com.adhdfocus.app.ui.settings.CategoryReminderPreferencesPanel
+import com.adhdfocus.app.ui.settings.CustomTodoGroupsPanel
 
 /**
  * UserPreferencesScreen displays and manages per-member preferences.
@@ -70,6 +72,7 @@ fun UserPreferencesScreen(
 
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val visibleTodoGroups by viewModel.visibleTodoGroups.collectAsStateWithLifecycle()
+    val customTodoGroups by viewModel.customTodoGroups.collectAsStateWithLifecycle()
     val notificationPreferences by viewModel.notificationPreferences.collectAsStateWithLifecycle()
     val dailyResetTime by viewModel.dailyResetTime.collectAsStateWithLifecycle()
     val affirmationFrequency by viewModel.affirmationFrequency.collectAsStateWithLifecycle()
@@ -146,10 +149,26 @@ fun UserPreferencesScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                CustomTodoGroupsPanel(
+                    categories = customTodoGroups,
+                    onAddCategory = { viewModel.addCustomTodoGroup(it) },
+                    onRemoveCategory = { viewModel.removeCustomTodoGroup(it) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 NotificationPreferencesPanel(
                     preferences = notificationPreferences,
                     onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
                     onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CategoryReminderPreferencesPanel(
+                    preferences = notificationPreferences,
+                    onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                    onPreviewReminder = { viewModel.previewCategoryReminder() }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

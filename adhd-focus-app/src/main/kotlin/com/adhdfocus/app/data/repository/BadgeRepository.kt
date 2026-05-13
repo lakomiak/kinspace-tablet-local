@@ -101,6 +101,25 @@ class BadgeRepository @Inject constructor(
     }
 
     /**
+     * Deletes all badges for a user.
+     *
+     * @param userId User ID
+     */
+    suspend fun deleteUserBadges(userId: String) {
+        badgeDao.deleteUserBadges(userId)
+    }
+
+    /**
+     * Deletes all badges for a user in a household.
+     *
+     * @param userId User ID
+     * @param householdId Household ID
+     */
+    suspend fun deleteUserBadges(userId: String, householdId: String) {
+        badgeDao.deleteUserBadges(userId, householdId)
+    }
+
+    /**
      * Gets all badges for a user.
      *
      * @param userId User ID

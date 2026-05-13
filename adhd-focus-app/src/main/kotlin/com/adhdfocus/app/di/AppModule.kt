@@ -7,14 +7,17 @@ import com.adhdfocus.app.data.database.DatabaseInitializer
 import com.adhdfocus.app.data.network.ApiConfig
 import com.adhdfocus.app.data.network.AuthInterceptor
 import com.adhdfocus.app.data.network.AuthService
+import com.adhdfocus.app.data.network.HouseholdNotificationSettingsService
 import com.adhdfocus.app.data.network.TokenRefreshInterceptor
 import com.adhdfocus.app.data.network.SyncService
 import com.adhdfocus.app.data.network.TaskService
 import com.adhdfocus.app.data.security.TokenStorage
 import com.adhdfocus.app.domain.auth.AuthManager
+import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.persistence.DataCleanupScheduler
 import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
 import com.adhdfocus.app.domain.persistence.TaskPersistenceManagerImpl
+import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
 import com.adhdfocus.app.domain.notification.NotificationPreferencesManager
 import com.adhdfocus.app.domain.notification.NotificationPreferencesManagerImpl
 import com.adhdfocus.app.domain.notification.UpdateNotificationManager
@@ -34,6 +37,7 @@ import com.google.gson.Gson
 import com.adhdfocus.app.data.dao.BadgeDao
 import com.adhdfocus.app.data.dao.StreakDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
+import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.UserDao
 import com.adhdfocus.app.data.dao.UserPreferencesDao
@@ -129,6 +133,12 @@ object AppModule {
 
     @Singleton
     @Provides
+    fun provideHouseholdNotificationSettingsService(retrofit: Retrofit): HouseholdNotificationSettingsService {
+        return retrofit.create(HouseholdNotificationSettingsService::class.java)
+    }
+
+    @Singleton
+    @Provides
     fun provideUserSwitchingManager(        userSwitchingRepository: com.adhdfocus.app.data.repository.UserSwitchingRepository
     ): UserSwitchingManager {
         return UserSwitchingManager(userSwitchingRepository)
@@ -140,6 +150,14 @@ object AppModule {
         database: AdhdfocusDatabase
     ): TaskPersistenceManager {
         return TaskPersistenceManagerImpl(database.taskDao())
+    }
+
+    @Singleton
+    @Provides
+    fun provideTaskDayCompletionRepository(
+        database: AdhdfocusDatabase
+    ): TaskDayCompletionRepository {
+        return TaskDayCompletionRepository(database.taskDayCompletionDao())
     }
 
     @Singleton
@@ -180,6 +198,7 @@ object AppModule {
     @Singleton @Provides fun provideBadgeDao(db: AdhdfocusDatabase): BadgeDao = db.badgeDao()
     @Singleton @Provides fun provideStreakDao(db: AdhdfocusDatabase): StreakDao = db.streakDao()
     @Singleton @Provides fun provideSyncQueueDao(db: AdhdfocusDatabase): SyncQueueDao = db.syncQueueDao()
+    @Singleton @Provides fun provideTaskDayCompletionDao(db: AdhdfocusDatabase): TaskDayCompletionDao = db.taskDayCompletionDao()
     @Singleton @Provides fun provideUserPreferencesDao(db: AdhdfocusDatabase): UserPreferencesDao = db.userPreferencesDao()
     @Singleton @Provides fun provideUserSwitchingStateDao(db: AdhdfocusDatabase): UserSwitchingStateDao = db.userSwitchingStateDao()
 

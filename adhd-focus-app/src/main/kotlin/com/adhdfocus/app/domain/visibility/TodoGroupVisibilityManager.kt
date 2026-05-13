@@ -69,4 +69,12 @@ interface TodoGroupVisibilityManager {
      * @return List of all Todo_Group names
      */
     fun getAllTodoGroups(): List<String>
+
+    /**
+     * Gets all available Todo_Groups for a user, including any custom categories.
+     *
+     * @param userId User ID
+     * @return List of all Todo_Group names
+     */
+    suspend fun getAllTodoGroups(userId: String): List<String>
 }

@@ -64,6 +64,7 @@ fun TaskItem(
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
     showManagementActions: Boolean = false,
+    showStartAction: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -248,13 +249,13 @@ fun TaskItem(
                     }
                 }
 
-                if (showManagementActions || (task.status == TaskStatus.INCOMPLETE && timerLabel != null)) {
+                if (showManagementActions || (showStartAction && task.status == TaskStatus.INCOMPLETE && timerLabel != null)) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.End
                     ) {
-                        if (task.status == TaskStatus.INCOMPLETE && timerLabel != null) {
+                        if (showStartAction && task.status == TaskStatus.INCOMPLETE && timerLabel != null) {
                             ActionButton(
                                 onClick = onStart,
                                 icon = Icons.Default.PlayArrow,

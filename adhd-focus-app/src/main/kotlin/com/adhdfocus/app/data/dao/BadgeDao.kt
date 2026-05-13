@@ -144,6 +144,9 @@ interface BadgeDao {
     @Query("DELETE FROM badges WHERE userId = :userId")
     suspend fun deleteUserBadges(userId: String)
 
+    @Query("DELETE FROM badges WHERE userId = :userId AND householdId = :householdId")
+    suspend fun deleteUserBadges(userId: String, householdId: String)
+
     @Query("DELETE FROM badges WHERE userId = :userId AND badgeType = :badgeType")
     suspend fun deleteUserBadgesByType(userId: String, badgeType: String)
 

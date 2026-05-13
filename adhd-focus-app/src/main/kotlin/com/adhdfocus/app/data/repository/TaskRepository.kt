@@ -103,20 +103,29 @@ class TaskRepository @Inject constructor(
         userId: String,
         memberName: String? = null
     ): List<Task> {
-        val today = LocalDate.now()
+        return getTasksForDate(householdId, userId, LocalDate.now(), memberName)
+    }
+
+    suspend fun getTasksForDate(
+        householdId: String,
+        userId: String,
+        targetDate: LocalDate,
+        memberName: String? = null
+    ): List<Task> {
+        val today = targetDate
         val tasks = taskDao.getTasksByHouseholdOnce(householdId)
         val normalizedTasks = tasks.map { task -> advanceRepeatingTask(task, today) }
         return normalizedTasks.filter { task ->
             !task.isDeleted &&
                 matchesPinnedMember(task, userId, memberName) &&
-                shouldShowTaskToday(task, today)
+                shouldShowTaskOnDate(task, today)
         }.also { filtered ->
             val visibleSummary = filtered.joinToString(", ") { task ->
                 "${task.title}|assignee=${task.assignedUserId}|due=${task.dueDate}|repeat=${task.repeatRule}|status=${task.status}"
             }
             Log.d(
                 tag,
-                "getTasksForToday householdId=$householdId userId=$userId memberName=$memberName today=$today loaded=${tasks.size} filtered=${filtered.size} tasks=[$visibleSummary]"
+                "getTasksForDate householdId=$householdId userId=$userId memberName=$memberName targetDate=$today loaded=${tasks.size} filtered=${filtered.size} tasks=[$visibleSummary]"
             )
         }
     }
@@ -161,13 +170,13 @@ class TaskRepository @Inject constructor(
         )
     }
 
-    private fun shouldShowTaskToday(task: Task, today: LocalDate): Boolean {
+    private fun shouldShowTaskOnDate(task: Task, targetDate: LocalDate): Boolean {
         val dueInstant = task.dueDate ?: return true
         val dueDateLocal = dueInstant.atZone(ZoneId.systemDefault()).toLocalDate()
         val repeat = task.repeatRule.trim().lowercase()
 
         if (repeat == "daily") return true
-        if (dueDateLocal == today) return true
+        if (dueDateLocal == targetDate) return true
         return false
     }
 

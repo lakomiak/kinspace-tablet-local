@@ -137,7 +137,7 @@ class StreakCalculationManager @Inject constructor(
      * @return True if at a milestone (3, 7, 14, 30, etc.)
      */
     fun isAtMilestone(streakCount: Int): Boolean {
-        return streakCount in listOf(3, 7, 14, 30, 60, 90, 365)
+        return streakCount in listOf(1, 3, 7, 14, 30, 60, 90, 365)
     }
 
     /**
@@ -148,6 +148,7 @@ class StreakCalculationManager @Inject constructor(
      */
     fun getNextMilestone(streakCount: Int): Int {
         return when {
+            streakCount < 1 -> 1
             streakCount < 3 -> 3
             streakCount < 7 -> 7
             streakCount < 14 -> 14
@@ -179,7 +180,8 @@ class StreakCalculationManager @Inject constructor(
     fun getStreakProgressToNextMilestone(streakCount: Int): Int {
         val nextMilestone = getNextMilestone(streakCount)
         val previousMilestone = when {
-            streakCount < 3 -> 0
+            streakCount < 1 -> 0
+            streakCount < 3 -> 1
             streakCount < 7 -> 3
             streakCount < 14 -> 7
             streakCount < 30 -> 14
@@ -203,6 +205,7 @@ class StreakCalculationManager @Inject constructor(
      */
     fun getMilestoneDescription(streakCount: Int): String {
         return when (streakCount) {
+            1 -> "1-Day Streak! 🔥"
             3 -> "3-Day Streak! 🔥"
             7 -> "Week Warrior! 🏆"
             14 -> "2-Week Champion! 💪"

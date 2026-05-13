@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     kotlin("android")
@@ -9,6 +11,27 @@ plugins {
 android {
     namespace = "com.adhdfocus.app"
     compileSdk = 36
+
+    val releaseSigningPropsFile = rootProject.file("release-signing.properties")
+    val releaseSigningProps = Properties().apply {
+        if (releaseSigningPropsFile.exists()) {
+            releaseSigningPropsFile.inputStream().use { load(it) }
+        }
+    }
+    val hasReleaseSigning = releaseSigningPropsFile.exists()
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(
+                    releaseSigningProps.getProperty("storeFile") ?: "release-keystore.jks"
+                )
+                storePassword = releaseSigningProps.getProperty("storePassword")
+                keyAlias = releaseSigningProps.getProperty("keyAlias")
+                keyPassword = releaseSigningProps.getProperty("keyPassword")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.adhdfocus.app"
@@ -30,8 +53,11 @@ android {
             isMinifyEnabled = false
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -136,6 +162,7 @@ dependencies {
 
     // Security
     implementation("androidx.security:security-crypto:$securityVersion")
+    implementation("com.google.errorprone:error_prone_annotations:2.36.0")
 
     // AppAuth for Cognito OIDC (matches calendar-mobile auth mechanism)
     implementation("net.openid:appauth:0.11.1")

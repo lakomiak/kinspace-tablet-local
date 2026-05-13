@@ -30,7 +30,14 @@ class CreateTodoViewModel @Inject constructor(
     private val _editingTask = MutableStateFlow<Task?>(null)
     val editingTask: StateFlow<Task?> = _editingTask
 
-    val todoGroups: List<String> = todoGroupVisibilityManager.getAllTodoGroups()
+    private val _todoGroups = MutableStateFlow<List<String>>(listOf("Morning", "Afternoon", "Evening", "Bedtime", "Other"))
+    val todoGroups: StateFlow<List<String>> = _todoGroups
+
+    init {
+        viewModelScope.launch {
+            refreshTodoGroups()
+        }
+    }
 
     fun createTodo(
         title: String,
@@ -111,6 +118,17 @@ class CreateTodoViewModel @Inject constructor(
 
     fun clearTaskForEdit() {
         _editingTask.value = null
+    }
+
+    fun refreshTodoGroups() {
+        viewModelScope.launch {
+            val memberId = setupManager.getAssignedMemberId().orEmpty()
+            if (memberId.isBlank()) {
+                _todoGroups.value = todoGroupVisibilityManager.getAllTodoGroups()
+            } else {
+                _todoGroups.value = todoGroupVisibilityManager.getAllTodoGroups(memberId)
+            }
+        }
     }
 
     fun updateTodo(

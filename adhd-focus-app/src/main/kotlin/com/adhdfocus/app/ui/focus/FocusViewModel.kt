@@ -6,7 +6,11 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.data.model.Task
+import com.adhdfocus.app.data.model.Streak
 import com.adhdfocus.app.data.repository.TaskRepository
+import com.adhdfocus.app.data.repository.StreakRepository
+import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
+import com.adhdfocus.app.domain.gamification.BadgeSystem
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.progress.ProgressTracker
 import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
@@ -14,12 +18,16 @@ import com.adhdfocus.app.domain.task.TaskManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.sync.CloudSyncManager
 import com.adhdfocus.app.domain.sync.RestApiClient
+import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
+import com.adhdfocus.app.domain.streak.StreakCalculationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -42,7 +50,12 @@ class FocusViewModel @Inject constructor(
     private val setupManager: TabletSetupManager,
     private val taskPersistenceManager: TaskPersistenceManager,
     private val restApiClient: RestApiClient,
-    private val cloudSyncManager: CloudSyncManager
+    private val cloudSyncManager: CloudSyncManager,
+    private val taskDayCompletionRepository: TaskDayCompletionRepository,
+    private val streakRepository: StreakRepository,
+    private val streakCalculationManager: StreakCalculationManager,
+    private val badgeSystem: BadgeSystem,
+    private val affirmationTriggerManager: AffirmationTriggerManager
 ) : ViewModel() {
 
     private val tag = "FocusViewModel"
@@ -62,6 +75,9 @@ class FocusViewModel @Inject constructor(
     private val _allowTodoEditing = MutableStateFlow(false)
     val allowTodoEditing: StateFlow<Boolean> = _allowTodoEditing
 
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    val selectedDate: StateFlow<LocalDate> = _selectedDate
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -75,6 +91,7 @@ class FocusViewModel @Inject constructor(
         if (!householdId.isNullOrBlank() && !userId.isNullOrBlank()) {
             currentHouseholdId = householdId
             currentUserId = userId
+            _selectedDate.value = LocalDate.now()
             refreshFromCloud(householdId, userId)
         }
     }
@@ -88,13 +105,14 @@ class FocusViewModel @Inject constructor(
     fun loadTodaysTasks(householdId: String, userId: String) {
         currentHouseholdId = householdId
         currentUserId = userId
+        _selectedDate.value = LocalDate.now()
         
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val memberName = setupManager.getAssignedMemberName()
-                val tasks = resolveVisibleTasks(householdId, userId, memberName)
-                applyDisplayedTasks(tasks, householdId, userId)
+                val tasks = resolveVisibleTasks(householdId, userId, memberName, _selectedDate.value)
+                applyDisplayedTasks(tasks, householdId, userId, memberName)
             } finally {
                 _isLoading.value = false
             }
@@ -120,8 +138,8 @@ class FocusViewModel @Inject constructor(
                 Log.d(tag, "refreshFromCloud householdId=$householdId userId=$userId cloudCount=${tasks.size}")
                 taskPersistenceManager.replaceTasksForHousehold(householdId, tasks)
                 val memberName = setupManager.getAssignedMemberName()
-                val visibleTasks = resolveVisibleTasks(householdId, userId, memberName)
-                applyDisplayedTasks(visibleTasks, householdId, userId)
+                val visibleTasks = resolveVisibleTasks(householdId, userId, memberName, _selectedDate.value)
+                applyDisplayedTasks(visibleTasks, householdId, userId, memberName)
                 _syncStatus.value = SyncStatus.SYNCED
             } catch (e: Exception) {
                 Log.e(tag, "refreshFromCloud failed householdId=$householdId userId=$userId", e)
@@ -152,7 +170,23 @@ class FocusViewModel @Inject constructor(
      * @param userId New user ID
      */
     fun switchUser(householdId: String, userId: String) {
+        _selectedDate.value = LocalDate.now()
         loadTodaysTasks(householdId, userId)
+    }
+
+    fun showPreviousDay() {
+        _selectedDate.value = _selectedDate.value.minusDays(1)
+        refreshVisibleTasksFromLocal()
+    }
+
+    fun showToday() {
+        _selectedDate.value = LocalDate.now()
+        refreshVisibleTasksFromLocal()
+    }
+
+    fun selectDate(date: LocalDate) {
+        _selectedDate.value = date
+        refreshVisibleTasksFromLocal()
     }
 
     /**
@@ -163,16 +197,7 @@ class FocusViewModel @Inject constructor(
     fun completeTask(taskId: String) {
         viewModelScope.launch {
             try {
-                val completedTask = taskManager.completeTask(taskId)
-                _todaysTasks.value = _todaysTasks.value.map { task ->
-                    if (task.id == taskId) completedTask else task
-                }
-                _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
-                val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
-                val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
-                if (householdId.isNotBlank() && userId.isNotBlank()) {
-                    syncCurrentChanges(householdId, userId)
-                }
+                updateTaskCompletion(taskId, true)
             } catch (e: Exception) {
                 // Handle error
             }
@@ -213,47 +238,7 @@ class FocusViewModel @Inject constructor(
     fun toggleTaskCompletion(taskId: String, isCompleted: Boolean) {
         viewModelScope.launch {
             try {
-                val now = Instant.now()
-                val optimisticTask = _todaysTasks.value.firstOrNull { it.id == taskId }?.let { task ->
-                    if (isCompleted) {
-                        task.copy(
-                            status = com.adhdfocus.app.data.model.TaskStatus.INCOMPLETE,
-                            completedAt = null,
-                            updatedAt = now,
-                            syncStatus = com.adhdfocus.app.data.model.SyncStatus.PENDING
-                        )
-                    } else {
-                        task.copy(
-                            status = com.adhdfocus.app.data.model.TaskStatus.COMPLETED,
-                            completedAt = now,
-                            updatedAt = now,
-                            syncStatus = com.adhdfocus.app.data.model.SyncStatus.PENDING
-                        )
-                    }
-                }
-                if (optimisticTask != null) {
-                    _todaysTasks.value = _todaysTasks.value.map { task ->
-                        if (task.id == taskId) optimisticTask else task
-                    }
-                    _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
-                }
-
-                val persistedTask = if (isCompleted) {
-                    taskManager.reopenTask(taskId)
-                } else {
-                    taskManager.completeTask(taskId)
-                }
-
-                _todaysTasks.value = _todaysTasks.value.map { task ->
-                    if (task.id == taskId) persistedTask else task
-                }
-                _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
-
-                val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
-                val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
-                if (householdId.isNotBlank() && userId.isNotBlank()) {
-                    syncCurrentChanges(householdId, userId)
-                }
+                updateTaskCompletion(taskId, !isCompleted)
             } catch (e: Exception) {
                 Log.e(tag, "toggleTaskCompletion failed taskId=$taskId isCompleted=$isCompleted", e)
             }
@@ -268,22 +253,104 @@ class FocusViewModel @Inject constructor(
     private suspend fun resolveVisibleTasks(
         householdId: String,
         userId: String,
-        memberName: String?
+        memberName: String?,
+        targetDate: LocalDate
     ): List<Task> {
-        return taskRepository.getTasksForToday(householdId, userId, memberName)
+        val tasks = taskRepository.getTasksForDate(householdId, userId, targetDate, memberName)
+        return applyCompletionStateForDate(tasks, householdId, userId, targetDate)
+    }
+
+    private suspend fun applyCompletionStateForDate(
+        tasks: List<Task>,
+        householdId: String,
+        userId: String,
+        targetDate: LocalDate
+    ): List<Task> {
+        val completions = taskDayCompletionRepository.getCompletionsForDate(householdId, userId, targetDate)
+            .associateBy { it.taskId }
+        val today = LocalDate.now()
+
+        return tasks.map { task ->
+            val completion = completions[task.id]
+            val isCompletedForDate = when {
+                targetDate == today -> completion?.isCompleted == true || task.status == com.adhdfocus.app.data.model.TaskStatus.COMPLETED
+                else -> completion?.isCompleted == true
+            }
+
+            if (isCompletedForDate) {
+                task.copy(
+                    status = com.adhdfocus.app.data.model.TaskStatus.COMPLETED,
+                    completedAt = completion?.updatedAt ?: task.completedAt,
+                    syncStatus = task.syncStatus
+                )
+            } else {
+                task.copy(
+                    status = com.adhdfocus.app.data.model.TaskStatus.INCOMPLETE,
+                    completedAt = null,
+                    syncStatus = task.syncStatus
+                )
+            }
+        }
+    }
+
+    private fun refreshVisibleTasksFromLocal() {
+        val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+        val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+        if (householdId.isBlank() || userId.isBlank()) return
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val memberName = setupManager.getAssignedMemberName()
+                val tasks = resolveVisibleTasks(householdId, userId, memberName, _selectedDate.value)
+                applyDisplayedTasks(tasks, householdId, userId, memberName)
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     private suspend fun applyDisplayedTasks(
         tasks: List<Task>,
         householdId: String,
-        userId: String
+        userId: String,
+        memberName: String? = null,
+        triggerAffirmations: Boolean = false
     ) {
         val preferences = userPreferencesManager.getPreferencesOrDefault(userId)
         taskManager.setAffirmationFrequency(preferences.affirmationFrequency)
         _allowTodoEditing.value = preferences.enableTodoEditing
         _todaysTasks.value = tasks
         _completionPercentage.value = progressTracker.calculateCompletionPercentage(tasks)
-        _currentStreak.value = progressTracker.getCurrentStreak(userId, householdId)
+
+        val resolvedMemberName = memberName ?: setupManager.getAssignedMemberName()
+        val selectedDate = _selectedDate.value
+        val selectedDayStreak = recalculateCurrentStreak(
+            householdId = householdId,
+            userId = userId,
+            memberName = resolvedMemberName,
+            referenceDate = selectedDate
+        )
+        val todayStreak = recalculateCurrentStreak(
+            householdId = householdId,
+            userId = userId,
+            memberName = resolvedMemberName,
+            referenceDate = LocalDate.now()
+        )
+        badgeSystem.ensureCurrentSeasonBadgeCatalog(userId, householdId)
+        val displayStreak = if (selectedDate == LocalDate.now()) todayStreak else selectedDayStreak
+        _currentStreak.value = displayStreak
+        if (selectedDate == LocalDate.now()) {
+            saveCalculatedStreak(userId, householdId, todayStreak, LocalDate.now())
+        } else {
+            saveCalculatedStreak(userId, householdId, selectedDayStreak, selectedDate)
+        }
+        updateBadges(userId, householdId, tasks, selectedDayStreak)
+
+        if (triggerAffirmations) {
+            maybeTriggerDayCompleteAffirmation(tasks)
+            maybeTriggerStreakMilestoneAffirmation(selectedDayStreak)
+        }
     }
 
     private suspend fun syncCurrentChanges(householdId: String, userId: String) {
@@ -300,6 +367,145 @@ class FocusViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.e(tag, "syncCurrentChanges failed householdId=$householdId userId=$userId", e)
             _syncStatus.value = SyncStatus.ERROR
+        }
+    }
+
+    private suspend fun updateTaskCompletion(taskId: String, complete: Boolean) {
+        val selectedDate = _selectedDate.value
+        val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+        val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+        val memberName = setupManager.getAssignedMemberName()
+        val isToday = selectedDate == LocalDate.now()
+
+        if (isToday) {
+            val persistedTask = if (complete) {
+                taskManager.completeTask(taskId)
+            } else {
+                taskManager.reopenTask(taskId)
+            }
+            _todaysTasks.value = _todaysTasks.value.map { task ->
+                if (task.id == taskId) persistedTask else task
+            }
+            _completionPercentage.value = progressTracker.calculateCompletionPercentage(_todaysTasks.value)
+            applyDisplayedTasks(
+                tasks = _todaysTasks.value,
+                householdId = householdId,
+                userId = userId,
+                memberName = memberName,
+                triggerAffirmations = true
+            )
+            if (householdId.isNotBlank() && userId.isNotBlank()) {
+                syncCurrentChanges(householdId, userId)
+            }
+            return
+        }
+
+        if (householdId.isBlank() || userId.isBlank()) {
+            return
+        }
+
+        taskDayCompletionRepository.setCompletionForDate(
+            householdId = householdId,
+            userId = userId,
+            taskId = taskId,
+            date = selectedDate,
+            isCompleted = complete
+        )
+
+        val refreshedTasks = resolveVisibleTasks(householdId, userId, memberName, selectedDate)
+        applyDisplayedTasks(
+            tasks = refreshedTasks,
+            householdId = householdId,
+            userId = userId,
+            memberName = memberName,
+            triggerAffirmations = true
+        )
+    }
+
+    private suspend fun recalculateCurrentStreak(
+        householdId: String,
+        userId: String,
+        memberName: String?,
+        referenceDate: LocalDate
+    ): Int {
+        var streak = 0
+        var date = referenceDate
+        repeat(365) {
+            val tasks = resolveVisibleTasks(householdId, userId, memberName, date)
+            if (tasks.isEmpty() || tasks.any { it.status != com.adhdfocus.app.data.model.TaskStatus.COMPLETED }) {
+                return streak
+            }
+            streak += 1
+            date = date.minusDays(1)
+        }
+        return streak
+    }
+
+    private suspend fun saveCalculatedStreak(
+        userId: String,
+        householdId: String,
+        currentStreak: Int,
+        referenceDate: LocalDate
+    ) {
+        val existing = streakRepository.getStreak(userId, householdId)
+        val best = maxOf(existing?.bestCount ?: 0, currentStreak)
+        val lastDate = if (currentStreak > 0) referenceDate else existing?.lastCompletionDate
+        val startDate = if (currentStreak > 0) {
+            referenceDate.minusDays((currentStreak - 1).toLong())
+        } else {
+            existing?.startDate
+        }
+        val updated = (existing ?: Streak(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            householdId = householdId,
+            currentCount = currentStreak,
+            bestCount = best,
+            lastCompletionDate = lastDate,
+            startDate = startDate,
+            updatedAt = Instant.now()
+        )).copy(
+            currentCount = currentStreak,
+            bestCount = best,
+            lastCompletionDate = lastDate,
+            startDate = startDate,
+            updatedAt = Instant.now()
+        )
+        streakRepository.saveStreak(updated)
+    }
+
+    private suspend fun updateBadges(
+        userId: String,
+        householdId: String,
+        tasks: List<Task>,
+        currentStreak: Int
+    ) {
+        val completedTasks = tasks.count { it.status == com.adhdfocus.app.data.model.TaskStatus.COMPLETED }
+        val totalTasks = tasks.size
+        if (totalTasks <= 0) return
+        runCatching {
+            badgeSystem.reconcileBadgeStates(
+                userId = userId,
+                householdId = householdId,
+                completedTasksToday = completedTasks,
+                totalTasksToday = totalTasks,
+                currentStreak = currentStreak,
+                efficiencyPercentage = 0f
+            )
+        }.onFailure { error ->
+            Log.w(tag, "Unable to update badges householdId=$householdId userId=$userId", error)
+        }
+    }
+
+    private fun maybeTriggerDayCompleteAffirmation(tasks: List<Task>) {
+        if (tasks.isNotEmpty() && tasks.all { it.status == com.adhdfocus.app.data.model.TaskStatus.COMPLETED }) {
+            affirmationTriggerManager.checkAndTriggerDayCompleteAffirmation(tasks)
+        }
+    }
+
+    private fun maybeTriggerStreakMilestoneAffirmation(currentStreak: Int) {
+        if (streakCalculationManager.isAtMilestone(currentStreak)) {
+            affirmationTriggerManager.checkAndTriggerStreakMilestoneAffirmation(currentStreak)
         }
     }
 }

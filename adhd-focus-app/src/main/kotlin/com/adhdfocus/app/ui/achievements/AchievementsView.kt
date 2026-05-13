@@ -1,12 +1,13 @@
 package com.adhdfocus.app.ui.achievements
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.adhdfocus.app.domain.gamification.BadgeSystem
+import java.time.LocalDate
 
 /**
  * AchievementsView displays all badges and achievements organized by category.
@@ -32,14 +34,16 @@ import com.adhdfocus.app.domain.gamification.BadgeSystem
  * - Efficiency statistics
  * - WCAG 2.1 AA compliant styling
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AchievementsView(
     onNavigateBack: () -> Unit,
     viewModel: AchievementsViewModel = hiltViewModel()
 ) {
-    val earnedBadges by viewModel.earnedBadges.collectAsState()
-    val lockedBadges by viewModel.lockedBadges.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.refreshAchievements()
+    }
+
     val currentStreak by viewModel.currentStreak.collectAsState()
     val bestStreak by viewModel.bestStreak.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -48,6 +52,10 @@ fun AchievementsView(
 
     val filteredEarned = viewModel.getFilteredEarnedBadges()
     val filteredLocked = viewModel.getFilteredLockedBadges()
+    val allVisibleBadges = filteredEarned + filteredLocked
+    val seasonYear = allVisibleBadges.map { it.seasonYear }.maxOrNull() ?: LocalDate.now().year
+    val categoriesToShow = (selectedCategory?.let { listOf(it) } ?: categories)
+        .sortedBy { categorySortOrder(it) }
 
     Scaffold(
         topBar = {
@@ -67,7 +75,7 @@ fun AchievementsView(
                 )
             )
         }
-    ) { paddingValues ->
+        ) { paddingValues ->
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -78,23 +86,32 @@ fun AchievementsView(
                 CircularProgressIndicator()
             }
         } else {
-            LazyColumn(
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 220.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Streak section
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SeasonHeader(
+                        seasonYear = seasonYear,
+                        badgeCount = allVisibleBadges.size,
+                        earnedCount = filteredEarned.size,
+                        lockedCount = filteredLocked.size
+                    )
+                }
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     StreakSection(
                         currentStreak = currentStreak,
                         bestStreak = bestStreak
                     )
                 }
 
-                // Category tabs
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     CategoryTabs(
                         categories = categories,
                         selectedCategory = selectedCategory,
@@ -102,59 +119,143 @@ fun AchievementsView(
                     )
                 }
 
-                // Earned badges section
-                if (filteredEarned.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Earned Badges (${filteredEarned.size})",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 8.dp)
+                categoriesToShow.forEach { category ->
+                    val categoryBadges = allVisibleBadges.filter { badge ->
+                        viewModel.getBadgeCategory(badge.badgeType) == category
+                    }
+
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        BadgeSectionHeader(
+                            title = category.displayName(),
+                            subtitle = "${categoryBadges.size} collectible badge${if (categoryBadges.size == 1) "" else "s"}"
                         )
                     }
 
-                    items(filteredEarned) { badge ->
-                        BadgeCard(badge = badge)
+                    if (categoryBadges.isNotEmpty()) {
+                        items(
+                            items = categoryBadges,
+                            key = { badge -> "${badge.badgeType}-${badge.seasonYear}-${badge.id}" }
+                        ) { badge ->
+                            BadgeCardCompact(
+                                badge = badge,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            EmptyCategoryState(category.displayName())
+                        }
                     }
                 }
 
-                // Locked badges section
-                if (filteredLocked.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Locked Badges (${filteredLocked.size})",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 16.dp)
-                        )
-                    }
-
-                    items(filteredLocked) { badge ->
-                        BadgeCard(badge = badge)
-                    }
-                }
-
-                // Empty state
-                if (filteredEarned.isEmpty() && filteredLocked.isEmpty()) {
-                    item {
+                if (allVisibleBadges.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "No badges yet. Start completing tasks to earn achievements!",
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            EmptyCategoryState("Achievements")
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SeasonHeader(
+    seasonYear: Int,
+    badgeCount: Int,
+    earnedCount: Int,
+    lockedCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "$seasonYear Badge Season",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Text(
+                text = "Collect the full year, one milestone at a time.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AssistChip(onClick = {}, label = { Text("$badgeCount total") })
+                AssistChip(onClick = {}, label = { Text("$earnedCount earned") })
+                AssistChip(onClick = {}, label = { Text("$lockedCount locked") })
+            }
+        }
+    }
+}
+
+@Composable
+private fun BadgeSectionHeader(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyCategoryState(
+    categoryName: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Text(
+            text = "No $categoryName badges yet. Keep going and this wall will fill up.",
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -288,5 +389,14 @@ private fun BadgeSystem.BadgeCategory.displayName(): String {
         BadgeSystem.BadgeCategory.WEEKLY_ACHIEVEMENTS -> "Weekly"
         BadgeSystem.BadgeCategory.STREAK_MILESTONES -> "Streaks"
         BadgeSystem.BadgeCategory.EFFICIENCY_BADGES -> "Efficiency"
+    }
+}
+
+private fun categorySortOrder(category: BadgeSystem.BadgeCategory): Int {
+    return when (category) {
+        BadgeSystem.BadgeCategory.DAILY_MILESTONES -> 0
+        BadgeSystem.BadgeCategory.STREAK_MILESTONES -> 1
+        BadgeSystem.BadgeCategory.WEEKLY_ACHIEVEMENTS -> 2
+        BadgeSystem.BadgeCategory.EFFICIENCY_BADGES -> 3
     }
 }

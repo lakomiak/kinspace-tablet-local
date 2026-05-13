@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,6 +47,9 @@ import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.ui.focus.components.ProgressHeader
 import com.adhdfocus.app.ui.focus.components.TaskListByGroup
+import android.widget.DatePicker
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Home screen - Main interface showing today's todos
@@ -67,18 +76,26 @@ fun DailyFocusViewScreen(
     }
 
     val todaysTasks by viewModel.todaysTasks.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val completionPercentage by viewModel.completionPercentage.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     var taskPendingDelete by remember { mutableStateOf<Task?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (memberName.isNullOrBlank()) "Hello" else "Hello, $memberName") },
                 actions = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Choose date"
+                        )
+                    }
                     IconButton(onClick = { viewModel.refreshCurrentTasks(fromCloud = true) }) {
                         when (syncStatus) {
                             SyncStatus.SYNCING -> {
@@ -120,6 +137,19 @@ fun DailyFocusViewScreen(
                 else -> 920.dp
             }
             val bottomPadding = if (maxWidth < 600.dp) 88.dp else 112.dp
+            val isViewingToday = selectedDate == LocalDate.now()
+            val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy") }
+            val dateLabel = if (isViewingToday) {
+                "Today • ${selectedDate.format(dateFormatter)}"
+            } else {
+                selectedDate.format(dateFormatter)
+            }
+            val emptyStateTitle = if (isViewingToday) "No To Do's for today" else "No To Do's for this day"
+            val emptyStateBody = if (isViewingToday) {
+                "Tap + to create a new To Do"
+            } else {
+                "Browse to a different day or tap Today"
+            }
 
             if (isLoading) {
                 CircularProgressIndicator(
@@ -144,6 +174,53 @@ fun DailyFocusViewScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    IconButton(onClick = { viewModel.showPreviousDay() }) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Previous day"
+                                        )
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = dateLabel,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1
+                                        )
+                                        if (!isViewingToday) {
+                                            Text(
+                                                text = "Viewing a previous day",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = { showDatePicker = true }) {
+                                            Text("Pick date")
+                                        }
+                                        Button(onClick = { viewModel.showToday() }) {
+                                            Text("Today")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
                             ProgressHeader(
                                 completionPercentage = completionPercentage,
                                 completedCount = todaysTasks.count { it.status == TaskStatus.COMPLETED },
@@ -166,7 +243,8 @@ fun DailyFocusViewScreen(
                                             onTaskStart = { taskId -> viewModel.startTask(taskId) },
                                             onTaskEdit = onTaskEditRequested,
                                             onTaskDelete = { taskPendingDelete = it },
-                                            showManagementActions = allowTodoEditing,
+                                            showManagementActions = allowTodoEditing && isViewingToday,
+                                            showStartAction = isViewingToday,
                                             onTimerStartRequested = onTimerStartRequested
                                         )
                                     }
@@ -183,13 +261,13 @@ fun DailyFocusViewScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
-                                            text = "No To Do's for today",
+                                            text = emptyStateTitle,
                                             style = MaterialTheme.typography.headlineSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "Tap + to create a new To Do",
+                                            text = emptyStateBody,
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -225,5 +303,30 @@ fun DailyFocusViewScreen(
                 }
             }
         )
+    }
+
+    if (showDatePicker) {
+        Dialog(onDismissRequest = { showDatePicker = false }) {
+            androidx.compose.material3.Surface(shape = MaterialTheme.shapes.extraLarge) {
+                AndroidView(
+                    modifier = Modifier.padding(16.dp),
+                    factory = { context ->
+                        DatePicker(context).apply {
+                            calendarViewShown = true
+                            spinnersShown = false
+                            val currentDate = selectedDate
+                            init(
+                                currentDate.year,
+                                currentDate.monthValue - 1,
+                                currentDate.dayOfMonth
+                            ) { _, year, monthOfYear, dayOfMonth ->
+                                viewModel.selectDate(LocalDate.of(year, monthOfYear + 1, dayOfMonth))
+                                showDatePicker = false
+                            }
+                        }
+                    }
+                )
+            }
+        }
     }
 }

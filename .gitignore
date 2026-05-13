@@ -9,6 +9,8 @@ build/
 .idea/
 *.iml
 local.properties
+release-signing.properties
+release-keystore.jks
 .kiro/specs/adhd-focus-app/.config.kiro
 
 gradle-*.zip

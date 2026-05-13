@@ -5,6 +5,7 @@ import com.adhdfocus.app.data.model.TaskStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * AffirmationTriggerManager handles affirmation triggers for various events.
@@ -24,6 +25,7 @@ import javax.inject.Inject
  * - 4 (Frequently): Show affirmations for 80% of task completions
  * - 5 (Very Frequently): Show affirmations for 100% of task completions
  */
+@Singleton
 class AffirmationTriggerManager @Inject constructor() {
 
     private val _affirmationEvent = MutableStateFlow<AffirmationEvent?>(null)

@@ -8,7 +8,10 @@ import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.auth.AuthResult
+import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
+import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
+import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.theme.ThemeManager
 import com.adhdfocus.app.util.PinValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,7 +40,10 @@ class SettingsViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val themeManager: ThemeManager,
     private val authManager: com.adhdfocus.app.domain.auth.AuthManager,
-    private val audioNotificationManager: AudioNotificationManager
+    private val audioNotificationManager: AudioNotificationManager,
+    private val categoryReminderScheduler: CategoryReminderScheduler,
+    private val setupManager: TabletSetupManager,
+    private val cloudCustomTodoGroupsSyncManager: CloudCustomTodoGroupsSyncManager
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -80,6 +86,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _allowTodoEditing = MutableStateFlow(false)
     val allowTodoEditing: StateFlow<Boolean> = _allowTodoEditing
+
+    private val _customTodoGroups = MutableStateFlow<List<String>>(emptyList())
+    val customTodoGroups: StateFlow<List<String>> = _customTodoGroups
 
     private val _showPasscodeSetupDialog = MutableStateFlow(false)
     val showPasscodeSetupDialog: StateFlow<Boolean> = _showPasscodeSetupDialog
@@ -155,10 +164,12 @@ class SettingsViewModel @Inject constructor(
                 _hasSettingsPasscode.value = !preferences.settingsPasscodeHash.isNullOrBlank()
                 _settingsUnlocked.value = preferences.settingsPasscodeHash.isNullOrBlank()
                 _allowTodoEditing.value = preferences.enableTodoEditing
+                _customTodoGroups.value = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
                 _showPasscodeSetupDialog.value = false
                 
                 // Load theme into ThemeManager
                 themeManager.loadThemeForUser(userId)
+                syncCustomTodoGroupsWithCloud(userId)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load settings: ${e.message}"
             } finally {
@@ -220,6 +231,31 @@ class SettingsViewModel @Inject constructor(
 
     fun updateTodoEditingEnabled(enabled: Boolean) {
         _allowTodoEditing.value = enabled
+        saveCurrentSettings()
+    }
+
+    fun addCustomTodoGroup(rawGroup: String) {
+        val group = rawGroup.trim()
+        if (group.isBlank()) {
+            _errorMessage.value = "Category name cannot be blank"
+            return
+        }
+        val normalized = group.lowercase()
+        val defaultGroups = listOf("Morning", "Afternoon", "Evening", "Bedtime", "Other")
+        if (defaultGroups.any { it.lowercase() == normalized }) {
+            _errorMessage.value = "That category already exists"
+            return
+        }
+        if (_customTodoGroups.value.any { it.equals(group, ignoreCase = true) }) {
+            _errorMessage.value = "That category already exists"
+            return
+        }
+        _customTodoGroups.value = _customTodoGroups.value + group
+        saveCurrentSettings()
+    }
+
+    fun removeCustomTodoGroup(group: String) {
+        _customTodoGroups.value = _customTodoGroups.value.filterNot { it.equals(group, ignoreCase = true) }
         saveCurrentSettings()
     }
 
@@ -299,6 +335,13 @@ class SettingsViewModel @Inject constructor(
      * Plays the currently selected timer alarm sound.
      */
     fun previewTimerAlarm() {
+        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
+    }
+
+    /**
+     * Plays the category reminder sound preview.
+     */
+    fun previewCategoryReminder() {
         audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
     }
 
@@ -410,6 +453,9 @@ class SettingsViewModel @Inject constructor(
                 val success = userPreferencesManager.resetToDefaults(userId)
                 if (success) {
                     loadSettings(userId)
+                    viewModelScope.launch {
+                        runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
+                    }
                 } else {
                     _errorMessage.value = "Failed to reset settings"
                 }
@@ -435,6 +481,7 @@ class SettingsViewModel @Inject constructor(
                     theme = _theme.value,
                     visibleTodoGroups = "[]",
                     notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
+                    customTodoGroups = serializeList(_customTodoGroups.value),
                     settingsPasscodeHash = _settingsPasscodeHash.value,
                     enableTodoEditing = _allowTodoEditing.value,
                     dailyResetTime = _dailyResetTime.value,
@@ -449,6 +496,11 @@ class SettingsViewModel @Inject constructor(
                 val success = userPreferencesManager.savePreferences(preferences)
                 if (!success) {
                     _errorMessage.value = "Failed to save settings"
+                } else {
+                    syncCustomTodoGroupsToCloud()
+                    viewModelScope.launch {
+                        runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
+                    }
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error saving settings: ${e.message}"
@@ -518,7 +570,47 @@ class SettingsViewModel @Inject constructor(
         return json.encodeToString(prefs)
     }
 
+    private fun serializeList(list: List<String>): String {
+        return json.encodeToString(list.map { it.trim() }.filter { it.isNotBlank() }.distinct())
+    }
+
     private fun isValidSettingsPasscode(passcode: String): Boolean {
         return passcode.length == 5 && passcode.all { it.isDigit() }
+    }
+
+    private fun syncCustomTodoGroupsToCloud() {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        if (householdId.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
+                    householdId = householdId,
+                    groups = _customTodoGroups.value
+                )
+            }
+        }
+    }
+
+    private fun syncCustomTodoGroupsWithCloud(userId: String) {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        if (householdId.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                val snapshot = cloudCustomTodoGroupsSyncManager.fetchCustomTodoGroups(householdId)
+                when {
+                    snapshot.fromCloud && snapshot.groups != _customTodoGroups.value -> {
+                        _customTodoGroups.value = snapshot.groups
+                        userPreferencesManager.updateCustomTodoGroups(userId, snapshot.groups)
+                    }
+                    !snapshot.fromCloud && _customTodoGroups.value.isNotEmpty() -> {
+                        cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
+                            householdId = householdId,
+                            groups = _customTodoGroups.value
+                        )
+                    }
+                    else -> Unit
+                }
+            }
+        }
     }
 }

@@ -96,6 +96,15 @@ class TodoGroupVisibilityManagerImpl @Inject constructor(
         return DEFAULT_TODO_GROUPS
     }
 
+    override suspend fun getAllTodoGroups(userId: String): List<String> {
+        require(userId.isNotBlank()) { "userId cannot be blank" }
+        val customGroups = userPreferencesManager.getCustomTodoGroups(userId)
+        return (DEFAULT_TODO_GROUPS + customGroups)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
     private suspend fun updateCache(userId: String, groups: List<String>) {
         val flow = visibilityCache.getOrPut(userId) {
             MutableStateFlow(DEFAULT_TODO_GROUPS)

@@ -216,7 +216,7 @@ class RestApiClientImpl @Inject constructor(
             estimatedDurationMinutes = response.estimatedDurationMinutes
                 ?: durationFromTimer(response.timer)?.first,
             estimatedDurationSeconds = durationFromTimer(response.timer)?.second,
-            timerDurationMs = response.timer?.durationMs?.takeIf { it > 0 },
+            timerDurationMs = response.timer?.durationMs?.takeIf { it >= 0 },
             actualDurationMinutes = response.actualDurationMinutes,
             status = TaskStatus.valueOf(response.status),
             dueDate = parseDueDate(response.dueDate),
@@ -247,8 +247,8 @@ class RestApiClientImpl @Inject constructor(
             repeatRule = normalizeRepeatRule(response.repeat ?: response.repeatRule),
             estimatedDurationMinutes = response.estimatedDurationMinutes
                 ?: durationFromTimer(response.timer)?.first,
-            estimatedDurationSeconds = durationFromTimer(response.timer)?.second?.takeIf { it > 0 },
-            timerDurationMs = response.timer?.durationMs?.takeIf { it > 0 },
+            estimatedDurationSeconds = durationFromTimer(response.timer)?.second?.takeIf { it >= 0 },
+            timerDurationMs = response.timer?.durationMs?.takeIf { it >= 0 },
             actualDurationMinutes = response.actualDurationMinutes,
             status = if (response.done) TaskStatus.COMPLETED else TaskStatus.INCOMPLETE,
             dueDate = parseDueDate(response.dueDate),
@@ -285,9 +285,9 @@ class RestApiClientImpl @Inject constructor(
 
     private fun durationFromTimer(timer: com.adhdfocus.app.data.network.TimerResponse?): Pair<Int, Int>? {
         val durationMs = timer?.durationMs ?: return null
-        if (durationMs <= 0) return null
+        if (durationMs < 0) return null
         val totalSeconds = (durationMs / 1000L).toInt()
-        if (totalSeconds <= 0) return null
+        if (totalSeconds < 0) return null
         return (totalSeconds / 60) to (totalSeconds % 60)
     }
 

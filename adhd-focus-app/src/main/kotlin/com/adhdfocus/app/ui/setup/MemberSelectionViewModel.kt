@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.network.ApiConfig
 import com.adhdfocus.app.data.security.TokenStorage
+import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,8 @@ data class FamilyMember(
 @HiltViewModel
 class MemberSelectionViewModel @Inject constructor(
     private val tokenStorage: TokenStorage,
-    private val setupManager: TabletSetupManager
+    private val setupManager: TabletSetupManager,
+    private val categoryReminderScheduler: CategoryReminderScheduler
 ) : ViewModel() {
 
     private val _members = MutableStateFlow<List<FamilyMember>>(emptyList())
@@ -53,6 +55,9 @@ class MemberSelectionViewModel @Inject constructor(
     fun selectMember(member: FamilyMember) {
         val householdId = _householdId.value ?: return
         setupManager.completeSetup(member.id, member.name, householdId)
+        viewModelScope.launch {
+            categoryReminderScheduler.rescheduleForCurrentSetup()
+        }
     }
 
     private fun loadMembers() {

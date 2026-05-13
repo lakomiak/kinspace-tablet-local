@@ -8,6 +8,7 @@ import com.adhdfocus.app.data.repository.BadgeRepository
 import com.adhdfocus.app.data.repository.StreakRepository
 import com.adhdfocus.app.data.repository.UserRepository
 import com.adhdfocus.app.domain.gamification.BadgeSystem
+import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,8 @@ class AchievementsViewModel @Inject constructor(
     private val badgeRepository: BadgeRepository,
     private val badgeSystem: BadgeSystem,
     private val streakRepository: StreakRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val setupManager: TabletSetupManager
 ) : ViewModel() {
 
     private val _earnedBadges = MutableStateFlow<List<Badge>>(emptyList())
@@ -69,6 +71,7 @@ class AchievementsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                badgeSystem.ensureCurrentSeasonBadgeCatalog(userId, householdId)
                 // Load user
                 val user = userRepository.getUserById(userId)
                 _currentUser.value = user
@@ -76,9 +79,10 @@ class AchievementsViewModel @Inject constructor(
                 // Load badges
                 val earned = badgeRepository.getEarnedBadges(userId, householdId)
                 val locked = badgeRepository.getLockedBadges(userId, householdId)
+                val normalized = normalizeBadges(earned + locked)
 
-                _earnedBadges.value = earned
-                _lockedBadges.value = locked
+                _earnedBadges.value = normalized.filter { !it.isLocked }
+                _lockedBadges.value = normalized.filter { it.isLocked }
 
                 // Load streak data
                 val streak = streakRepository.getStreak(userId, householdId)
@@ -136,12 +140,42 @@ class AchievementsViewModel @Inject constructor(
         return BadgeSystem.BadgeCategory.values().toList()
     }
 
+    fun getBadgeCategory(badgeType: String): BadgeSystem.BadgeCategory? {
+        return badgeSystem.getBadgeMilestone(badgeType)?.category
+    }
+
     /**
      * Refreshes achievements from repository.
      */
     fun refreshAchievements() {
-        if (currentHouseholdId.isNotEmpty() && currentUserId.isNotEmpty()) {
-            loadAchievements(currentHouseholdId, currentUserId)
+        val householdId = currentHouseholdId.ifEmpty { setupManager.getHouseholdId().orEmpty() }
+        val userId = currentUserId.ifEmpty { setupManager.getAssignedMemberId().orEmpty() }
+        if (householdId.isNotEmpty() && userId.isNotEmpty()) {
+            loadAchievements(householdId, userId)
         }
+    }
+
+    private fun normalizeBadges(badges: List<Badge>): List<Badge> {
+        val badgeOrder = badgeSystem.getAllBadgeMilestones()
+            .mapIndexed { index, milestone -> milestone.badgeType to index }
+            .toMap()
+
+        return badges
+            .groupBy { badge -> badge.badgeType to badge.seasonYear }
+            .values
+            .map { badgeGroup ->
+                badgeGroup
+                    .sortedWith(
+                        compareByDescending<Badge> { !it.isLocked }
+                            .thenByDescending { it.earnedAt }
+                            .thenByDescending { it.progress ?: -1 }
+                    )
+                    .first()
+            }
+            .sortedWith(
+                compareBy<Badge> { badgeOrder[it.badgeType] ?: Int.MAX_VALUE }
+                    .thenByDescending { it.earnedAt }
+                    .thenBy { it.name }
+            )
     }
 }

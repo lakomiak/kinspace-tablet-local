@@ -42,6 +42,13 @@ interface UserPreferencesDao {
 
     @Query("""
         UPDATE user_preferences 
+        SET customTodoGroups = :customTodoGroups 
+        WHERE userId = :userId
+    """)
+    suspend fun updateCustomTodoGroups(userId: String, customTodoGroups: String)
+
+    @Query("""
+        UPDATE user_preferences 
         SET notificationPreferences = :notificationPreferences 
         WHERE userId = :userId
     """)

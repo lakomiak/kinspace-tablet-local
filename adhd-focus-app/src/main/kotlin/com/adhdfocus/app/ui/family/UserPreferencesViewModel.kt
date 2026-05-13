@@ -6,7 +6,10 @@ import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
+import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
+import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +32,10 @@ import javax.inject.Inject
 @HiltViewModel
 class UserPreferencesViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
-    private val audioNotificationManager: AudioNotificationManager
+    private val audioNotificationManager: AudioNotificationManager,
+    private val categoryReminderScheduler: CategoryReminderScheduler,
+    private val setupManager: TabletSetupManager,
+    private val cloudCustomTodoGroupsSyncManager: CloudCustomTodoGroupsSyncManager
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -38,6 +44,9 @@ class UserPreferencesViewModel @Inject constructor(
 
     private val _visibleTodoGroups = MutableStateFlow<List<String>>(emptyList())
     val visibleTodoGroups: StateFlow<List<String>> = _visibleTodoGroups
+
+    private val _customTodoGroups = MutableStateFlow<List<String>>(emptyList())
+    val customTodoGroups: StateFlow<List<String>> = _customTodoGroups
 
     private val _notificationPreferences = MutableStateFlow(NotificationPreferences())
     val notificationPreferences: StateFlow<NotificationPreferences> = _notificationPreferences
@@ -93,6 +102,8 @@ class UserPreferencesViewModel @Inject constructor(
                 _theme.value = preferences.theme
                 _visibleTodoGroups.value =
                     userPreferencesManager.deserializeVisibleTodoGroups(preferences.visibleTodoGroups)
+                _customTodoGroups.value =
+                    userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
                 _notificationPreferences.value =
                     userPreferencesManager.deserializeNotificationPreferences(preferences.notificationPreferences)
                 _dailyResetTime.value = preferences.dailyResetTime
@@ -100,6 +111,7 @@ class UserPreferencesViewModel @Inject constructor(
                 _gamificationEnabled.value = preferences.enableGamification
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
+                syncCustomTodoGroupsWithCloud(userId)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load preferences: ${e.message}"
             } finally {
@@ -142,10 +154,39 @@ class UserPreferencesViewModel @Inject constructor(
         saveCurrentPreferences()
     }
 
+    fun addCustomTodoGroup(rawGroup: String) {
+        val group = rawGroup.trim()
+        if (group.isBlank()) {
+            _errorMessage.value = "Category name cannot be blank"
+            return
+        }
+        val normalized = group.lowercase()
+        val defaultGroups = listOf("Morning", "Afternoon", "Evening", "Bedtime", "Other")
+        if (defaultGroups.any { it.lowercase() == normalized }) {
+            _errorMessage.value = "That category already exists"
+            return
+        }
+        if (_customTodoGroups.value.any { it.equals(group, ignoreCase = true) }) {
+            _errorMessage.value = "That category already exists"
+            return
+        }
+        _customTodoGroups.value = _customTodoGroups.value + group
+        saveCurrentPreferences()
+    }
+
+    fun removeCustomTodoGroup(group: String) {
+        _customTodoGroups.value = _customTodoGroups.value.filterNot { it.equals(group, ignoreCase = true) }
+        saveCurrentPreferences()
+    }
+
     /**
      * Plays the currently selected timer alarm sound.
      */
     fun previewTimerAlarm() {
+        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
+    }
+
+    fun previewCategoryReminder() {
         audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
     }
 
@@ -227,6 +268,9 @@ class UserPreferencesViewModel @Inject constructor(
                 val success = userPreferencesManager.resetToDefaults(userId)
                 if (success) {
                     loadPreferences(userId)
+                    viewModelScope.launch {
+                        runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
+                    }
                 } else {
                     _errorMessage.value = "Failed to reset preferences"
                 }
@@ -251,6 +295,7 @@ class UserPreferencesViewModel @Inject constructor(
                     userId = userId,
                     theme = _theme.value,
                     visibleTodoGroups = serializeList(_visibleTodoGroups.value),
+                    customTodoGroups = serializeList(_customTodoGroups.value),
                     notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
                     dailyResetTime = _dailyResetTime.value,
                     affirmationFrequency = _affirmationFrequency.value,
@@ -261,6 +306,11 @@ class UserPreferencesViewModel @Inject constructor(
                 val success = userPreferencesManager.savePreferences(preferences)
                 if (!success) {
                     _errorMessage.value = "Failed to save preferences"
+                } else {
+                    syncCustomTodoGroupsToCloud()
+                    viewModelScope.launch {
+                        runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
+                    }
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error saving preferences: ${e.message}"
@@ -310,5 +360,41 @@ class UserPreferencesViewModel @Inject constructor(
      */
     private fun serializeNotificationPreferences(prefs: NotificationPreferences): String {
         return json.encodeToString(prefs)
+    }
+
+    private fun syncCustomTodoGroupsToCloud() {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        if (householdId.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
+                    householdId = householdId,
+                    groups = _customTodoGroups.value
+                )
+            }
+        }
+    }
+
+    private fun syncCustomTodoGroupsWithCloud(userId: String) {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        if (householdId.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                val snapshot = cloudCustomTodoGroupsSyncManager.fetchCustomTodoGroups(householdId)
+                when {
+                    snapshot.fromCloud && snapshot.groups != _customTodoGroups.value -> {
+                        _customTodoGroups.value = snapshot.groups
+                        userPreferencesManager.updateCustomTodoGroups(userId, snapshot.groups)
+                    }
+                    !snapshot.fromCloud && _customTodoGroups.value.isNotEmpty() -> {
+                        cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
+                            householdId = householdId,
+                            groups = _customTodoGroups.value
+                        )
+                    }
+                    else -> Unit
+                }
+            }
+        }
     }
 }

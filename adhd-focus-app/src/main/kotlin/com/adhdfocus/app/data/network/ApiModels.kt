@@ -362,3 +362,14 @@ data class HouseholdSettingsResponse(
     val householdId: String,
     val settings: Map<String, String>
 )
+
+data class HouseholdNotificationSettingsRequest(
+    val settings: Map<String, String>
+)
+
+data class HouseholdNotificationSettingsResponse(
+    val householdId: String,
+    val settings: Map<String, String>,
+    val updatedAt: String? = null,
+    val source: String? = null
+)

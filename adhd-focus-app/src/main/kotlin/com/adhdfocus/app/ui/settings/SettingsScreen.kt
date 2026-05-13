@@ -90,6 +90,7 @@ fun SettingsScreen(
     val settingsUnlocked by viewModel.settingsUnlocked.collectAsStateWithLifecycle()
     val hasSettingsPasscode by viewModel.hasSettingsPasscode.collectAsStateWithLifecycle()
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
+    val customTodoGroups by viewModel.customTodoGroups.collectAsStateWithLifecycle()
     val showPasscodeSetupDialog by viewModel.showPasscodeSetupDialog.collectAsStateWithLifecycle()
     val recoverySignInIntent by viewModel.recoverySignInIntent.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -270,6 +271,16 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    SettingSection(title = "Custom Categories") {
+                        CustomTodoGroupsPanel(
+                            categories = customTodoGroups,
+                            onAddCategory = { viewModel.addCustomTodoGroup(it) },
+                            onRemoveCategory = { viewModel.removeCustomTodoGroup(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     SettingSection(title = "Display") {
                         ThemeSelector(
                             selectedTheme = theme,
@@ -284,6 +295,16 @@ fun SettingsScreen(
                             preferences = notificationPreferences,
                             onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
                             onPreviewTimerAlarm = { viewModel.previewTimerAlarm() }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Category Reminders") {
+                        CategoryReminderPreferencesPanel(
+                            preferences = notificationPreferences,
+                            onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
+                            onPreviewReminder = { viewModel.previewCategoryReminder() }
                         )
                     }
 

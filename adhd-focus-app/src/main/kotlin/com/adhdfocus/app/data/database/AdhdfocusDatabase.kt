@@ -15,6 +15,7 @@ import com.adhdfocus.app.data.model.Streak
 import com.adhdfocus.app.data.model.EfficiencyMetric
 import com.adhdfocus.app.data.model.SyncQueueItem
 import com.adhdfocus.app.data.model.OfflineUpdateQueueItem
+import com.adhdfocus.app.data.model.TaskDayCompletion
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.UserDao
 import com.adhdfocus.app.data.dao.UserPreferencesDao
@@ -25,6 +26,7 @@ import com.adhdfocus.app.data.dao.StreakDao
 import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
+import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 
 @Database(
     entities = [
@@ -37,9 +39,10 @@ import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
         Streak::class,
         EfficiencyMetric::class,
         SyncQueueItem::class,
-        OfflineUpdateQueueItem::class
+        OfflineUpdateQueueItem::class,
+        TaskDayCompletion::class
     ],
-    version = 9,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -54,6 +57,7 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
     abstract fun efficiencyMetricDao(): EfficiencyMetricDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun offlineUpdateQueueDao(): OfflineUpdateQueueDao
+    abstract fun taskDayCompletionDao(): TaskDayCompletionDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -219,6 +223,50 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS task_day_completions (
+                        householdId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        taskId TEXT NOT NULL,
+                        targetDate TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        PRIMARY KEY(householdId, userId, taskId, targetDate)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_day_completions_householdId ON task_day_completions(householdId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_day_completions_userId ON task_day_completions(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_day_completions_taskId ON task_day_completions(taskId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_day_completions_targetDate ON task_day_completions(targetDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_day_completions_householdId_userId_targetDate ON task_day_completions(householdId, userId, targetDate)")
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE badges ADD COLUMN seasonYear INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    """
+                    UPDATE badges
+                    SET seasonYear = CASE
+                        WHEN seasonYear = 0 THEN CAST(strftime('%Y', datetime(earnedAt / 1000, 'unixepoch')) AS INTEGER)
+                        ELSE seasonYear
+                    END
+                    """.trimIndent()
+                )
+            }
+        }
+
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_preferences ADD COLUMN customTodoGroups TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -232,7 +280,10 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_5_6,
             MIGRATION_6_7,
             MIGRATION_7_8,
-            MIGRATION_8_9
+            MIGRATION_8_9,
+            MIGRATION_9_10,
+            MIGRATION_10_11,
+            MIGRATION_11_12
         )
     }
 }

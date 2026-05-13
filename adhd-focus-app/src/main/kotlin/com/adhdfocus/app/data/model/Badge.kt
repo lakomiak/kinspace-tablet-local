@@ -15,6 +15,7 @@ data class Badge(
     val description: String? = null,
     val iconUrl: String? = null,
     val earnedAt: Long = System.currentTimeMillis(),
+    val seasonYear: Int = java.time.LocalDate.now().year,
     val progress: Int? = null,
     val isLocked: Boolean = true
 )

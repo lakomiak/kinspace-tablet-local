@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.gamification
 
 import com.adhdfocus.app.data.model.Badge
 import com.adhdfocus.app.data.repository.BadgeRepository
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -50,12 +51,26 @@ class BadgeSystem @Inject constructor(
                 "Completed all tasks for the day", 100, "completion_percentage"),
 
             // Streak Milestones
+            BadgeMilestone("ONE_DAY_STREAK", "1-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Completed one full day", 1, "streak"),
             BadgeMilestone("THREE_DAY_STREAK", "3-Day Streak", BadgeCategory.STREAK_MILESTONES,
                 "Maintained a 3-day streak", 3, "streak"),
-            BadgeMilestone("WEEK_WARRIOR", "Week Warrior", BadgeCategory.STREAK_MILESTONES,
+            BadgeMilestone("SEVEN_DAY_STREAK", "7-Day Streak", BadgeCategory.STREAK_MILESTONES,
                 "Maintained a 7-day streak", 7, "streak"),
-            BadgeMilestone("MONTH_MASTER", "Month Master", BadgeCategory.STREAK_MILESTONES,
+            BadgeMilestone("FOURTEEN_DAY_STREAK", "14-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 14-day streak", 14, "streak"),
+            BadgeMilestone("THIRTY_DAY_STREAK", "30-Day Streak", BadgeCategory.STREAK_MILESTONES,
                 "Maintained a 30-day streak", 30, "streak"),
+            BadgeMilestone("SIXTY_DAY_STREAK", "60-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 60-day streak", 60, "streak"),
+            BadgeMilestone("NINETY_DAY_STREAK", "90-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 90-day streak", 90, "streak"),
+            BadgeMilestone("ONE_EIGHTY_DAY_STREAK", "180-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 180-day streak", 180, "streak"),
+            BadgeMilestone("TWO_SEVENTY_DAY_STREAK", "270-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 270-day streak", 270, "streak"),
+            BadgeMilestone("YEAR_STREAK", "365-Day Streak", BadgeCategory.STREAK_MILESTONES,
+                "Maintained a 365-day streak", 365, "streak"),
 
             // Efficiency Badges
             BadgeMilestone("SPEED_DEMON", "Speed Demon", BadgeCategory.EFFICIENCY_BADGES,
@@ -82,67 +97,89 @@ class BadgeSystem @Inject constructor(
         currentStreak: Int,
         efficiencyPercentage: Float
     ): List<Badge> {
-        val earnedBadges = mutableListOf<Badge>()
+        return reconcileBadgeStates(
+            userId = userId,
+            householdId = householdId,
+            completedTasksToday = completedTasksToday,
+            totalTasksToday = totalTasksToday,
+            currentStreak = currentStreak,
+            efficiencyPercentage = efficiencyPercentage
+        )
+    }
 
-        // Daily milestones
-        if (completedTasksToday == 1) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "FIRST_TASK_COMPLETE")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "FIRST_TASK_COMPLETE", "First Task Complete"))
+    /**
+     * Reconciles the badge catalog against the current metrics.
+     *
+     * This keeps earned badges, locked badges, and progress indicators aligned
+     * when a historical day is completed or later uncompleted.
+     */
+    suspend fun reconcileBadgeStates(
+        userId: String,
+        householdId: String,
+        completedTasksToday: Int,
+        totalTasksToday: Int,
+        currentStreak: Int,
+        efficiencyPercentage: Float
+    ): List<Badge> {
+        ensureCurrentSeasonBadgeCatalog(userId, householdId)
+        val newlyCreatedBadges = mutableListOf<Badge>()
+        val currentYear = currentSeasonYear()
+
+        BADGE_MILESTONES.forEach { milestone ->
+            val shouldEarn = shouldEarnBadge(
+                milestone = milestone,
+                completedTasksToday = completedTasksToday,
+                totalTasksToday = totalTasksToday,
+                currentStreak = currentStreak,
+                efficiencyPercentage = efficiencyPercentage
+            )
+            val existing = badgeRepository.getBadgeByType(userId, householdId, milestone.badgeType)
+            val progress = calculateBadgeProgress(
+                badgeType = milestone.badgeType,
+                completedTasksToday = completedTasksToday,
+                totalTasksToday = totalTasksToday,
+                currentStreak = currentStreak,
+                efficiencyPercentage = efficiencyPercentage
+            )
+
+            when {
+                shouldEarn && existing == null -> {
+                    newlyCreatedBadges.add(createBadge(userId, householdId, milestone.badgeType, milestone.name))
+                }
+                shouldEarn && existing != null && existing.isLocked -> {
+                    badgeRepository.updateBadge(
+                        existing.copy(
+                            isLocked = false,
+                            progress = null,
+                            earnedAt = System.currentTimeMillis(),
+                            seasonYear = currentYear
+                        )
+                    )
+                }
+                !shouldEarn && existing != null && !existing.isLocked -> {
+                    badgeRepository.updateBadge(
+                        existing.copy(
+                            isLocked = true,
+                            progress = progress,
+                            earnedAt = 0L,
+                            seasonYear = currentYear
+                        )
+                    )
+                }
+                !shouldEarn && existing != null && existing.isLocked -> {
+                    badgeRepository.updateBadge(
+                        existing.copy(
+                            progress = progress,
+                            seasonYear = currentYear
+                        )
+                    )
+                }
             }
         }
 
-        if (completedTasksToday >= 5) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "FIVE_TASK_DAY")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "FIVE_TASK_DAY", "5-Task Day"))
-            }
-        }
-
-        if (completedTasksToday == totalTasksToday && totalTasksToday > 0) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "PERFECT_DAY")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "PERFECT_DAY", "Perfect Day"))
-            }
-        }
-
-        // Streak milestones
-        if (currentStreak == 3) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "THREE_DAY_STREAK")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "THREE_DAY_STREAK", "3-Day Streak"))
-            }
-        }
-
-        if (currentStreak == 7) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "WEEK_WARRIOR")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "WEEK_WARRIOR", "Week Warrior"))
-            }
-        }
-
-        if (currentStreak == 30) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "MONTH_MASTER")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "MONTH_MASTER", "Month Master"))
-            }
-        }
-
-        // Efficiency badges
-        if (efficiencyPercentage >= 120) {
-            val badge = badgeRepository.getBadgeByType(userId, householdId, "SPEED_DEMON")
-            if (badge == null) {
-                earnedBadges.add(createBadge(userId, householdId, "SPEED_DEMON", "Speed Demon"))
-            }
-        }
-
-        // Save earned badges
-        earnedBadges.forEach { badgeRepository.saveBadge(it) }
-
-        // Update progress for locked badges
+        newlyCreatedBadges.forEach { badgeRepository.saveBadge(it) }
         updateLockedBadgeProgress(userId, householdId, completedTasksToday, totalTasksToday, currentStreak, efficiencyPercentage)
-
-        return earnedBadges
+        return newlyCreatedBadges
     }
 
     /**
@@ -163,6 +200,7 @@ class BadgeSystem @Inject constructor(
         currentStreak: Int,
         efficiencyPercentage: Float
     ) {
+        ensureCurrentSeasonBadgeCatalog(userId, householdId)
         val lockedBadges = badgeRepository.getLockedBadges(userId, householdId)
 
         for (badge in lockedBadges) {
@@ -195,7 +233,16 @@ class BadgeSystem @Inject constructor(
             "FIRST_TASK_COMPLETE" -> if (completedTasksToday >= 1) 100 else 0
             "FIVE_TASK_DAY" -> minOf(100, (completedTasksToday * 100) / 5)
             "PERFECT_DAY" -> if (totalTasksToday > 0) (completedTasksToday * 100) / totalTasksToday else 0
+            "ONE_DAY_STREAK" -> if (currentStreak >= 1) 100 else 0
             "THREE_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 3)
+            "SEVEN_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 7)
+            "FOURTEEN_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 14)
+            "THIRTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 30)
+            "SIXTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 60)
+            "NINETY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 90)
+            "ONE_EIGHTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 180)
+            "TWO_SEVENTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 270)
+            "YEAR_STREAK" -> minOf(100, (currentStreak * 100) / 365)
             "WEEK_WARRIOR" -> minOf(100, (currentStreak * 100) / 7)
             "MONTH_MASTER" -> minOf(100, (currentStreak * 100) / 30)
             "SPEED_DEMON" -> minOf(100, (efficiencyPercentage.toInt() * 100) / 120)
@@ -266,6 +313,40 @@ class BadgeSystem @Inject constructor(
         return BADGE_MILESTONES.find { it.badgeType == badgeType }
     }
 
+    suspend fun ensureCurrentSeasonBadgeCatalog(userId: String, householdId: String) {
+        val currentYear = currentSeasonYear()
+        val allBadges = badgeRepository.getAllBadges(userId, householdId)
+        val seasonYears = allBadges.map { it.seasonYear }.toSet()
+
+        if (allBadges.isNotEmpty() && seasonYears.any { it != currentYear }) {
+            badgeRepository.deleteUserBadges(userId, householdId)
+        }
+
+        val existingTypes = badgeRepository.getAllBadges(userId, householdId)
+            .map { it.badgeType }
+            .toSet()
+
+        val missingMilestones = BADGE_MILESTONES.filterNot { it.badgeType in existingTypes }
+        if (missingMilestones.isEmpty()) return
+
+        badgeRepository.saveBadges(
+            missingMilestones.map { milestone ->
+                Badge(
+                    id = java.util.UUID.randomUUID().toString(),
+                    householdId = householdId,
+                    userId = userId,
+                    badgeType = milestone.badgeType,
+                    name = milestone.name,
+                    description = milestone.description,
+                    earnedAt = 0L,
+                    seasonYear = currentYear,
+                    progress = 0,
+                    isLocked = true
+                )
+            }
+        )
+    }
+
     private fun createBadge(
         userId: String,
         householdId: String,
@@ -280,6 +361,7 @@ class BadgeSystem @Inject constructor(
             name = name,
             description = getBadgeDescription(badgeType),
             earnedAt = System.currentTimeMillis(),
+            seasonYear = currentSeasonYear(),
             isLocked = false
         )
     }
@@ -289,11 +371,36 @@ class BadgeSystem @Inject constructor(
             "FIRST_TASK_COMPLETE" -> "Completed your first task"
             "FIVE_TASK_DAY" -> "Completed 5 tasks in one day"
             "PERFECT_DAY" -> "Completed all tasks for the day"
+            "ONE_DAY_STREAK" -> "Completed one full day"
             "THREE_DAY_STREAK" -> "Maintained a 3-day streak"
-            "WEEK_WARRIOR" -> "Maintained a 7-day streak"
-            "MONTH_MASTER" -> "Maintained a 30-day streak"
+            "SEVEN_DAY_STREAK" -> "Maintained a 7-day streak"
+            "FOURTEEN_DAY_STREAK" -> "Maintained a 14-day streak"
+            "THIRTY_DAY_STREAK" -> "Maintained a 30-day streak"
+            "SIXTY_DAY_STREAK" -> "Maintained a 60-day streak"
+            "NINETY_DAY_STREAK" -> "Maintained a 90-day streak"
+            "ONE_EIGHTY_DAY_STREAK" -> "Maintained a 180-day streak"
+            "TWO_SEVENTY_DAY_STREAK" -> "Maintained a 270-day streak"
+            "YEAR_STREAK" -> "Maintained a 365-day streak"
             "SPEED_DEMON" -> "Completed tasks 20% faster than estimated"
             else -> "Achievement unlocked"
         }
     }
+
+    private fun shouldEarnBadge(
+        milestone: BadgeMilestone,
+        completedTasksToday: Int,
+        totalTasksToday: Int,
+        currentStreak: Int,
+        efficiencyPercentage: Float
+    ): Boolean {
+        return when (milestone.metricType) {
+            "tasks" -> completedTasksToday >= milestone.threshold
+            "completion_percentage" -> totalTasksToday > 0 && completedTasksToday == totalTasksToday
+            "streak" -> currentStreak >= milestone.threshold
+            "efficiency" -> efficiencyPercentage >= milestone.threshold
+            else -> false
+        }
+    }
+
+    private fun currentSeasonYear(): Int = LocalDate.now().year
 }

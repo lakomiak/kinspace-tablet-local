@@ -115,6 +115,29 @@ class UserPreferencesManager @Inject constructor(
     }
 
     /**
+     * Returns custom todo groups for a user.
+     */
+    suspend fun getCustomTodoGroups(userId: String): List<String> {
+        require(userId.isNotBlank()) { "userId cannot be blank" }
+        return getPreferences(userId)?.let { deserializeCustomTodoGroups(it.customTodoGroups) } ?: emptyList()
+    }
+
+    /**
+     * Updates custom todo groups for a user.
+     */
+    suspend fun updateCustomTodoGroups(userId: String, groups: List<String>): Boolean {
+        return try {
+            require(userId.isNotBlank()) { "userId cannot be blank" }
+            val cleaned = groups.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            val serialized = json.encodeToString(cleaned)
+            userPreferencesDao.updateCustomTodoGroups(userId, serialized)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Updates notification preferences for a user.
      *
      * @param userId User ID
@@ -322,6 +345,21 @@ class UserPreferencesManager @Inject constructor(
     }
 
     /**
+     * Deserializes custom todo groups from JSON.
+     */
+    fun deserializeCustomTodoGroups(json: String): List<String> {
+        return if (json.isBlank()) {
+            emptyList()
+        } else {
+            try {
+                this.json.decodeFromString(json)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    /**
      * Deserializes notification preferences from JSON.
      *
      * @param json JSON string
@@ -350,6 +388,7 @@ class UserPreferencesManager @Inject constructor(
             userId = userId,
             theme = Theme.LIGHT,
             visibleTodoGroups = json.encodeToString(emptyList<String>()),
+            customTodoGroups = json.encodeToString(emptyList<String>()),
             notificationPreferences = json.encodeToString(NotificationPreferences()),
             settingsPasscodeHash = null,
             enableTodoEditing = DEFAULT_ENABLE_TODO_EDITING,
@@ -378,7 +417,24 @@ class UserPreferencesManager @Inject constructor(
         require(preferences.autoLogoutTimeout >= 0) {
             "autoLogoutTimeout must be non-negative"
         }
+        validateNotificationPreferences(preferences.notificationPreferences)
         validateDailyResetTime(preferences.dailyResetTime)
+    }
+
+    private fun validateNotificationPreferences(notificationPreferences: String) {
+        val prefs = deserializeNotificationPreferences(notificationPreferences)
+        require(prefs.categoryReminderPreferences.morningLeadMinutes >= 0) {
+            "morningLeadMinutes must be non-negative"
+        }
+        require(prefs.categoryReminderPreferences.afternoonLeadMinutes >= 0) {
+            "afternoonLeadMinutes must be non-negative"
+        }
+        require(prefs.categoryReminderPreferences.eveningLeadMinutes >= 0) {
+            "eveningLeadMinutes must be non-negative"
+        }
+        require(prefs.categoryReminderPreferences.bedtimeLeadMinutes >= 0) {
+            "bedtimeLeadMinutes must be non-negative"
+        }
     }
 
     /**
