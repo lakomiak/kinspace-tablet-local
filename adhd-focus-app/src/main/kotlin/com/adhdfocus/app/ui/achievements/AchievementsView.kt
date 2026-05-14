@@ -1,5 +1,7 @@
 package com.adhdfocus.app.ui.achievements
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,9 +62,15 @@ fun AchievementsView(
         .sortedBy { categorySortOrder(it) }
 
     Scaffold(
+        containerColor = Color(0xFFF5F0FA),
         topBar = {
             TopAppBar(
-                title = { Text("Achievements") },
+                title = {
+                    Text(
+                        text = "Achievements",
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -70,8 +80,9 @@ fun AchievementsView(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color(0xFFEDE5F7),
+                    titleContentColor = Color(0xFF101336),
+                    navigationIconContentColor = Color(0xFF101336)
                 )
             )
         }
@@ -90,10 +101,20 @@ fun AchievementsView(
                 columns = GridCells.Adaptive(minSize = 220.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(paddingValues)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFFF8FF),
+                                Color(0xFFF1EAF7),
+                                Color(0xFFDCD5E3)
+                            ),
+                            radius = 1200f
+                        )
+                    ),
+                contentPadding = PaddingValues(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     SeasonHeader(
@@ -174,28 +195,42 @@ private fun SeasonHeader(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(listOf(Color.White, Color(0xFFC9BED8))),
+                shape = RoundedCornerShape(24.dp)
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFFFCF8FF),
+                            Color(0xFFF1E8FA),
+                            Color(0xFFE1D8EA)
+                        )
+                    )
+                )
+                .padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
                 text = "$seasonYear Badge Season",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                color = Color(0xFF101336)
             )
             Text(
                 text = "Collect the full year, one milestone at a time.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                color = Color(0xFF25214A)
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -227,12 +262,12 @@ private fun BadgeSectionHeader(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color(0xFF101336)
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color(0xFF504B66)
             )
         }
     }
@@ -269,16 +304,28 @@ private fun StreakSection(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.82f),
+                shape = RoundedCornerShape(22.dp)
+            ),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFFFDF9FF),
+                            Color(0xFFF4ECFB)
+                        )
+                    )
+                )
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -287,7 +334,7 @@ private fun StreakSection(
                 text = "Your Streaks",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = Color(0xFF101336)
             )
 
             Row(
@@ -302,12 +349,12 @@ private fun StreakSection(
                         text = currentStreak.toString(),
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFF6F7483)
                     )
                     Text(
                         text = "Current Streak",
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = Color(0xFF101336)
                     )
                 }
 
@@ -316,7 +363,7 @@ private fun StreakSection(
                     modifier = Modifier
                         .width(1.dp)
                         .height(60.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                    color = Color(0xFFBFB5CF)
                 )
 
                 // Best streak
@@ -327,12 +374,12 @@ private fun StreakSection(
                         text = bestStreak.toString(),
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFF6F7483)
                     )
                     Text(
                         text = "Best Streak",
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = Color(0xFF101336)
                     )
                 }
             }

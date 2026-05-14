@@ -18,7 +18,6 @@ import javax.inject.Inject
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.io.IOException
 
 /**
@@ -56,7 +55,7 @@ class RestApiClientImpl @Inject constructor(
                 actualDurationMinutes = task.actualDurationMinutes,
                 repeat = task.repeatRule,
                 repeatRule = task.repeatRule,
-                dueDate = task.dueDate?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString(),
+                dueDate = task.dueDate?.atZone(ZoneId.systemDefault())?.toLocalDate()?.toString(),
                 member = memberName?.trim()?.takeIf { it.isNotBlank() },
                 assignedUserId = task.assignedUserId,
                 timer = buildTimerRequest(task.timerDurationMs, task.estimatedDurationMinutes, task.estimatedDurationSeconds)
@@ -96,7 +95,7 @@ class RestApiClientImpl @Inject constructor(
                 category = (updates["category"] as? String) ?: (updates["group"] as? String) ?: (updates["todoGroup"] as? String),
                 repeat = updates["repeat"] as? String,
                 repeatRule = updates["repeatRule"] as? String,
-                dueDate = (updates["dueDate"] as? Instant)?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString(),
+                dueDate = (updates["dueDate"] as? Instant)?.atZone(ZoneId.systemDefault())?.toLocalDate()?.toString(),
                 completedAt = (updates["completedAt"] as? Instant)?.toString(),
                 timer = extractTimerRequest(updates["timer"])
             )
@@ -134,6 +133,7 @@ class RestApiClientImpl @Inject constructor(
             if (response.isSuccessful) {
                 val payload = response.body()
                 val sourceTodos = when {
+                    payload?.todos?.isNotEmpty() == true -> payload.todos
                     payload?.todayTodos?.isNotEmpty() == true -> payload.todayTodos
                     payload?.todos != null -> payload.todos
                     else -> null

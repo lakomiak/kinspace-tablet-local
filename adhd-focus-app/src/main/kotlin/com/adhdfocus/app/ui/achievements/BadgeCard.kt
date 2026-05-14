@@ -5,7 +5,9 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,15 +16,19 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,8 +38,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adhdfocus.app.data.model.Badge
@@ -44,98 +60,10 @@ fun BadgeCard(
     badge: Badge,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (badge.isLocked) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.primaryContainer
-            }
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (badge.isLocked) 2.dp else 8.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        color = if (badge.isLocked) {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (badge.isLocked) "LOCKED" else "STAR",
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Text(
-                text = badge.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 2
-            )
-
-            Text(
-                text = badge.description ?: "Achievement",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 2
-            )
-
-            if (badge.isLocked) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val progress = (badge.progress ?: 0) / 100f
-                    LinearProgressIndicator(
-                        progress = progress,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
-                    Text(
-                        text = "${badge.progress ?: 0}%",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.paddingFromBaseline(top = 4.dp)
-                    )
-                }
-            } else {
-                Text(
-                    text = "Earned: ${DateTimeUtils.formatDate(badge.earnedAt)}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
+    BadgeCardCompact(
+        badge = badge,
+        modifier = modifier.height(140.dp)
+    )
 }
 
 @Composable
@@ -152,87 +80,121 @@ fun BadgeCardCompact(
     AnimatedVisibility(
         visible = if (badge.isLocked) true else visible,
         enter = fadeIn() + scaleIn(
-            initialScale = 0.86f,
+            initialScale = 0.9f,
             animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
         )
     ) {
+        val locked = badge.isLocked
+        val progress = (badge.progress ?: 0).coerceIn(0, 100)
+        val cardBrush = if (locked) {
+            Brush.linearGradient(
+                listOf(
+                    Color(0xFFF8F3FF),
+                    Color(0xFFF2EEF8),
+                    Color(0xFFE9E4EF)
+                )
+            )
+        } else {
+            Brush.linearGradient(
+                listOf(
+                    Color(0xFFFFFBF0),
+                    Color(0xFFFFF1C8),
+                    Color(0xFFFFE3A3)
+                )
+            )
+        }
+
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .height(120.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (badge.isLocked) {
-                    MaterialTheme.colorScheme.surfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer
-                }
-            ),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (badge.isLocked) 1.dp else 8.dp
-            )
+                .height(126.dp)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.9f),
+                            Color(0xFFC8BED8).copy(alpha = if (locked) 0.7f else 0.45f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(18.dp)
+                ),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (locked) 2.dp else 10.dp)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(cardBrush)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            color = if (badge.isLocked) {
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
-                            shape = RoundedCornerShape(8.dp)
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.75f),
+                                Color.Transparent
+                            ),
+                            center = Offset(size.width * 0.18f, size.height * 0.08f),
+                            radius = size.width * 0.55f
                         ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (badge.isLocked) "LOCKED" else "STAR",
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
+                        radius = size.width * 0.6f,
+                        center = Offset(size.width * 0.18f, size.height * 0.08f)
+                    )
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.45f),
+                        start = Offset(18f, size.height - 18f),
+                        end = Offset(size.width - 22f, 14f),
+                        strokeWidth = 2f,
+                        cap = StrokeCap.Round
                     )
                 }
 
-                Column(
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = badge.name,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
+                    AchievementBadgeArt(
+                        badgeType = badge.badgeType,
+                        locked = locked,
+                        modifier = Modifier.size(78.dp)
                     )
 
-                    if (badge.isLocked) {
-                        val progress = (badge.progress ?: 0) / 100f
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = badge.name,
+                            fontSize = 17.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (locked) Color(0xFF101336) else Color(0xFF302100),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
                         LinearProgressIndicator(
-                            progress = progress,
+                            progress = progress / 100f,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                .height(5.dp),
+                            color = if (locked) Color(0xFF7E7893) else Color(0xFFD99318),
+                            trackColor = Color(0xFFC8C1D2).copy(alpha = 0.7f)
                         )
+
                         Text(
-                            text = "${badge.progress ?: 0}%",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        Text(
-                            text = "Earned: ${DateTimeUtils.formatDate(badge.earnedAt)}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = if (locked) {
+                                "$progress%"
+                            } else {
+                                "Earned ${DateTimeUtils.formatDate(badge.earnedAt)}"
+                            },
+                            fontSize = 11.sp,
+                            color = if (locked) Color(0xFF46415C) else Color(0xFF7B5200),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -240,4 +202,145 @@ fun BadgeCardCompact(
             }
         }
     }
+}
+
+@Composable
+private fun AchievementBadgeArt(
+    badgeType: String,
+    locked: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val badgeSpec = remember(badgeType) { badgeSpecForType(badgeType) }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val shield = Path().apply {
+                moveTo(w * 0.5f, h * 0.05f)
+                lineTo(w * 0.88f, h * 0.18f)
+                lineTo(w * 0.82f, h * 0.62f)
+                quadraticBezierTo(w * 0.5f, h * 0.95f, w * 0.18f, h * 0.62f)
+                lineTo(w * 0.12f, h * 0.18f)
+                close()
+            }
+
+            drawPath(
+                path = shield,
+                brush = Brush.linearGradient(
+                    colors = if (locked) {
+                        listOf(Color(0xFFF6F4FA), Color(0xFFB9B5C5), Color(0xFF7E7A91))
+                    } else {
+                        listOf(Color(0xFFFFF3BA), Color(0xFFE4A936), Color(0xFF8E5F09))
+                    },
+                    start = Offset(w * 0.2f, 0f),
+                    end = Offset(w, h)
+                )
+            )
+            drawPath(
+                path = shield,
+                color = if (locked) Color(0xFF6D687C) else Color(0xFF704A07),
+                style = Stroke(width = w * 0.055f)
+            )
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.75f), Color.Transparent),
+                    center = Offset(w * 0.38f, h * 0.22f),
+                    radius = w * 0.5f
+                ),
+                center = Offset(w * 0.38f, h * 0.22f),
+                radius = w * 0.46f
+            )
+
+            drawRoundRect(
+                color = if (locked) Color(0xFFE9E7F0) else Color(0xFFFFF3C0),
+                topLeft = Offset(w * 0.27f, h * 0.27f),
+                size = Size(w * 0.46f, h * 0.4f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f)
+            )
+            drawRoundRect(
+                color = if (locked) Color(0xFF7F7A91) else Color(0xFF7D5308),
+                topLeft = Offset(w * 0.27f, h * 0.27f),
+                size = Size(w * 0.46f, h * 0.4f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f),
+                style = Stroke(width = w * 0.035f)
+            )
+
+            drawIntoCanvas { canvas ->
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    textSize = if (badgeSpec.label.length <= 2) w * 0.34f else w * 0.22f
+                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                    color = if (locked) {
+                        android.graphics.Color.rgb(255, 255, 255)
+                    } else {
+                        android.graphics.Color.rgb(96, 61, 0)
+                    }
+                    setShadowLayer(w * 0.035f, 0f, w * 0.025f, android.graphics.Color.argb(120, 0, 0, 0))
+                }
+                val y = h * 0.53f - ((paint.descent() + paint.ascent()) / 2f)
+                canvas.nativeCanvas.drawText(badgeSpec.label, w * 0.5f, y, paint)
+            }
+
+            repeat(4) { index ->
+                val left = w * (0.31f + index * 0.1f)
+                drawRoundRect(
+                    color = if (locked) Color(0xFF7F7A91) else Color(0xFF6E4908),
+                    topLeft = Offset(left, h * 0.72f),
+                    size = Size(w * 0.06f, h * 0.045f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.015f)
+                )
+            }
+        }
+
+        if (locked) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 3.dp, y = 3.dp)
+                    .size(28.dp),
+                shape = CircleShape,
+                color = Color(0xFFF5F1FF),
+                shadowElevation = 5.dp,
+                tonalElevation = 3.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Locked",
+                        tint = Color(0xFF55516A),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class BadgeVisualSpec(val label: String)
+
+private fun badgeSpecForType(badgeType: String): BadgeVisualSpec {
+    val label = when (badgeType) {
+        "FIRST_TASK_COMPLETE" -> "OK"
+        "FIVE_TASK_DAY" -> "5"
+        "PERFECT_DAY" -> "ALL"
+        "ONE_DAY_STREAK" -> "1"
+        "THREE_DAY_STREAK" -> "3"
+        "SEVEN_DAY_STREAK" -> "7"
+        "FOURTEEN_DAY_STREAK" -> "14"
+        "THIRTY_DAY_STREAK" -> "30"
+        "SIXTY_DAY_STREAK" -> "60"
+        "NINETY_DAY_STREAK" -> "90"
+        "ONE_EIGHTY_DAY_STREAK" -> "180"
+        "TWO_SEVENTY_DAY_STREAK" -> "270"
+        "YEAR_STREAK" -> "365"
+        "SPEED_DEMON" -> "SPD"
+        else -> "BADGE"
+    }
+    return BadgeVisualSpec(label)
 }
