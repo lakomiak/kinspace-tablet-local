@@ -7,13 +7,18 @@ import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Retrofit service for task management endpoints
  */
 interface TaskService {
     @GET(ApiConfig.Tasks.GET_TASKS)
-    fun getTasks(@Path("householdId") householdId: String): Call<TodosResponse>
+    fun getTasks(
+        @Path("householdId") householdId: String,
+        @Query("date") date: String? = null,
+        @Query("familyMemberId") familyMemberId: String? = null
+    ): Call<TodosResponse>
 
     @POST(ApiConfig.Tasks.CREATE_TASK)
     fun createTask(

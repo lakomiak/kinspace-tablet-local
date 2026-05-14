@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.sync
 
 import com.adhdfocus.app.data.model.SyncOperation
 import com.adhdfocus.app.data.model.Task
+import java.time.LocalDate
 
 /**
  * Interface for REST API client operations with calendar-cloud.
@@ -59,7 +60,11 @@ interface RestApiClient {
      * @throws NetworkException if network error occurs
      * @throws ApiException if API returns error
      */
-    suspend fun fetchTasks(householdId: String): List<Task>
+    suspend fun fetchTasks(
+        householdId: String,
+        date: LocalDate? = null,
+        familyMemberId: String? = null
+    ): FetchedTasksSnapshot
 
     /**
      * Performs batch sync of multiple changes.
@@ -72,6 +77,21 @@ interface RestApiClient {
      */
     suspend fun batchSync(householdId: String, changes: List<SyncChange>): SyncResult
 }
+
+data class CloudTaskDayCompletion(
+    val householdId: String,
+    val familyMemberId: String,
+    val targetDate: LocalDate,
+    val taskId: String,
+    val completedAt: java.time.Instant?,
+    val updatedAt: java.time.Instant?,
+    val isCompleted: Boolean
+)
+
+data class FetchedTasksSnapshot(
+    val tasks: List<Task>,
+    val dayCompletions: List<CloudTaskDayCompletion>
+)
 
 /**
  * Represents a single change to be synced.

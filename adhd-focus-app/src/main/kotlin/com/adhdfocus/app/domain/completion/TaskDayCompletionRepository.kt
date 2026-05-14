@@ -39,4 +39,31 @@ class TaskDayCompletionRepository @Inject constructor(
     ): List<TaskDayCompletion> {
         return taskDayCompletionDao.getCompletionsForDate(householdId, userId, date.toString())
     }
+
+    suspend fun replaceCompletionsForDate(
+        householdId: String,
+        userId: String,
+        date: LocalDate,
+        completedTaskIds: List<String>,
+        updatedAt: Instant = Instant.now()
+    ) {
+        val targetDate = date.toString()
+        taskDayCompletionDao.deleteForDate(householdId, userId, targetDate)
+        if (completedTaskIds.isEmpty()) {
+            return
+        }
+
+        taskDayCompletionDao.upsertAll(
+            completedTaskIds.distinct().map { taskId ->
+                TaskDayCompletion(
+                    householdId = householdId,
+                    userId = userId,
+                    taskId = taskId,
+                    targetDate = targetDate,
+                    isCompleted = true,
+                    updatedAt = updatedAt
+                )
+            }
+        )
+    }
 }

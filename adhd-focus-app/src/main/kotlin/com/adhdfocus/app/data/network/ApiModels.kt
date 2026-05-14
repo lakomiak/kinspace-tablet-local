@@ -87,6 +87,8 @@ data class TodoResponse(
     val familyMemberId: String?,
     @SerializedName("timer")
     val timer: TimerResponse? = null,
+    @SerializedName("completedAt")
+    val completedAt: String? = null,
     @SerializedName("updatedAt")
     val updatedAt: String
 )
@@ -98,7 +100,9 @@ data class TodosResponse(
     @SerializedName("scheduleTodos")
     val scheduleTodos: List<TodoScheduleResponse>? = null,
     @SerializedName("todoStates")
-    val todoStates: List<TodoStateResponse>? = null
+    val todoStates: List<TodoStateResponse>? = null,
+    @SerializedName("dayCompletions")
+    val dayCompletions: List<TodoDayCompletionResponse>? = null
 )
 
 data class TodoEnvelope(
@@ -191,6 +195,23 @@ data class TodoStateResponse(
     val familyMemberId: String? = null,
     @SerializedName("timer")
     val timer: TimerResponse? = null
+)
+
+data class TodoDayCompletionResponse(
+    @SerializedName("householdId")
+    val householdId: String,
+    @SerializedName("familyMemberId")
+    val familyMemberId: String,
+    @SerializedName("targetDate")
+    val targetDate: String,
+    @SerializedName("taskId")
+    val taskId: String,
+    @SerializedName("completedAt")
+    val completedAt: String? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String? = null,
+    @SerializedName("isCompleted")
+    val isCompleted: Boolean? = null
 )
 
 // Task Models

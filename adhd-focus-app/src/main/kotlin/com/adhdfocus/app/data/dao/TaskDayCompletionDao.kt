@@ -11,6 +11,9 @@ interface TaskDayCompletionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(completion: TaskDayCompletion)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(completions: List<TaskDayCompletion>)
+
     @Query(
         """
         DELETE FROM task_day_completions
@@ -24,6 +27,20 @@ interface TaskDayCompletionDao {
         householdId: String,
         userId: String,
         taskId: String,
+        targetDate: String
+    )
+
+    @Query(
+        """
+        DELETE FROM task_day_completions
+        WHERE householdId = :householdId
+        AND userId = :userId
+        AND targetDate = :targetDate
+        """
+    )
+    suspend fun deleteForDate(
+        householdId: String,
+        userId: String,
         targetDate: String
     )
 

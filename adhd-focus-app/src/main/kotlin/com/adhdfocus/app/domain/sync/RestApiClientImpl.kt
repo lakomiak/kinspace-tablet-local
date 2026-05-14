@@ -127,9 +127,13 @@ class RestApiClientImpl @Inject constructor(
         }
     }
 
-    override suspend fun fetchTasks(householdId: String): List<Task> {
+    override suspend fun fetchTasks(
+        householdId: String,
+        date: LocalDate?,
+        familyMemberId: String?
+    ): FetchedTasksSnapshot {
         return retryWithBackoff {
-            val response = taskService.getTasks(householdId).execute()
+            val response = taskService.getTasks(householdId, date?.toString(), familyMemberId).execute()
             if (response.isSuccessful) {
                 val payload = response.body()
                 val sourceTodos = when {
@@ -139,9 +143,22 @@ class RestApiClientImpl @Inject constructor(
                     else -> null
                 } ?: throw ApiException(response.code(), "Empty response body")
                 val tasks = sourceTodos.map { convertTodoToTask(it, householdId) }
+                val dayCompletions = payload?.dayCompletions.orEmpty().mapNotNull { responseCompletion ->
+                    runCatching {
+                        CloudTaskDayCompletion(
+                            householdId = responseCompletion.householdId,
+                            familyMemberId = responseCompletion.familyMemberId,
+                            targetDate = LocalDate.parse(responseCompletion.targetDate),
+                            taskId = responseCompletion.taskId,
+                            completedAt = responseCompletion.completedAt?.let { parseInstant(it) },
+                            updatedAt = responseCompletion.updatedAt?.let { parseInstant(it) },
+                            isCompleted = responseCompletion.isCompleted == true
+                        )
+                    }.getOrNull()
+                }
                 Log.d(
                     tag,
-                    "fetchTasks householdId=$householdId count=${tasks.size} todayCount=${payload?.todayTodos?.size ?: -1} totalCount=${payload?.todos?.size ?: -1}"
+                    "fetchTasks householdId=$householdId date=${date?.toString() ?: "current"} familyMemberId=${familyMemberId ?: "all"} count=${tasks.size} dayCompletionCount=${dayCompletions.size} todayCount=${payload?.todayTodos?.size ?: -1} totalCount=${payload?.todos?.size ?: -1}"
                 )
                 tasks.forEachIndexed { index, task ->
                     Log.d(
@@ -149,7 +166,10 @@ class RestApiClientImpl @Inject constructor(
                         "fetchTasks[$index] id=${task.id} title=${task.title} assignedUserId=${task.assignedUserId} status=${task.status} dueDate=${task.dueDate}"
                     )
                 }
-                tasks
+                FetchedTasksSnapshot(
+                    tasks = tasks,
+                    dayCompletions = dayCompletions
+                )
             } else {
                 val errorBody = runCatching { response.errorBody()?.string() }.getOrNull()
                 Log.e(
@@ -254,7 +274,11 @@ class RestApiClientImpl @Inject constructor(
             dueDate = parseDueDate(response.dueDate),
             createdAt = parseInstant(response.createdAt),
             updatedAt = parseInstant(response.updatedAt),
-            completedAt = if (response.done) parseInstant(response.updatedAt) else null,
+            completedAt = when {
+                !response.done -> null
+                !response.completedAt.isNullOrBlank() -> parseInstant(response.completedAt)
+                else -> parseInstant(response.updatedAt)
+            },
             syncStatus = SyncStatus.SYNCED,
             isDeleted = false
         )

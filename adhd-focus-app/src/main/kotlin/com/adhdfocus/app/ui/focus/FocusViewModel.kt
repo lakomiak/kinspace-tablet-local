@@ -92,7 +92,7 @@ class FocusViewModel @Inject constructor(
             currentHouseholdId = householdId
             currentUserId = userId
             _selectedDate.value = LocalDate.now()
-            refreshFromCloud(householdId, userId)
+            refreshFromCloud(householdId, userId, _selectedDate.value)
         }
     }
 
@@ -125,20 +125,35 @@ class FocusViewModel @Inject constructor(
      * @param householdId Household ID
      * @param userId User ID
      */
-    fun refreshFromCloud(householdId: String, userId: String) {
+    fun refreshFromCloud(
+        householdId: String,
+        userId: String,
+        targetDate: LocalDate = _selectedDate.value
+    ) {
         currentHouseholdId = householdId
         currentUserId = userId
 
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.SYNCING
             try {
-                val tasks = withContext(Dispatchers.IO) {
-                    restApiClient.fetchTasks(householdId)
+                val cloudSnapshot = withContext(Dispatchers.IO) {
+                    restApiClient.fetchTasks(householdId, targetDate, userId)
                 }
-                Log.d(tag, "refreshFromCloud householdId=$householdId userId=$userId cloudCount=${tasks.size}")
-                taskPersistenceManager.replaceTasksForHousehold(householdId, tasks)
+                Log.d(
+                    tag,
+                    "refreshFromCloud householdId=$householdId userId=$userId targetDate=$targetDate cloudCount=${cloudSnapshot.tasks.size} dayCompletionCount=${cloudSnapshot.dayCompletions.size}"
+                )
+                taskPersistenceManager.replaceTasksForHousehold(householdId, cloudSnapshot.tasks)
+                if (targetDate != LocalDate.now()) {
+                    importCloudCompletionsForDate(
+                        householdId = householdId,
+                        userId = userId,
+                        targetDate = targetDate,
+                        dayCompletions = cloudSnapshot.dayCompletions
+                    )
+                }
                 val memberName = setupManager.getAssignedMemberName()
-                val visibleTasks = resolveVisibleTasks(householdId, userId, memberName, _selectedDate.value)
+                val visibleTasks = resolveVisibleTasks(householdId, userId, memberName, targetDate)
                 applyDisplayedTasks(visibleTasks, householdId, userId, memberName)
                 _syncStatus.value = SyncStatus.SYNCED
             } catch (e: Exception) {
@@ -146,6 +161,32 @@ class FocusViewModel @Inject constructor(
                 _syncStatus.value = SyncStatus.ERROR
             }
         }
+    }
+
+    private suspend fun importCloudCompletionsForDate(
+        householdId: String,
+        userId: String,
+        targetDate: LocalDate,
+        dayCompletions: List<com.adhdfocus.app.domain.sync.CloudTaskDayCompletion>
+    ) {
+        val completedTaskIds = dayCompletions
+            .asSequence()
+            .filter { it.familyMemberId == userId }
+            .filter { it.targetDate == targetDate }
+            .filter { it.isCompleted }
+            .map { it.taskId }
+            .toList()
+
+        Log.d(
+            tag,
+            "importCloudCompletionsForDate householdId=$householdId userId=$userId targetDate=$targetDate completedCount=${completedTaskIds.size}"
+        )
+        taskDayCompletionRepository.replaceCompletionsForDate(
+            householdId = householdId,
+            userId = userId,
+            date = targetDate,
+            completedTaskIds = completedTaskIds
+        )
     }
 
     fun refreshCurrentTasks(fromCloud: Boolean = true) {
@@ -157,7 +198,7 @@ class FocusViewModel @Inject constructor(
         }
 
         if (fromCloud) {
-            refreshFromCloud(householdId, userId)
+            refreshFromCloud(householdId, userId, _selectedDate.value)
         } else {
             loadTodaysTasks(householdId, userId)
         }
@@ -176,17 +217,17 @@ class FocusViewModel @Inject constructor(
 
     fun showPreviousDay() {
         _selectedDate.value = _selectedDate.value.minusDays(1)
-        refreshVisibleTasksFromLocal()
+        refreshCurrentTasks(fromCloud = true)
     }
 
     fun showToday() {
         _selectedDate.value = LocalDate.now()
-        refreshVisibleTasksFromLocal()
+        refreshCurrentTasks(fromCloud = true)
     }
 
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
-        refreshVisibleTasksFromLocal()
+        refreshCurrentTasks(fromCloud = true)
     }
 
     /**
