@@ -453,6 +453,29 @@ class FocusViewModel @Inject constructor(
             isCompleted = complete
         )
 
+        runCatching {
+            val completion = withContext(Dispatchers.IO) {
+                restApiClient.syncDayCompletion(
+                    householdId = householdId,
+                    taskId = taskId,
+                    familyMemberId = userId,
+                    targetDate = selectedDate,
+                    isCompleted = complete,
+                    completedAt = if (complete) Instant.now() else null
+                )
+            }
+            Log.d(
+                tag,
+                "syncDayCompletion householdId=$householdId userId=$userId taskId=$taskId date=$selectedDate complete=$complete cloudCompleted=${completion.isCompleted}"
+            )
+        }.onFailure { error ->
+            Log.e(
+                tag,
+                "syncDayCompletion failed householdId=$householdId userId=$userId taskId=$taskId date=$selectedDate complete=$complete",
+                error
+            )
+        }
+
         val refreshedTasks = resolveVisibleTasks(householdId, userId, memberName, selectedDate)
         applyDisplayedTasks(
             tasks = refreshedTasks,

@@ -314,6 +314,26 @@ data class UpdateTaskRequest(
     val timer: TimerRequest? = null
 )
 
+data class DayCompletionSyncRequest(
+    @SerializedName("dayCompletionOnly")
+    val dayCompletionOnly: Boolean = true,
+    @SerializedName("familyMemberId")
+    val familyMemberId: String,
+    @SerializedName("targetDate")
+    val targetDate: String,
+    @SerializedName("isCompleted")
+    val isCompleted: Boolean,
+    @SerializedName("completedAt")
+    val completedAt: String? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String? = null
+)
+
+data class DayCompletionEnvelope(
+    @SerializedName("dayCompletion")
+    val dayCompletion: TodoDayCompletionResponse? = null
+)
+
 // Sync Models
 data class SyncQueueItem(
     @SerializedName("task_id")

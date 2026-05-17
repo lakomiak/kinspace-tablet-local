@@ -7,6 +7,7 @@ import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.model.SyncStatus
 import com.adhdfocus.app.data.network.TaskService
 import com.adhdfocus.app.data.network.SyncService
+import com.adhdfocus.app.data.network.DayCompletionSyncRequest
 import com.adhdfocus.app.data.network.CreateTaskRequest
 import com.adhdfocus.app.data.network.UpdateTaskRequest
 import com.adhdfocus.app.data.network.TimerRequest
@@ -123,6 +124,49 @@ class RestApiClientImpl @Inject constructor(
             val response = taskService.deleteTask(householdId, taskId).execute()
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), "Failed to delete task: ${response.message()}")
+            }
+        }
+    }
+
+    override suspend fun syncDayCompletion(
+        householdId: String,
+        taskId: String,
+        familyMemberId: String,
+        targetDate: LocalDate,
+        isCompleted: Boolean,
+        completedAt: Instant?
+    ): CloudTaskDayCompletion {
+        return retryWithBackoff {
+            val request = DayCompletionSyncRequest(
+                familyMemberId = familyMemberId,
+                targetDate = targetDate.toString(),
+                isCompleted = isCompleted,
+                completedAt = completedAt?.toString(),
+                updatedAt = Instant.now().toString()
+            )
+            val response = taskService.syncDayCompletion(householdId, taskId, request).execute()
+            if (response.isSuccessful) {
+                val completion = response.body()?.dayCompletion
+                    ?: throw ApiException(response.code(), "Empty day completion response body")
+                CloudTaskDayCompletion(
+                    householdId = completion.householdId,
+                    familyMemberId = completion.familyMemberId,
+                    targetDate = LocalDate.parse(completion.targetDate),
+                    taskId = completion.taskId,
+                    completedAt = completion.completedAt?.let { parseInstant(it) },
+                    updatedAt = completion.updatedAt?.let { parseInstant(it) },
+                    isCompleted = completion.isCompleted == true
+                )
+            } else {
+                val errorBody = runCatching { response.errorBody()?.string() }.getOrNull()
+                Log.e(
+                    tag,
+                    "syncDayCompletion failed householdId=$householdId taskId=$taskId code=${response.code()} message=${response.message()} errorBody=$errorBody"
+                )
+                throw ApiException(
+                    response.code(),
+                    "Failed to sync day completion: ${response.code()} ${response.message()}${if (!errorBody.isNullOrBlank()) " - $errorBody" else ""}"
+                )
             }
         }
     }

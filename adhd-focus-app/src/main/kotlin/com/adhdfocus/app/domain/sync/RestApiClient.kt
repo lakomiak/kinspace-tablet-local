@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.sync
 
 import com.adhdfocus.app.data.model.SyncOperation
 import com.adhdfocus.app.data.model.Task
+import java.time.Instant
 import java.time.LocalDate
 
 /**
@@ -41,6 +42,26 @@ interface RestApiClient {
         taskId: String,
         updates: Map<String, Any?>
     ): Task
+
+    /**
+     * Syncs a per-day completion record on calendar-cloud without mutating the task's current-day state.
+     *
+     * @param householdId Household ID
+     * @param taskId Task ID
+     * @param familyMemberId Family member the completion belongs to
+     * @param targetDate Day the completion applies to
+     * @param isCompleted Whether the task is completed for that day
+     * @param completedAt Optional completion timestamp
+     * @return Synced per-day completion record
+     */
+    suspend fun syncDayCompletion(
+        householdId: String,
+        taskId: String,
+        familyMemberId: String,
+        targetDate: LocalDate,
+        isCompleted: Boolean,
+        completedAt: Instant? = null
+    ): CloudTaskDayCompletion
 
     /**
      * Deletes a task on calendar-cloud.

@@ -33,6 +33,13 @@ interface TaskService {
         @Body request: UpdateTaskRequest
     ): Call<TodoEnvelope>
 
+    @PATCH(ApiConfig.Tasks.UPDATE_TASK)
+    fun syncDayCompletion(
+        @Path("householdId") householdId: String,
+        @Path("taskId") taskId: String,
+        @Body request: DayCompletionSyncRequest
+    ): Call<DayCompletionEnvelope>
+
     @DELETE(ApiConfig.Tasks.DELETE_TASK)
     fun deleteTask(
         @Path("householdId") householdId: String,
