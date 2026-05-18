@@ -1,7 +1,6 @@
 package com.adhdfocus.app.data.model
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.Instant
@@ -23,20 +22,6 @@ import java.util.UUID
         Index(value = ["userId", "timestamp"]),
         Index(value = ["operation", "timestamp"]),
         Index(value = ["retryCount", "timestamp"])
-    ],
-    foreignKeys = [
-        ForeignKey(
-            entity = Task::class,
-            parentColumns = ["id"],
-            childColumns = ["taskId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
     ]
 )
 data class SyncQueueItem(

@@ -104,7 +104,12 @@ class BackgroundTimerService : Service() {
         isPaused = false
         timerDuration = 0
         timeRemaining = 0
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
         stopSelf()
     }
 

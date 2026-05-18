@@ -1,6 +1,7 @@
 package com.adhdfocus.app.domain.sync
 
 import android.content.Context
+import android.os.Build
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -57,8 +58,14 @@ class ConnectivityManagerImpl @Inject constructor(
     }
 
     override fun isOnline(): Boolean {
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val activeNetwork = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } else {
+            @Suppress("DEPRECATION")
+            val networkInfo = connectivityManager.activeNetworkInfo ?: return false
+            networkInfo.isConnected
+        }
     }
 }

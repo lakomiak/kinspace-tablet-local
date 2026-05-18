@@ -21,7 +21,8 @@ class CategoryReminderScheduler @Inject constructor(
     private val setupManager: TabletSetupManager
 ) {
     private val alarmManager: AlarmManager? by lazy {
-        context.getSystemService(AlarmManager::class.java)
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
     }
 
     suspend fun rescheduleForCurrentSetup() {
@@ -89,8 +90,11 @@ class CategoryReminderScheduler @Inject constructor(
         val alarm = alarmManager ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarm.canScheduleExactAlarms()) {
             alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-        } else {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } else {
+            @Suppress("DEPRECATION")
+            alarm.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
         }
     }
 
@@ -114,7 +118,7 @@ class CategoryReminderScheduler @Inject constructor(
             context,
             category.ordinal + REQUEST_CODE_BASE,
             intent,
-            flag or PendingIntent.FLAG_IMMUTABLE
+            flag or pendingIntentImmutableFlag()
         )
     }
 
@@ -147,5 +151,13 @@ class CategoryReminderScheduler @Inject constructor(
 
     private companion object {
         const val REQUEST_CODE_BASE = 42000
+    }
+
+    private fun pendingIntentImmutableFlag(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE
+        } else {
+            0
+        }
     }
 }

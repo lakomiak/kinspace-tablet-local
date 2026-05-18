@@ -1,6 +1,7 @@
 package com.adhdfocus.app.domain.task
 
 import android.util.Log
+import android.os.Build
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.model.SyncOperation
 import com.adhdfocus.app.data.model.SyncQueueItem
@@ -271,7 +272,6 @@ class TaskManager @Inject constructor(
         // Queue for sync
         queueTaskForSync(completedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
 
-        // Sync completion directly to cloud so the refreshed view stays aligned.
         val syncedTask = syncTaskStateToCloud(completedTask, completed = true)
 
         // Trigger affirmation on task completion (Property 18: Affirmation on Task Completion)

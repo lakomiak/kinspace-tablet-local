@@ -109,7 +109,7 @@ class CategoryReminderReceiver : BroadcastReceiver() {
             context,
             categoryGroup.hashCode(),
             launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or immutablePendingIntentFlag()
         )
 
         val contentTitle = "$categoryGroup reminder"
@@ -139,7 +139,8 @@ class CategoryReminderReceiver : BroadcastReceiver() {
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
-        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        @Suppress("DEPRECATION")
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Category Reminders",
@@ -160,5 +161,13 @@ class CategoryReminderReceiver : BroadcastReceiver() {
         const val EXTRA_MEMBER_NAME = "extra_member_name"
         const val EXTRA_HOUSEHOLD_ID = "extra_household_id"
         private const val CHANNEL_ID = "category_reminders"
+    }
+
+    private fun immutablePendingIntentFlag(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE
+        } else {
+            0
+        }
     }
 }

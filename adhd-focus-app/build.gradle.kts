@@ -11,6 +11,7 @@ plugins {
 android {
     namespace = "com.adhdfocus.app"
     compileSdk = 36
+    flavorDimensions += "deviceTier"
 
     val releaseSigningPropsFile = rootProject.file("release-signing.properties")
     val releaseSigningProps = Properties().apply {
@@ -47,6 +48,14 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "kinspacedev"
     }
 
+    productFlavors {
+        create("legacy") {
+            dimension = "deviceTier"
+            minSdk = 22
+            versionNameSuffix = "-legacy"
+        }
+    }
+
     buildTypes {
         debug {
             isDebuggable = true
@@ -68,6 +77,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -76,6 +86,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -163,6 +174,8 @@ dependencies {
     // Security
     implementation("androidx.security:security-crypto:$securityVersion")
     implementation("com.google.errorprone:error_prone_annotations:2.36.0")
+
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     // AppAuth for Cognito OIDC (matches calendar-mobile auth mechanism)
     implementation("net.openid:appauth:0.11.1")

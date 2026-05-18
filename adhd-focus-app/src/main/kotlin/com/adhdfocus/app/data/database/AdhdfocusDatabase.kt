@@ -42,7 +42,7 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
         OfflineUpdateQueueItem::class,
         TaskDayCompletion::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -267,6 +267,71 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sync_queue_new (
+                        id TEXT NOT NULL,
+                        taskId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        operation TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        retryCount INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO sync_queue_new (id, taskId, userId, operation, payload, timestamp, retryCount)
+                    SELECT id, taskId, userId, operation, payload, timestamp, retryCount
+                    FROM sync_queue
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE sync_queue")
+                db.execSQL("ALTER TABLE sync_queue_new RENAME TO sync_queue")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_taskId ON sync_queue(taskId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_userId ON sync_queue(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_operation ON sync_queue(operation)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_timestamp ON sync_queue(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_retryCount ON sync_queue(retryCount)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_userId_timestamp ON sync_queue(userId, timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_operation_timestamp ON sync_queue(operation, timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_retryCount_timestamp ON sync_queue(retryCount, timestamp)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS offline_update_queue_new (
+                        id TEXT NOT NULL,
+                        taskId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        updateType TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        applied INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO offline_update_queue_new (id, taskId, userId, updateType, payload, timestamp, applied)
+                    SELECT id, taskId, userId, updateType, payload, timestamp, applied
+                    FROM offline_update_queue
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE offline_update_queue")
+                db.execSQL("ALTER TABLE offline_update_queue_new RENAME TO offline_update_queue")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_offline_update_queue_taskId ON offline_update_queue(taskId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_offline_update_queue_userId ON offline_update_queue(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_offline_update_queue_timestamp ON offline_update_queue(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_offline_update_queue_userId_timestamp ON offline_update_queue(userId, timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_offline_update_queue_applied ON offline_update_queue(applied)")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -283,7 +348,8 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
-            MIGRATION_11_12
+            MIGRATION_11_12,
+            MIGRATION_12_13
         )
     }
 }

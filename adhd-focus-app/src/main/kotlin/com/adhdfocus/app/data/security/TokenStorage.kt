@@ -1,27 +1,16 @@
 package com.adhdfocus.app.data.security
 
 import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import android.os.Build
 import com.adhdfocus.app.data.network.ApiConfig
 import java.time.Instant
 
 /**
- * Secure token storage using Android Security Crypto.
- * Key names match calendar-mobile for consistency across the Kinspace ecosystem.
+ * Token storage that prefers encrypted preferences on supported devices
+ * and gracefully falls back to plain SharedPreferences on older Android versions.
  */
 class TokenStorage(context: Context) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "auth_tokens",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefs = createPrefs(context)
 
     fun saveTokens(accessToken: String, idToken: String, refreshToken: String, expiry: Instant) {
         prefs.edit().apply {
@@ -66,4 +55,49 @@ class TokenStorage(context: Context) {
     }
 
     fun hasTokens(): Boolean = getAccessToken() != null && getRefreshToken() != null
+
+    private fun createPrefs(context: Context) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            runCatching {
+                val masterKeyClass = Class.forName("androidx.security.crypto.MasterKey")
+                val keySchemeClass = Class.forName("androidx.security.crypto.MasterKey\$KeyScheme")
+                val builderClass = Class.forName("androidx.security.crypto.MasterKey\$Builder")
+                val keySchemeValue = keySchemeClass.getField("AES256_GCM").get(null)
+                val builder = builderClass
+                    .getConstructor(Context::class.java)
+                    .newInstance(context)
+                val configuredBuilder = builderClass
+                    .getMethod("setKeyScheme", keySchemeClass)
+                    .invoke(builder, keySchemeValue)
+                val masterKey = builderClass
+                    .getMethod("build")
+                    .invoke(configuredBuilder)
+
+                val prefsClass = Class.forName("androidx.security.crypto.EncryptedSharedPreferences")
+                val keySchemeEnum = Class.forName("androidx.security.crypto.EncryptedSharedPreferences\$PrefKeyEncryptionScheme")
+                val valueSchemeEnum = Class.forName("androidx.security.crypto.EncryptedSharedPreferences\$PrefValueEncryptionScheme")
+                val keyScheme = keySchemeEnum.getField("AES256_SIV").get(null)
+                val valueScheme = valueSchemeEnum.getField("AES256_GCM").get(null)
+
+                prefsClass.getMethod(
+                    "create",
+                    Context::class.java,
+                    String::class.java,
+                    masterKeyClass,
+                    keySchemeEnum,
+                    valueSchemeEnum
+                ).invoke(
+                    null,
+                    context,
+                    "auth_tokens",
+                    masterKey,
+                    keyScheme,
+                    valueScheme
+                ) as android.content.SharedPreferences
+            }.getOrElse {
+                context.getSharedPreferences("auth_tokens", Context.MODE_PRIVATE)
+            }
+        } else {
+            context.getSharedPreferences("auth_tokens", Context.MODE_PRIVATE)
+        }
 }
