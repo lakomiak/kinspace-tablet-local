@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,7 +44,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adhdfocus.app.BuildConfig
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.domain.sync.SyncStatus
@@ -71,12 +69,19 @@ import java.time.format.DateTimeFormatter
 fun DailyFocusViewScreen(
     onTimerStartRequested: (Task) -> Unit = {},
     onTaskEditRequested: (Task) -> Unit = {},
+    householdId: String = "",
+    memberId: String = "",
     memberName: String? = null,
+    onChangeMemberClick: () -> Unit = {},
     refreshToken: Int = 0,
     viewModel: FocusViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(memberName, refreshToken) {
-        viewModel.refreshCurrentTasks(fromCloud = true)
+    LaunchedEffect(householdId, memberId, refreshToken) {
+        if (householdId.isNotBlank() && memberId.isNotBlank()) {
+            viewModel.refreshFromCloud(householdId, memberId, LocalDate.now())
+        } else {
+            viewModel.refreshCurrentTasks(fromCloud = true)
+        }
     }
 
     val todaysTasks by viewModel.todaysTasks.collectAsStateWithLifecycle()
@@ -86,15 +91,23 @@ fun DailyFocusViewScreen(
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isLegacyBuild = BuildConfig.FLAVOR == "legacy"
     var taskPendingDelete by remember { mutableStateOf<Task?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val activeMemberLabel = memberName ?: "Member"
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (memberName.isNullOrBlank()) "Hello" else "Hello, $memberName") },
+                title = {
+                    Text(if (activeMemberLabel.isBlank()) "Hello" else "Hello, $activeMemberLabel")
+                },
                 actions = {
+                    IconButton(onClick = onChangeMemberClick) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Change family member"
+                        )
+                    }
                     IconButton(onClick = { showDatePicker = true }) {
                         Icon(
                             imageVector = Icons.Default.DateRange,
@@ -185,36 +198,6 @@ fun DailyFocusViewScreen(
                                     .padding(bottom = 4.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (isLegacyBuild) {
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
-                                            shape = MaterialTheme.shapes.medium,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Info,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-                                                )
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text(
-                                                    text = "Legacy mode: local-first, cloud sync is deferred on this device.",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                                )
-                                            }
-                                        }
-
-                                    }
-                                }
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -243,13 +226,8 @@ fun DailyFocusViewScreen(
                                         }
                                     }
 
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Button(onClick = { showDatePicker = true }) {
-                                            Text("Pick date")
-                                        }
-                                        Button(onClick = { viewModel.showToday() }) {
-                                            Text("Today")
-                                        }
+                                    Button(onClick = { viewModel.showToday() }) {
+                                        Text("Today")
                                     }
                                 }
                             }
@@ -364,4 +342,5 @@ fun DailyFocusViewScreen(
             }
         }
     }
+
 }

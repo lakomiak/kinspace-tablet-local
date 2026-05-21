@@ -33,8 +33,10 @@ import com.adhdfocus.app.domain.sync.RestApiClientImpl
 import com.adhdfocus.app.domain.sync.RetryPolicy
 import com.adhdfocus.app.domain.sync.ExponentialBackoffRetryPolicy
 import com.adhdfocus.app.domain.sync.TokenProvider
+import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
 import com.google.gson.Gson
 import com.adhdfocus.app.data.dao.BadgeDao
+import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.data.dao.StreakDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
@@ -199,6 +201,7 @@ object AppModule {
     @Singleton @Provides fun provideStreakDao(db: AdhdfocusDatabase): StreakDao = db.streakDao()
     @Singleton @Provides fun provideSyncQueueDao(db: AdhdfocusDatabase): SyncQueueDao = db.syncQueueDao()
     @Singleton @Provides fun provideTaskDayCompletionDao(db: AdhdfocusDatabase): TaskDayCompletionDao = db.taskDayCompletionDao()
+    @Singleton @Provides fun provideEfficiencyMetricDao(db: AdhdfocusDatabase): EfficiencyMetricDao = db.efficiencyMetricDao()
     @Singleton @Provides fun provideUserPreferencesDao(db: AdhdfocusDatabase): UserPreferencesDao = db.userPreferencesDao()
     @Singleton @Provides fun provideUserSwitchingStateDao(db: AdhdfocusDatabase): UserSwitchingStateDao = db.userSwitchingStateDao()
 
@@ -225,6 +228,10 @@ object AppModule {
     @Singleton
     @Provides
     fun provideRetryPolicy(): RetryPolicy = ExponentialBackoffRetryPolicy()
+
+    @Singleton
+    @Provides
+    fun provideEfficiencyCalculator(): EfficiencyCalculator = EfficiencyCalculator()
 
     @Singleton
     @Provides

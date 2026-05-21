@@ -41,5 +41,12 @@ data class EfficiencyMetric(
     val estimatedDurationMinutes: Int? = null,
     val actualDurationMinutes: Int? = null,
     val efficiencyPercentage: Float? = null,
+    val configuredDurationSeconds: Int? = null,
+    val actualDurationSeconds: Int? = null,
+    val totalPausedSeconds: Int = 0,
+    val pauseCount: Int = 0,
+    val resetCount: Int = 0,
+    val timerStartedAt: Instant? = null,
+    val timerStoppedAt: Instant? = null,
     val completedAt: Instant = Instant.now()
 )

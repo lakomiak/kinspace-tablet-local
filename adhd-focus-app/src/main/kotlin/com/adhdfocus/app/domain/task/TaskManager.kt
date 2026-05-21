@@ -12,6 +12,7 @@ import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
 import com.adhdfocus.app.domain.sync.RestApiClient
 import com.adhdfocus.app.domain.sync.SyncQueueManager
+import com.adhdfocus.app.domain.timer.TaskCompletionSessionMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -252,7 +253,10 @@ class TaskManager @Inject constructor(
      * @return Completed task with PENDING sync status
      * @throws IllegalArgumentException if task not found
      */
-    suspend fun completeTask(taskId: String): Task {
+    suspend fun completeTask(
+        taskId: String,
+        completionMetrics: TaskCompletionSessionMetrics? = null
+    ): Task {
         require(taskId.isNotBlank()) { "Task ID cannot be empty" }
 
         val existingTask = taskDao.getTaskById(taskId)
@@ -262,6 +266,7 @@ class TaskManager @Inject constructor(
         val completedTask = existingTask.copy(
             status = TaskStatus.COMPLETED,
             completedAt = now,
+            actualDurationMinutes = completionMetrics?.actualDurationMinutes ?: existingTask.actualDurationMinutes,
             updatedAt = now,
             syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
         )
@@ -272,7 +277,11 @@ class TaskManager @Inject constructor(
         // Queue for sync
         queueTaskForSync(completedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
 
-        val syncedTask = syncTaskStateToCloud(completedTask, completed = true)
+        val syncedTask = syncTaskStateToCloud(
+            task = completedTask,
+            completed = true,
+            completionMetrics = completionMetrics
+        )
 
         // Trigger affirmation on task completion (Property 18: Affirmation on Task Completion)
         affirmationTriggerManager.checkAndTriggerTaskCompleteAffirmation(syncedTask ?: completedTask)
@@ -437,18 +446,29 @@ class TaskManager @Inject constructor(
         }
     }
 
-    private suspend fun syncTaskStateToCloud(task: Task, completed: Boolean): Task? {
+    private suspend fun syncTaskStateToCloud(
+        task: Task,
+        completed: Boolean,
+        completionMetrics: TaskCompletionSessionMetrics? = null
+    ): Task? {
         return try {
             val updatedTask = withContext(Dispatchers.IO) {
-                restApiClient.updateTask(
-                    task.householdId,
-                    task.id,
-                    mapOf(
-                        "status" to (if (completed) TaskStatus.COMPLETED else TaskStatus.INCOMPLETE),
-                        "done" to completed,
-                        "completedAt" to (if (completed) task.completedAt else null)
-                    )
+                val payload = mutableMapOf<String, Any?>(
+                    "status" to (if (completed) TaskStatus.COMPLETED else TaskStatus.INCOMPLETE),
+                    "done" to completed,
+                    "completedAt" to (if (completed) task.completedAt else null)
                 )
+                if (completionMetrics != null) {
+                    payload["actualDurationMinutes"] = completionMetrics.actualDurationMinutes
+                    payload["actualDurationSeconds"] = completionMetrics.actualDurationSeconds
+                    payload["timerConfiguredDurationSeconds"] = completionMetrics.configuredDurationSeconds
+                    payload["timerStartedAt"] = completionMetrics.timerStartedAt?.toString()
+                    payload["timerStoppedAt"] = completionMetrics.timerStoppedAt.toString()
+                    payload["timerTotalPausedSeconds"] = completionMetrics.totalPausedSeconds
+                    payload["timerPauseCount"] = completionMetrics.pauseCount
+                    payload["timerResetCount"] = completionMetrics.resetCount
+                }
+                restApiClient.updateTask(task.householdId, task.id, payload)
             }
 
             taskDao.update(updatedTask)

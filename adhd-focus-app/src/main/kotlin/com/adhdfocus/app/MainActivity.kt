@@ -157,8 +157,15 @@ class MainActivity : ComponentActivity() {
 
                             composable("focus") {
                                 DailyFocusViewScreen(
-                                    memberName = setupManager.getAssignedMemberName(),
+                                    householdId = setupManager.getHouseholdId().orEmpty(),
+                                    memberId = setupManager.getAssignedMemberId().orEmpty(),
+                                    memberName = setupManager.getAssignedMemberName().orEmpty(),
                                     refreshToken = focusRefreshToken,
+                                    onChangeMemberClick = {
+                                        navController.navigate("member_selection") {
+                                            popUpTo("focus") { inclusive = false }
+                                        }
+                                    },
                                     onTaskEditRequested = { task ->
                                         navController.navigate("edit_todo/${Uri.encode(task.id)}")
                                     },

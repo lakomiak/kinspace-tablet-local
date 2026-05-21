@@ -97,6 +97,7 @@ class FocusViewModel @Inject constructor(
             currentHouseholdId = householdId
             currentUserId = userId
             _selectedDate.value = LocalDate.now()
+            setupManager.setCurrentFocusDate(_selectedDate.value)
             refreshFromCloud(householdId, userId, _selectedDate.value)
         }
 
@@ -113,6 +114,7 @@ class FocusViewModel @Inject constructor(
         currentHouseholdId = householdId
         currentUserId = userId
         _selectedDate.value = LocalDate.now()
+        setupManager.setCurrentFocusDate(_selectedDate.value)
         
         viewModelScope.launch {
             _isLoading.value = true
@@ -217,21 +219,25 @@ class FocusViewModel @Inject constructor(
      */
     fun switchUser(householdId: String, userId: String) {
         _selectedDate.value = LocalDate.now()
+        setupManager.setCurrentFocusDate(_selectedDate.value)
         loadTodaysTasks(householdId, userId)
     }
 
     fun showPreviousDay() {
         _selectedDate.value = _selectedDate.value.minusDays(1)
+        setupManager.setCurrentFocusDate(_selectedDate.value)
         refreshCurrentTasks(fromCloud = true)
     }
 
     fun showToday() {
         _selectedDate.value = LocalDate.now()
+        setupManager.setCurrentFocusDate(_selectedDate.value)
         refreshCurrentTasks(fromCloud = true)
     }
 
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
+        setupManager.setCurrentFocusDate(date)
         refreshCurrentTasks(fromCloud = true)
     }
 

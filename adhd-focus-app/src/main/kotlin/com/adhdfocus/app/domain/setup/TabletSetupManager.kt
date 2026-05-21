@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.setup
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.time.LocalDate
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +26,15 @@ class TabletSetupManager @Inject constructor(
 
     fun getHouseholdId(): String? = prefs.getString(KEY_HOUSEHOLD_ID, null)
 
+    fun getCurrentFocusDate(): LocalDate? = prefs.getString(KEY_CURRENT_FOCUS_DATE, null)
+        ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+    fun setCurrentFocusDate(date: LocalDate) {
+        prefs.edit()
+            .putString(KEY_CURRENT_FOCUS_DATE, date.toString())
+            .apply()
+    }
+
     fun completeSetup(memberId: String, memberName: String, householdId: String) {
         prefs.edit()
             .putString(KEY_MEMBER_ID, memberId)
@@ -41,5 +51,6 @@ class TabletSetupManager @Inject constructor(
         private const val KEY_MEMBER_ID = "assigned_member_id"
         private const val KEY_MEMBER_NAME = "assigned_member_name"
         private const val KEY_HOUSEHOLD_ID = "household_id"
+        private const val KEY_CURRENT_FOCUS_DATE = "current_focus_date"
     }
 }

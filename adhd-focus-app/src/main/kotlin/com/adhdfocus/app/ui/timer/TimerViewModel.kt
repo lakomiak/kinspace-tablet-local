@@ -4,11 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.os.Build
 import com.adhdfocus.app.data.model.TimerAlarmSound
+import com.adhdfocus.app.data.model.EfficiencyMetric
+import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.sync.CloudSyncManager
 import com.adhdfocus.app.domain.task.TaskManager
+import com.adhdfocus.app.domain.timer.TaskCompletionSessionMetrics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,6 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import java.time.Duration
+import java.time.Instant
+import kotlin.math.ceil
 
 /**
  * TimerViewModel manages the state for the Timer interface.
@@ -36,7 +43,9 @@ class TimerViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val setupManager: TabletSetupManager,
     private val taskManager: TaskManager,
-    private val cloudSyncManager: CloudSyncManager
+    private val cloudSyncManager: CloudSyncManager,
+    private val efficiencyMetricDao: EfficiencyMetricDao,
+    private val efficiencyCalculator: EfficiencyCalculator
 ) : ViewModel() {
 
     private val _timerDuration = MutableStateFlow(0)
@@ -60,6 +69,12 @@ class TimerViewModel @Inject constructor(
     private var timerJob: Job? = null
     private var configuredDurationSeconds: Int = 0
     private var currentTaskId: String? = null
+    private var sessionStartedAt: Instant? = null
+    private var pauseStartedAt: Instant? = null
+    private var accumulatedPausedSeconds: Long = 0L
+    private var activeElapsedSeconds: Long = 0L
+    private var pauseCount: Int = 0
+    private var resetCount: Int = 0
 
     /**
      * Starts the timer with the specified duration in seconds.
@@ -70,6 +85,12 @@ class TimerViewModel @Inject constructor(
         if (durationSeconds <= 0) return
 
         configuredDurationSeconds = durationSeconds
+        sessionStartedAt = Instant.now()
+        pauseStartedAt = null
+        accumulatedPausedSeconds = 0L
+        activeElapsedSeconds = 0L
+        pauseCount = 0
+        resetCount = 0
         _timerDuration.value = durationSeconds
         _timeRemaining.value = durationSeconds
         _isRunning.value = true
@@ -94,6 +115,7 @@ class TimerViewModel @Inject constructor(
                 if (!_isPaused.value) {
                     delay(1000) // Wait 1 second
                     _timeRemaining.value = (_timeRemaining.value - 1).coerceAtLeast(0)
+                    activeElapsedSeconds += 1L
                     updateProgress()
 
                     if (_timeRemaining.value == 0) {
@@ -122,6 +144,8 @@ class TimerViewModel @Inject constructor(
     fun pauseTimer() {
         if (_isRunning.value && !_isPaused.value) {
             _isPaused.value = true
+            pauseCount += 1
+            pauseStartedAt = Instant.now()
         }
     }
 
@@ -130,6 +154,10 @@ class TimerViewModel @Inject constructor(
      */
     fun resumeTimer() {
         if (_isRunning.value && _isPaused.value) {
+            pauseStartedAt?.let { started ->
+                accumulatedPausedSeconds += Duration.between(started, Instant.now()).seconds.coerceAtLeast(0)
+            }
+            pauseStartedAt = null
             _isPaused.value = false
         }
     }
@@ -140,6 +168,7 @@ class TimerViewModel @Inject constructor(
     fun cancelTimer() {
         timerJob?.cancel()
         audioNotificationManager.stopSound()
+        clearSessionTracking()
         _isRunning.value = false
         _isPaused.value = false
         _timerDuration.value = 0
@@ -223,9 +252,22 @@ class TimerViewModel @Inject constructor(
      * Resets the timer state.
      */
     fun resetTimer() {
-        cancelTimer()
         if (configuredDurationSeconds > 0) {
-            startTimer(configuredDurationSeconds)
+            if (_isPaused.value && pauseStartedAt != null) {
+                accumulatedPausedSeconds += Duration.between(pauseStartedAt, Instant.now()).seconds.coerceAtLeast(0)
+                pauseStartedAt = null
+            }
+            resetCount += 1
+            timerJob?.cancel()
+            _isRunning.value = true
+            _isPaused.value = false
+            _timerDuration.value = configuredDurationSeconds
+            _timeRemaining.value = configuredDurationSeconds
+            _progress.value = 0f
+            _timerCompleted.value = false
+            startCountdown()
+        } else {
+            cancelTimer()
         }
     }
 
@@ -233,8 +275,10 @@ class TimerViewModel @Inject constructor(
         val taskId = currentTaskId ?: return
         viewModelScope.launch {
             try {
-                cancelTimer()
-                taskManager.completeTask(taskId)
+                val metrics = buildCompletionMetrics(taskId)
+                stopTimerForCompletion()
+                taskManager.completeTask(taskId, metrics)
+                metrics?.let { recordCompletionMetric(it) }
                 val householdId = setupManager.getHouseholdId().orEmpty()
                 val userId = setupManager.getAssignedMemberId().orEmpty()
                 if (householdId.isNotBlank() && userId.isNotBlank()) {
@@ -242,6 +286,7 @@ class TimerViewModel @Inject constructor(
                         cloudSyncManager.syncPendingChanges(householdId, userId)
                     }
                 }
+                clearSessionTracking()
                 onCompleted?.invoke()
             } catch (_: Exception) {
                 // Keep the screen open if completion fails.
@@ -271,7 +316,85 @@ class TimerViewModel @Inject constructor(
         super.onCleared()
         timerJob?.cancel()
     }
+
+    private fun stopTimerForCompletion() {
+        timerJob?.cancel()
+        _isRunning.value = false
+        _isPaused.value = false
+        _timerCompleted.value = true
+        audioNotificationManager.stopSound()
+    }
+
+    private fun clearSessionTracking() {
+        sessionStartedAt = null
+        pauseStartedAt = null
+        accumulatedPausedSeconds = 0L
+        activeElapsedSeconds = 0L
+        pauseCount = 0
+        resetCount = 0
+    }
+
+    private fun buildCompletionMetrics(taskId: String): TaskCompletionSessionMetrics? {
+        val startedAt = sessionStartedAt ?: return null
+        val stoppedAt = Instant.now()
+        val totalPausedSeconds = accumulatedPausedSeconds + pauseStartedAt?.let {
+            Duration.between(it, stoppedAt).seconds.coerceAtLeast(0)
+        }.orZero()
+        val actualDurationSeconds = activeElapsedSeconds.coerceAtLeast(1L).toInt()
+        val actualDurationMinutes = ceil(actualDurationSeconds / 60.0).toInt().coerceAtLeast(1)
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        val userId = setupManager.getAssignedMemberId().orEmpty()
+        val estimatedDurationMinutes = if (configuredDurationSeconds > 0) {
+            ceil(configuredDurationSeconds / 60.0).toInt().coerceAtLeast(1)
+        } else {
+            null
+        }
+        return TaskCompletionSessionMetrics(
+            taskId = taskId,
+            householdId = householdId,
+            userId = userId,
+            estimatedDurationMinutes = estimatedDurationMinutes,
+            configuredDurationSeconds = configuredDurationSeconds.takeIf { it > 0 },
+            actualDurationSeconds = actualDurationSeconds,
+            actualDurationMinutes = actualDurationMinutes,
+            totalPausedSeconds = totalPausedSeconds.toInt(),
+            pauseCount = pauseCount,
+            resetCount = resetCount,
+            timerStartedAt = startedAt,
+            timerStoppedAt = stoppedAt
+        )
+    }
+
+    private suspend fun recordCompletionMetric(metrics: TaskCompletionSessionMetrics) {
+        if (metrics.householdId.isBlank() || metrics.userId.isBlank()) return
+
+        val efficiencyPercentage = efficiencyCalculator.calculateEfficiency(
+            metrics.estimatedDurationMinutes,
+            metrics.actualDurationMinutes
+        )
+
+        efficiencyMetricDao.insert(
+            EfficiencyMetric(
+                taskId = metrics.taskId,
+                userId = metrics.userId,
+                householdId = metrics.householdId,
+                estimatedDurationMinutes = metrics.estimatedDurationMinutes,
+                actualDurationMinutes = metrics.actualDurationMinutes,
+                efficiencyPercentage = efficiencyPercentage,
+                configuredDurationSeconds = metrics.configuredDurationSeconds,
+                actualDurationSeconds = metrics.actualDurationSeconds,
+                totalPausedSeconds = metrics.totalPausedSeconds,
+                pauseCount = metrics.pauseCount,
+                resetCount = metrics.resetCount,
+                timerStartedAt = metrics.timerStartedAt,
+                timerStoppedAt = metrics.timerStoppedAt,
+                completedAt = metrics.completedAt
+            )
+        )
+    }
 }
+
+private fun Long?.orZero(): Long = this ?: 0L
 
 /**
  * Enum for timer progress colors.

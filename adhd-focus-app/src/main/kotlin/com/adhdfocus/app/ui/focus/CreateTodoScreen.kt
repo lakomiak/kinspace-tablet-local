@@ -325,7 +325,7 @@ fun CreateTodoScreen(
                 }
 
                 Text(
-                    text = "Leave the due date blank to add it to today.",
+                    text = "Leave the due date blank to add it to the day the tablet is currently showing.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

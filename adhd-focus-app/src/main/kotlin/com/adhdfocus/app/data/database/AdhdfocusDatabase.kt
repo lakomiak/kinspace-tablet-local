@@ -42,7 +42,7 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
         OfflineUpdateQueueItem::class,
         TaskDayCompletion::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -332,6 +332,18 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN configuredDurationSeconds INTEGER")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN actualDurationSeconds INTEGER")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN totalPausedSeconds INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN pauseCount INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN resetCount INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN timerStartedAt INTEGER")
+                db.execSQL("ALTER TABLE efficiency_metrics ADD COLUMN timerStoppedAt INTEGER")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -349,7 +361,8 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_9_10,
             MIGRATION_10_11,
             MIGRATION_11_12,
-            MIGRATION_12_13
+            MIGRATION_12_13,
+            MIGRATION_13_14
         )
     }
 }

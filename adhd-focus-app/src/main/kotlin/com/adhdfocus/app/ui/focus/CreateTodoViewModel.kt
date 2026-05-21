@@ -61,8 +61,9 @@ class CreateTodoViewModel @Inject constructor(
             return
         }
 
-        val dueDate = parseDueDate(dueDateText)
-        if (dueDateText.isNotBlank() && dueDate == null) {
+        val selectedFocusDate = setupManager.getCurrentFocusDate() ?: LocalDate.now()
+        val dueDate = parseDueDate(dueDateText) ?: selectedFocusDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+        if (dueDateText.isNotBlank() && parseDueDate(dueDateText) == null) {
             _error.value = "Use YYYY-MM-DD for the due date."
             return
         }

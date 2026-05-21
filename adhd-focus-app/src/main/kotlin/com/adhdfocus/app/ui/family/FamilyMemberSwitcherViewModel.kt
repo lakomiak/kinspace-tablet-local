@@ -61,6 +61,7 @@ class FamilyMemberSwitcherViewModel @Inject constructor(
                 if (members.isEmpty()) {
                     _errorMessage.value = "No household members found"
                 }
+                _currentUser.value = userSwitchingManager.getCurrentUser()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load household members: ${e.message}"
             } finally {
@@ -134,6 +135,19 @@ class FamilyMemberSwitcherViewModel @Inject constructor(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Reloads the current active user from persisted switching state.
+     */
+    fun refreshCurrentUser() {
+        viewModelScope.launch {
+            try {
+                _currentUser.value = userSwitchingManager.getCurrentUser()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to load current user: ${e.message}"
+            }
+        }
     }
 
     /**
