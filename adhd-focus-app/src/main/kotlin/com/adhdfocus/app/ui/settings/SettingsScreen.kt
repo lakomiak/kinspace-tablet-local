@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
+import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 
 /**
  * SettingsScreen displays comprehensive app settings organized into logical sections.
@@ -709,6 +710,50 @@ fun NotificationPreferencesPanel(
         ) {
             Text("Preview ${preferences.timerAlarmSound.displayLabel()}")
         }
+    }
+}
+
+@Composable
+fun PuzzleAgeBandSelector(
+    selectedAgeBand: PuzzleAgeBand,
+    onAgeBandSelected: (PuzzleAgeBand) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Puzzle Age Band",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Text(
+            text = "Choose the puzzle style that matches this family member best.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        val options = PuzzleAgeBand.values().map { it.displayName }
+        SettingDropdown(
+            label = "Selected",
+            selectedValue = selectedAgeBand.displayName,
+            options = options,
+            onOptionSelected = { selected ->
+                PuzzleAgeBand.values()
+                    .firstOrNull { it.displayName == selected }
+                    ?.let(onAgeBandSelected)
+            }
+        )
+
+        Text(
+            text = "Current range: ${selectedAgeBand.ageRangeLabel}",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

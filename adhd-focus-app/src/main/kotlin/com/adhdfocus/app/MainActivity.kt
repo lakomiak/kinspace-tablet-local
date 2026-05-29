@@ -147,6 +147,11 @@ class MainActivity : ComponentActivity() {
 
                             composable("member_selection") {
                                 MemberSelectionScreen(
+                                    onReauthenticate = {
+                                        navController.navigate("signin") {
+                                            popUpTo("member_selection") { inclusive = true }
+                                        }
+                                    },
                                     onMemberSelected = {
                                         navController.navigate("focus") {
                                             popUpTo("member_selection") { inclusive = true }

@@ -79,9 +79,18 @@ class CategoryReminderReceiver : BroadcastReceiver() {
         val notificationPrefs = userPreferencesManager.deserializeNotificationPreferences(
             prefs.notificationPreferences
         )
+        val reminderCategory = TodoCategoryReminder.fromGroupName(categoryGroup) ?: return
+        val reminderPrefs = notificationPrefs.categoryReminderPreferences
+        val categoryEnabled = when (reminderCategory) {
+            TodoCategoryReminder.MORNING -> reminderPrefs.morningEnabled
+            TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEnabled
+            TodoCategoryReminder.EVENING -> reminderPrefs.eveningEnabled
+            TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEnabled
+        }
+        if (!reminderPrefs.enabled || !categoryEnabled) return
 
         if (notificationPrefs.soundEnabled) {
-            audioNotificationManager.playTimerCompletionSound(
+            audioNotificationManager.playCategoryReminderSound(
                 notificationPrefs.timerAlarmSound
             )
         }

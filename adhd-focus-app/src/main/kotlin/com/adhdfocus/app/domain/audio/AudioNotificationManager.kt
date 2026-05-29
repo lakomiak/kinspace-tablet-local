@@ -1,6 +1,8 @@
 package com.adhdfocus.app.domain.audio
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -22,16 +24,33 @@ class AudioNotificationManager @Inject constructor(
 ) {
 
     private var mediaPlayer: MediaPlayer? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var stopRunnable: Runnable? = null
 
     /**
      * Plays the timer completion notification sound.
      */
     fun playTimerCompletionSound(alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM) {
+        clearStopTimer()
         when (alarmSound) {
             TimerAlarmSound.ALARM -> playRingtone(RingtoneManager.TYPE_ALARM)
             TimerAlarmSound.NOTIFICATION -> playRingtone(RingtoneManager.TYPE_NOTIFICATION)
             TimerAlarmSound.BEEP -> playBeep()
             TimerAlarmSound.MULTI_BEEP -> playMultipleBeeps(3)
+            TimerAlarmSound.SILENT -> Unit
+        }
+    }
+
+    fun playCategoryReminderSound(
+        alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM,
+        durationMs: Long = 15_000L
+    ) {
+        clearStopTimer()
+        when (alarmSound) {
+            TimerAlarmSound.ALARM -> playLoopingRingtone(RingtoneManager.TYPE_ALARM, durationMs)
+            TimerAlarmSound.NOTIFICATION -> playLoopingRingtone(RingtoneManager.TYPE_NOTIFICATION, durationMs)
+            TimerAlarmSound.BEEP -> playLoopingRingtone(RingtoneManager.TYPE_NOTIFICATION, durationMs)
+            TimerAlarmSound.MULTI_BEEP -> playLoopingRingtone(RingtoneManager.TYPE_NOTIFICATION, durationMs)
             TimerAlarmSound.SILENT -> Unit
         }
     }
@@ -56,6 +75,7 @@ class AudioNotificationManager @Inject constructor(
      */
     fun stopSound() {
         try {
+            clearStopTimer()
             mediaPlayer?.stop()
             mediaPlayer?.release()
             mediaPlayer = null
@@ -69,6 +89,7 @@ class AudioNotificationManager @Inject constructor(
      */
     fun release() {
         try {
+            clearStopTimer()
             mediaPlayer?.release()
             mediaPlayer = null
         } catch (e: Exception) {
@@ -97,7 +118,24 @@ class AudioNotificationManager @Inject constructor(
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer.create(context, ringtoneUri)
+            mediaPlayer?.isLooping = false
             mediaPlayer?.start()
+        } catch (e: Exception) {
+            // Handle error silently
+        }
+    }
+
+    private fun playLoopingRingtone(type: Int, durationMs: Long) {
+        try {
+            val ringtoneUri: Uri = RingtoneManager.getDefaultUri(type)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer.create(context, ringtoneUri)
+            mediaPlayer?.isLooping = true
+            mediaPlayer?.start()
+            val stopTask = Runnable { stopSound() }
+            stopRunnable = stopTask
+            mainHandler.postDelayed(stopTask, durationMs.coerceAtLeast(1_000L))
         } catch (e: Exception) {
             // Handle error silently
         }
@@ -116,6 +154,11 @@ class AudioNotificationManager @Inject constructor(
                 Thread.sleep(delayMs)
             }
         }.start()
+    }
+
+    private fun clearStopTimer() {
+        stopRunnable?.let { mainHandler.removeCallbacks(it) }
+        stopRunnable = null
     }
 }
 

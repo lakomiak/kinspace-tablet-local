@@ -83,11 +83,18 @@ interface UserPreferencesDao {
     suspend fun updateTimerDefaultDuration(userId: String, timerDefaultDuration: Int)
 
     @Query("""
-        UPDATE user_preferences 
-        SET autoLogoutTimeout = :autoLogoutTimeout 
+        UPDATE user_preferences
+        SET autoLogoutTimeout = :autoLogoutTimeout
         WHERE userId = :userId
     """)
     suspend fun updateAutoLogoutTimeout(userId: String, autoLogoutTimeout: Int)
+
+    @Query("""
+        UPDATE user_preferences
+        SET puzzleAgeBand = :puzzleAgeBand
+        WHERE userId = :userId
+    """)
+    suspend fun updatePuzzleAgeBand(userId: String, puzzleAgeBand: String)
 
     @Query("""
         UPDATE user_preferences

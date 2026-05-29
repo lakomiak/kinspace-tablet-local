@@ -51,6 +51,8 @@ fun AchievementsView(
     val currentStreak by viewModel.currentStreak.collectAsState()
     val bestStreak by viewModel.bestStreak.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val selectedPuzzleAgeBand by viewModel.selectedPuzzleAgeBand.collectAsState()
+    val currentPuzzle by viewModel.currentPuzzle.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val categories = viewModel.getAllCategories()
 
@@ -129,6 +131,13 @@ fun AchievementsView(
                     StreakSection(
                         currentStreak = currentStreak,
                         bestStreak = bestStreak
+                    )
+                }
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    PuzzleSection(
+                        selectedAgeBand = selectedPuzzleAgeBand,
+                        currentPuzzle = currentPuzzle
                     )
                 }
 

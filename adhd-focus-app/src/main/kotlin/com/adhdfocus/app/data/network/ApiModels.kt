@@ -383,19 +383,34 @@ data class HouseholdResponse(
 )
 
 data class HouseholdMembersResponse(
+    @SerializedName("familyMembers")
     val members: List<HouseholdMemberResponse>
 )
 
 data class HouseholdMemberResponse(
     val id: String,
-    val email: String,
+    val email: String? = null,
+    @SerializedName("name")
+    val name: String? = null,
     @SerializedName("display_name")
-    val displayName: String,
+    val displayName: String? = null,
+    @SerializedName("birthdate")
+    val birthdate: String? = null,
+    @SerializedName("birthDate")
+    val birthDate: String? = null,
+    @SerializedName("birthday")
+    val birthday: String? = null,
+    @SerializedName("dateOfBirth")
+    val dateOfBirth: String? = null,
+    @SerializedName("dob")
+    val dob: String? = null,
     @SerializedName("avatar_url")
-    val avatarUrl: String?,
-    val role: String,
+    val avatarUrl: String? = null,
+    @SerializedName("photo")
+    val photo: String? = null,
+    val role: String? = null,
     @SerializedName("is_pin_protected")
-    val isPinProtected: Boolean
+    val isPinProtected: Boolean = false
 )
 
 data class HouseholdSettingsResponse(

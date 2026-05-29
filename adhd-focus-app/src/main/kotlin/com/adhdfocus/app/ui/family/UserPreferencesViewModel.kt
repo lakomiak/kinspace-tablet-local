@@ -6,6 +6,7 @@ import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
@@ -60,6 +61,9 @@ class UserPreferencesViewModel @Inject constructor(
     private val _gamificationEnabled = MutableStateFlow(true)
     val gamificationEnabled: StateFlow<Boolean> = _gamificationEnabled
 
+    private val _puzzleAgeBand = MutableStateFlow(PuzzleAgeBand.DEFAULT)
+    val puzzleAgeBand: StateFlow<PuzzleAgeBand> = _puzzleAgeBand
+
     private val _timerDefaultDuration = MutableStateFlow(25)
     val timerDefaultDuration: StateFlow<Int> = _timerDefaultDuration
 
@@ -109,6 +113,7 @@ class UserPreferencesViewModel @Inject constructor(
                 _dailyResetTime.value = preferences.dailyResetTime
                 _affirmationFrequency.value = preferences.affirmationFrequency
                 _gamificationEnabled.value = preferences.enableGamification
+                _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
                 syncCustomTodoGroupsWithCloud(userId)
@@ -187,7 +192,7 @@ class UserPreferencesViewModel @Inject constructor(
     }
 
     fun previewCategoryReminder() {
-        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
+        audioNotificationManager.playCategoryReminderSound(_notificationPreferences.value.timerAlarmSound)
     }
 
     /**
@@ -225,6 +230,11 @@ class UserPreferencesViewModel @Inject constructor(
      */
     fun updateGamificationEnabled(enabled: Boolean) {
         _gamificationEnabled.value = enabled
+        saveCurrentPreferences()
+    }
+
+    fun updatePuzzleAgeBand(ageBand: PuzzleAgeBand) {
+        _puzzleAgeBand.value = ageBand
         saveCurrentPreferences()
     }
 
@@ -300,6 +310,7 @@ class UserPreferencesViewModel @Inject constructor(
                     dailyResetTime = _dailyResetTime.value,
                     affirmationFrequency = _affirmationFrequency.value,
                     enableGamification = _gamificationEnabled.value,
+                    puzzleAgeBand = _puzzleAgeBand.value.key,
                     timerDefaultDuration = _timerDefaultDuration.value,
                     autoLogoutTimeout = _autoLogoutTimeout.value
                 )

@@ -7,6 +7,7 @@ import com.adhdfocus.app.data.database.DatabaseInitializer
 import com.adhdfocus.app.data.network.ApiConfig
 import com.adhdfocus.app.data.network.AuthInterceptor
 import com.adhdfocus.app.data.network.AuthService
+import com.adhdfocus.app.data.network.FamilyMemberService
 import com.adhdfocus.app.data.network.HouseholdNotificationSettingsService
 import com.adhdfocus.app.data.network.TokenRefreshInterceptor
 import com.adhdfocus.app.data.network.SyncService
@@ -33,10 +34,12 @@ import com.adhdfocus.app.domain.sync.RestApiClientImpl
 import com.adhdfocus.app.domain.sync.RetryPolicy
 import com.adhdfocus.app.domain.sync.ExponentialBackoffRetryPolicy
 import com.adhdfocus.app.domain.sync.TokenProvider
+import com.adhdfocus.app.data.repository.PuzzleRepository
 import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
 import com.google.gson.Gson
 import com.adhdfocus.app.data.dao.BadgeDao
 import com.adhdfocus.app.data.dao.EfficiencyMetricDao
+import com.adhdfocus.app.data.dao.PuzzleProgressDao
 import com.adhdfocus.app.data.dao.StreakDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
@@ -141,6 +144,12 @@ object AppModule {
 
     @Singleton
     @Provides
+    fun provideFamilyMemberService(retrofit: Retrofit): FamilyMemberService {
+        return retrofit.create(FamilyMemberService::class.java)
+    }
+
+    @Singleton
+    @Provides
     fun provideUserSwitchingManager(        userSwitchingRepository: com.adhdfocus.app.data.repository.UserSwitchingRepository
     ): UserSwitchingManager {
         return UserSwitchingManager(userSwitchingRepository)
@@ -160,6 +169,14 @@ object AppModule {
         database: AdhdfocusDatabase
     ): TaskDayCompletionRepository {
         return TaskDayCompletionRepository(database.taskDayCompletionDao())
+    }
+
+    @Singleton
+    @Provides
+    fun providePuzzleRepository(
+        database: AdhdfocusDatabase
+    ): PuzzleRepository {
+        return PuzzleRepository(database.puzzleProgressDao())
     }
 
     @Singleton
@@ -202,6 +219,7 @@ object AppModule {
     @Singleton @Provides fun provideSyncQueueDao(db: AdhdfocusDatabase): SyncQueueDao = db.syncQueueDao()
     @Singleton @Provides fun provideTaskDayCompletionDao(db: AdhdfocusDatabase): TaskDayCompletionDao = db.taskDayCompletionDao()
     @Singleton @Provides fun provideEfficiencyMetricDao(db: AdhdfocusDatabase): EfficiencyMetricDao = db.efficiencyMetricDao()
+    @Singleton @Provides fun providePuzzleProgressDao(db: AdhdfocusDatabase): PuzzleProgressDao = db.puzzleProgressDao()
     @Singleton @Provides fun provideUserPreferencesDao(db: AdhdfocusDatabase): UserPreferencesDao = db.userPreferencesDao()
     @Singleton @Provides fun provideUserSwitchingStateDao(db: AdhdfocusDatabase): UserSwitchingStateDao = db.userSwitchingStateDao()
 

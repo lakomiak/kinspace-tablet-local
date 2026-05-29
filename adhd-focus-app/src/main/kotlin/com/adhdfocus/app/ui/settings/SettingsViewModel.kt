@@ -8,6 +8,7 @@ import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.auth.AuthResult
+import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
@@ -70,6 +71,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _efficiencyMetricsEnabled = MutableStateFlow(true)
     val efficiencyMetricsEnabled: StateFlow<Boolean> = _efficiencyMetricsEnabled
+
+    private val _puzzleAgeBand = MutableStateFlow(PuzzleAgeBand.DEFAULT)
+    val puzzleAgeBand: StateFlow<PuzzleAgeBand> = _puzzleAgeBand
 
     private val _timerDefaultDuration = MutableStateFlow(25)
     val timerDefaultDuration: StateFlow<Int> = _timerDefaultDuration
@@ -158,6 +162,7 @@ class SettingsViewModel @Inject constructor(
                 _badgesEnabled.value = preferences.enableBadges
                 _streaksEnabled.value = preferences.enableStreaks
                 _efficiencyMetricsEnabled.value = preferences.enableEfficiencyMetrics
+                _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
                 _settingsPasscodeHash.value = preferences.settingsPasscodeHash
@@ -342,7 +347,7 @@ class SettingsViewModel @Inject constructor(
      * Plays the category reminder sound preview.
      */
     fun previewCategoryReminder() {
-        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
+        audioNotificationManager.playCategoryReminderSound(_notificationPreferences.value.timerAlarmSound)
     }
 
     /**
@@ -410,6 +415,11 @@ class SettingsViewModel @Inject constructor(
      */
     fun updateEfficiencyMetricsEnabled(enabled: Boolean) {
         _efficiencyMetricsEnabled.value = enabled
+        saveCurrentSettings()
+    }
+
+    fun updatePuzzleAgeBand(ageBand: PuzzleAgeBand) {
+        _puzzleAgeBand.value = ageBand
         saveCurrentSettings()
     }
 
@@ -490,6 +500,7 @@ class SettingsViewModel @Inject constructor(
                     enableBadges = _badgesEnabled.value,
                     enableStreaks = _streaksEnabled.value,
                     enableEfficiencyMetrics = _efficiencyMetricsEnabled.value,
+                    puzzleAgeBand = _puzzleAgeBand.value.key,
                     timerDefaultDuration = _timerDefaultDuration.value,
                     autoLogoutTimeout = _autoLogoutTimeout.value
                 )

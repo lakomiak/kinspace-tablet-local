@@ -77,6 +77,7 @@ class CategoryReminderScheduler @Inject constructor(
         householdId: String
     ) {
         val leadMinutes = categoryLeadMinutes(category, preferences).coerceAtLeast(0)
+        if (!categoryEnabled(category, preferences)) return
         val triggerAtMillis = computeNextTriggerAtMillis(category, leadMinutes)
         val pendingIntent = reminderPendingIntent(
             category = category,
@@ -132,6 +133,19 @@ class CategoryReminderScheduler @Inject constructor(
             TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonLeadMinutes
             TodoCategoryReminder.EVENING -> reminderPrefs.eveningLeadMinutes
             TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeLeadMinutes
+        }
+    }
+
+    private fun categoryEnabled(
+        category: TodoCategoryReminder,
+        preferences: NotificationPreferences
+    ): Boolean {
+        val reminderPrefs = preferences.categoryReminderPreferences
+        return when (category) {
+            TodoCategoryReminder.MORNING -> reminderPrefs.morningEnabled
+            TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEnabled
+            TodoCategoryReminder.EVENING -> reminderPrefs.eveningEnabled
+            TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEnabled
         }
     }
 

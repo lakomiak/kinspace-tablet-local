@@ -24,7 +24,8 @@ data class UserPreferences(
     val enableStreaks: Boolean = true,
     val enableEfficiencyMetrics: Boolean = true,
     val timerDefaultDuration: Int = 25,
-    val autoLogoutTimeout: Int = 0
+    val autoLogoutTimeout: Int = 0,
+    val puzzleAgeBand: String = "5-6"
 ) {
     init {
         require(userId.isNotBlank()) { "userId cannot be blank" }
@@ -60,6 +61,10 @@ enum class TimerAlarmSound {
 @Serializable
 data class CategoryReminderPreferences(
     val enabled: Boolean = true,
+    val morningEnabled: Boolean = true,
+    val afternoonEnabled: Boolean = true,
+    val eveningEnabled: Boolean = true,
+    val bedtimeEnabled: Boolean = true,
     val morningLeadMinutes: Int = 15,
     val afternoonLeadMinutes: Int = 15,
     val eveningLeadMinutes: Int = 15,

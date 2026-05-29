@@ -1,6 +1,7 @@
 package com.adhdfocus.app.ui.setup
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,11 +44,17 @@ import coil.compose.AsyncImage
 @Composable
 fun MemberSelectionScreen(
     onMemberSelected: () -> Unit,
+    onReauthenticate: () -> Unit,
     viewModel: MemberSelectionViewModel = hiltViewModel()
 ) {
     val members by viewModel.members.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val requiresReauth by viewModel.requiresReauth.collectAsState()
+
+    LaunchedEffect(requiresReauth) {
+        if (requiresReauth) onReauthenticate()
+    }
 
     Column(
         modifier = Modifier
@@ -143,36 +151,42 @@ private fun MemberCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
-            if (!member.avatarUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = member.avatarUrl,
-                    contentDescription = "${member.name} avatar",
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = member.name.firstOrNull()?.uppercase() ?: "?",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = member.name.firstOrNull()?.uppercase() ?: "?",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+
+                if (!member.avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = member.avatarUrl,
+                        contentDescription = "${member.name} avatar",
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column {
+            Column(
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = member.name,
                     fontSize = 18.sp,

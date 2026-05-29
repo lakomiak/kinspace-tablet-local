@@ -12,6 +12,7 @@ import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.data.repository.StreakRepository
 import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
 import com.adhdfocus.app.domain.gamification.BadgeSystem
+import com.adhdfocus.app.domain.puzzle.PuzzleSystem
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.progress.ProgressTracker
 import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
@@ -60,7 +61,8 @@ class FocusViewModel @Inject constructor(
     private val streakRepository: StreakRepository,
     private val streakCalculationManager: StreakCalculationManager,
     private val badgeSystem: BadgeSystem,
-    private val affirmationTriggerManager: AffirmationTriggerManager
+    private val affirmationTriggerManager: AffirmationTriggerManager,
+    private val puzzleSystem: PuzzleSystem
 ) : ViewModel() {
 
     private val tag = "FocusViewModel"
@@ -426,7 +428,7 @@ class FocusViewModel @Inject constructor(
         } else {
             saveCalculatedStreak(userId, householdId, selectedDayStreak, selectedDate)
         }
-        updateBadges(userId, householdId, tasks, selectedDayStreak)
+        updateBadges(userId, householdId, tasks, selectedDayStreak, selectedDate)
 
         if (triggerAffirmations) {
             maybeTriggerDayCompleteAffirmation(tasks)
@@ -457,12 +459,14 @@ class FocusViewModel @Inject constructor(
         val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
         val memberName = setupManager.getAssignedMemberName()
         val isToday = selectedDate == LocalDate.now()
+        val existingTask = _todaysTasks.value.firstOrNull { it.id == taskId } ?: taskManager.getTaskById(taskId)
+        val isDateScopedCompletion = existingTask?.let { shouldUseDateScopedCompletion(it) } ?: false
         Log.d(
             tag,
-            "updateTaskCompletion start taskId=$taskId complete=$complete selectedDate=$selectedDate isToday=$isToday householdId=$householdId userId=$userId"
+            "updateTaskCompletion start taskId=$taskId complete=$complete selectedDate=$selectedDate isToday=$isToday dateScoped=$isDateScopedCompletion householdId=$householdId userId=$userId"
         )
 
-        if (isToday) {
+        if (isToday && !isDateScopedCompletion) {
             val persistedTask = if (complete) {
                 taskManager.completeTask(taskId)
             } else {
@@ -554,6 +558,11 @@ class FocusViewModel @Inject constructor(
         }
     }
 
+    private fun shouldUseDateScopedCompletion(task: Task): Boolean {
+        val repeat = task.repeatRule.trim().lowercase()
+        return repeat.isNotBlank() && repeat != "once"
+    }
+
     private suspend fun recalculateCurrentStreak(
         householdId: String,
         userId: String,
@@ -610,7 +619,8 @@ class FocusViewModel @Inject constructor(
         userId: String,
         householdId: String,
         tasks: List<Task>,
-        currentStreak: Int
+        currentStreak: Int,
+        referenceDate: LocalDate
     ) {
         val completedTasks = tasks.count { it.status == com.adhdfocus.app.data.model.TaskStatus.COMPLETED }
         val totalTasks = tasks.size
@@ -626,6 +636,18 @@ class FocusViewModel @Inject constructor(
             )
         }.onFailure { error ->
             Log.w(tag, "Unable to update badges householdId=$householdId userId=$userId", error)
+        }
+
+        if (completedTasks >= totalTasks && totalTasks > 0) {
+            runCatching {
+                puzzleSystem.recordDailyCompletion(
+                    householdId = householdId,
+                    userId = userId,
+                    completionDate = referenceDate
+                )
+            }.onFailure { error ->
+                Log.w(tag, "Unable to update puzzle progress householdId=$householdId userId=$userId", error)
+            }
         }
     }
 

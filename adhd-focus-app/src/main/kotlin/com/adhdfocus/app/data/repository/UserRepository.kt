@@ -42,7 +42,22 @@ class UserRepository @Inject constructor(
      * @param user User to save
      */
     suspend fun saveUser(user: User) {
-        userDao.insert(user)
+        val existing = userDao.getUserById(user.id)
+        if (existing == null) {
+            userDao.insert(user)
+        } else {
+            userDao.update(
+                existing.copy(
+                    householdId = user.householdId,
+                    email = user.email,
+                    displayName = user.displayName,
+                    avatarUrl = user.avatarUrl,
+                    birthDate = user.birthDate ?: existing.birthDate,
+                    role = user.role,
+                    updatedAt = user.updatedAt
+                )
+            )
+        }
     }
 
     /**

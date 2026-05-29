@@ -4,6 +4,7 @@ import com.adhdfocus.app.data.dao.UserPreferencesDao
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
+import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import javax.inject.Singleton
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -34,6 +35,7 @@ class UserPreferencesManager @Inject constructor(
         private const val DEFAULT_ENABLE_TODO_EDITING = false
         private const val DEFAULT_TIMER_DURATION = 25
         private const val DEFAULT_AUTO_LOGOUT_TIMEOUT = 0
+        private const val DEFAULT_PUZZLE_AGE_BAND = "5-6"
     }
 
     /**
@@ -248,6 +250,29 @@ class UserPreferencesManager @Inject constructor(
     }
 
     /**
+     * Updates the puzzle age band for a user.
+     */
+    suspend fun updatePuzzleAgeBand(userId: String, ageBandKey: String): Boolean {
+        return try {
+            require(userId.isNotBlank()) { "userId cannot be blank" }
+            require(PuzzleAgeBand.isValidKey(ageBandKey)) {
+                "Puzzle age band is not valid"
+            }
+            val existing = getPreferences(userId)
+            if (existing == null) {
+                userPreferencesDao.insert(
+                    createDefaultPreferences(userId).copy(puzzleAgeBand = ageBandKey)
+                )
+            } else {
+                userPreferencesDao.updatePuzzleAgeBand(userId, ageBandKey)
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Updates whether the user can edit/delete todos from Home.
      *
      * @param userId User ID
@@ -396,7 +421,8 @@ class UserPreferencesManager @Inject constructor(
             affirmationFrequency = DEFAULT_AFFIRMATION_FREQUENCY,
             enableGamification = DEFAULT_ENABLE_GAMIFICATION,
             timerDefaultDuration = DEFAULT_TIMER_DURATION,
-            autoLogoutTimeout = DEFAULT_AUTO_LOGOUT_TIMEOUT
+            autoLogoutTimeout = DEFAULT_AUTO_LOGOUT_TIMEOUT,
+            puzzleAgeBand = DEFAULT_PUZZLE_AGE_BAND
         )
     }
 
@@ -416,6 +442,9 @@ class UserPreferencesManager @Inject constructor(
         }
         require(preferences.autoLogoutTimeout >= 0) {
             "autoLogoutTimeout must be non-negative"
+        }
+        require(PuzzleAgeBand.isValidKey(preferences.puzzleAgeBand)) {
+            "puzzleAgeBand must be valid"
         }
         validateNotificationPreferences(preferences.notificationPreferences)
         validateDailyResetTime(preferences.dailyResetTime)

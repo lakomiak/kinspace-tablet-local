@@ -15,6 +15,7 @@ import com.adhdfocus.app.data.model.Streak
 import com.adhdfocus.app.data.model.EfficiencyMetric
 import com.adhdfocus.app.data.model.SyncQueueItem
 import com.adhdfocus.app.data.model.OfflineUpdateQueueItem
+import com.adhdfocus.app.data.model.PuzzleProgress
 import com.adhdfocus.app.data.model.TaskDayCompletion
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.UserDao
@@ -26,6 +27,7 @@ import com.adhdfocus.app.data.dao.StreakDao
 import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
+import com.adhdfocus.app.data.dao.PuzzleProgressDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 
 @Database(
@@ -40,9 +42,10 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
         EfficiencyMetric::class,
         SyncQueueItem::class,
         OfflineUpdateQueueItem::class,
-        TaskDayCompletion::class
+        TaskDayCompletion::class,
+        PuzzleProgress::class
     ],
-    version = 14,
+    version = 16,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -58,6 +61,7 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun offlineUpdateQueueDao(): OfflineUpdateQueueDao
     abstract fun taskDayCompletionDao(): TaskDayCompletionDao
+    abstract fun puzzleProgressDao(): PuzzleProgressDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -344,6 +348,45 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_preferences ADD COLUMN puzzleAgeBand TEXT NOT NULL DEFAULT '5-6'")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS puzzle_progress (
+                        id TEXT NOT NULL,
+                        householdId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        ageBandKey TEXT NOT NULL,
+                        cycleIndex INTEGER NOT NULL,
+                        puzzleKey TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        subtitle TEXT NOT NULL,
+                        imageUrl TEXT NOT NULL,
+                        totalPieces INTEGER NOT NULL,
+                        piecesUnlocked INTEGER NOT NULL,
+                        lastCompletedDay TEXT,
+                        completedAt INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_puzzle_progress_householdId ON puzzle_progress(householdId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_puzzle_progress_userId ON puzzle_progress(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_puzzle_progress_ageBandKey ON puzzle_progress(ageBandKey)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_puzzle_progress_householdId_userId_ageBandKey ON puzzle_progress(householdId, userId, ageBandKey)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_puzzle_progress_householdId_userId_ageBandKey_cycleIndex ON puzzle_progress(householdId, userId, ageBandKey, cycleIndex)")
+            }
+        }
+
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN birthDate TEXT")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -362,7 +405,9 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_10_11,
             MIGRATION_11_12,
             MIGRATION_12_13,
-            MIGRATION_13_14
+            MIGRATION_13_14,
+            MIGRATION_14_15,
+            MIGRATION_15_16
         )
     }
 }

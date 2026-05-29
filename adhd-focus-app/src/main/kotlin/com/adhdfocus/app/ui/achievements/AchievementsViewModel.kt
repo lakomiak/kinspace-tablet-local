@@ -1,17 +1,23 @@
 package com.adhdfocus.app.ui.achievements
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adhdfocus.app.data.model.UserRole
+import com.adhdfocus.app.data.network.FamilyMemberService
 import com.adhdfocus.app.data.model.Badge
 import com.adhdfocus.app.data.model.User
 import com.adhdfocus.app.data.repository.BadgeRepository
 import com.adhdfocus.app.data.repository.StreakRepository
 import com.adhdfocus.app.data.repository.UserRepository
 import com.adhdfocus.app.domain.gamification.BadgeSystem
+import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
+import com.adhdfocus.app.domain.puzzle.PuzzleSystem
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,7 +37,9 @@ class AchievementsViewModel @Inject constructor(
     private val badgeSystem: BadgeSystem,
     private val streakRepository: StreakRepository,
     private val userRepository: UserRepository,
-    private val setupManager: TabletSetupManager
+    private val setupManager: TabletSetupManager,
+    private val puzzleSystem: PuzzleSystem,
+    private val familyMemberService: FamilyMemberService
 ) : ViewModel() {
 
     private val _earnedBadges = MutableStateFlow<List<Badge>>(emptyList())
@@ -55,6 +63,12 @@ class AchievementsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _selectedPuzzleAgeBand = MutableStateFlow(PuzzleAgeBand.DEFAULT)
+    val selectedPuzzleAgeBand: StateFlow<PuzzleAgeBand> = _selectedPuzzleAgeBand
+
+    private val _currentPuzzle = MutableStateFlow<com.adhdfocus.app.data.model.PuzzleProgress?>(null)
+    val currentPuzzle: StateFlow<com.adhdfocus.app.data.model.PuzzleProgress?> = _currentPuzzle
+
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
 
@@ -72,6 +86,7 @@ class AchievementsViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 badgeSystem.ensureCurrentSeasonBadgeCatalog(userId, householdId)
+                val resolvedBirthDate = refreshAssignedMemberBirthDateIfMissing(householdId, userId)
                 // Load user
                 val user = userRepository.getUserById(userId)
                 _currentUser.value = user
@@ -88,6 +103,16 @@ class AchievementsViewModel @Inject constructor(
                 val streak = streakRepository.getStreak(userId, householdId)
                 _currentStreak.value = streak?.currentCount ?: 0
                 _bestStreak.value = streak?.bestCount ?: 0
+
+                val selectedBand = resolvedBirthDate
+                    ?.let { birthDate ->
+                        PuzzleAgeBand.fromAge(
+                            runCatching { Period.between(birthDate, LocalDate.now()).years }.getOrNull()
+                        )
+                    }
+                    ?: puzzleSystem.getSelectedAgeBand(userId)
+                _selectedPuzzleAgeBand.value = selectedBand
+                _currentPuzzle.value = puzzleSystem.getCurrentPuzzle(householdId, userId, selectedBand)
             } finally {
                 _isLoading.value = false
             }
@@ -155,6 +180,14 @@ class AchievementsViewModel @Inject constructor(
         }
     }
 
+    fun getCurrentPuzzleDefinition(): com.adhdfocus.app.domain.puzzle.PuzzleDefinition? {
+        val puzzle = _currentPuzzle.value ?: return null
+        return com.adhdfocus.app.domain.puzzle.PuzzleCatalog.definitionFor(
+            PuzzleAgeBand.fromKey(puzzle.ageBandKey),
+            puzzle.cycleIndex
+        )
+    }
+
     private fun normalizeBadges(badges: List<Badge>): List<Badge> {
         val badgeOrder = badgeSystem.getAllBadgeMilestones()
             .mapIndexed { index, milestone -> milestone.badgeType to index }
@@ -177,5 +210,73 @@ class AchievementsViewModel @Inject constructor(
                     .thenByDescending { it.earnedAt }
                     .thenBy { it.name }
             )
+    }
+
+    private suspend fun refreshAssignedMemberBirthDateIfMissing(householdId: String, userId: String): LocalDate? {
+        val existing = userRepository.getUserById(userId)
+        if (existing?.birthDate != null) return existing.birthDate
+
+        val refreshed = runCatching { familyMemberService.listFamilyMembers(householdId) }
+            .getOrNull()
+            ?.members
+            ?.firstOrNull { member -> member.id == userId }
+            ?: return null
+        val birthDate = parseBirthDate(
+            refreshed.birthdate
+                ?: refreshed.birthDate
+                ?: refreshed.birthday
+                ?: refreshed.dateOfBirth
+                ?: refreshed.dob
+        ) ?: return null
+
+        userRepository.saveUser(
+            User(
+                id = userId,
+                householdId = householdId,
+                email = sanitizePersistedEmail(
+                    userId = userId,
+                    primary = refreshed.email,
+                    fallback = existing?.email
+                ),
+                displayName = refreshed.displayName?.takeIf { it.isNotBlank() }
+                    ?: refreshed.name?.takeIf { it.isNotBlank() }
+                    ?: existing?.displayName
+                    ?: setupManager.getAssignedMemberName()
+                    ?: "Member",
+                avatarUrl = refreshed.avatarUrl?.takeIf { it.isNotBlank() }
+                    ?: refreshed.photo?.takeIf { it.isNotBlank() }
+                    ?: existing?.avatarUrl,
+                birthDate = birthDate,
+                role = existing?.role ?: UserRole.ADHD_USER,
+                isPinProtected = existing?.isPinProtected ?: false,
+                pinHash = existing?.pinHash,
+                createdAt = existing?.createdAt ?: Instant.now(),
+                updatedAt = Instant.now()
+            )
+        )
+        return birthDate
+    }
+
+    private fun parseBirthDate(raw: String?): LocalDate? {
+        val normalized = raw?.takeIf { it.isNotBlank() }?.take(10) ?: return null
+        return runCatching { LocalDate.parse(normalized) }.getOrNull()
+    }
+
+    private fun sanitizePersistedEmail(
+        userId: String,
+        primary: String?,
+        fallback: String?
+    ): String {
+        val candidate = listOf(primary, fallback)
+            .firstNotNullOfOrNull { email ->
+                email?.trim()
+                    ?.takeIf { it.isNotEmpty() && EMAIL_PATTERN.matches(it) }
+                    ?.lowercase()
+            }
+        return candidate ?: "$userId@kinspace.family"
+    }
+
+    companion object {
+        private val EMAIL_PATTERN = Regex("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", RegexOption.IGNORE_CASE)
     }
 }

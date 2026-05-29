@@ -9,7 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import javax.inject.Inject
@@ -33,8 +35,29 @@ class AuthViewModel @Inject constructor(
     val signInIntent: StateFlow<Intent?> = _signInIntent.asStateFlow()
 
     init {
-        if (authManager.isAuthenticated()) {
-            _authState.value = AuthState.Authenticated
+        validateExistingSession()
+    }
+
+    private fun validateExistingSession() {
+        if (!authManager.isAuthenticated()) {
+            _authState.value = AuthState.Unauthenticated
+            return
+        }
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            val hasValidSession = withContext(Dispatchers.IO) {
+                val idToken = authManager.getIdToken()?.takeIf { it.isNotBlank() }
+                val accessToken = authManager.getValidAccessToken()?.takeIf { it.isNotBlank() }
+                !idToken.isNullOrBlank() || !accessToken.isNullOrBlank()
+            }
+            _authState.value = if (hasValidSession) {
+                AuthState.Authenticated
+            } else {
+                authManager.logout()
+                AuthState.Unauthenticated
+            }
+            _isLoading.value = false
         }
     }
 

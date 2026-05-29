@@ -71,7 +71,6 @@ fun UserPreferencesScreen(
     }
 
     val theme by viewModel.theme.collectAsStateWithLifecycle()
-    val visibleTodoGroups by viewModel.visibleTodoGroups.collectAsStateWithLifecycle()
     val customTodoGroups by viewModel.customTodoGroups.collectAsStateWithLifecycle()
     val notificationPreferences by viewModel.notificationPreferences.collectAsStateWithLifecycle()
     val dailyResetTime by viewModel.dailyResetTime.collectAsStateWithLifecycle()
