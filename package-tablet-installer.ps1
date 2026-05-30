@@ -1,5 +1,6 @@
 param(
-    [switch]$Release
+    [switch]$Release,
+    [switch]$Legacy
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,21 +17,34 @@ Push-Location $repoRoot
 try {
     if ($Release) {
         Write-Host "Building release APK..."
-        & .\gradlew.bat clean :adhd-focus-app:assembleRelease --no-daemon
-        $apk = Join-Path $appDir "build\outputs\apk\release\adhd-focus-app-release.apk"
+        if ($Legacy) {
+            & .\gradlew.bat clean :adhd-focus-app:assembleLegacyRelease --no-daemon
+            $apk = Join-Path $appDir "build\outputs\apk\legacy\release\adhd-focus-app-legacy-release.apk"
+        }
+        else {
+            & .\gradlew.bat clean :adhd-focus-app:assembleModernRelease --no-daemon
+            $apk = Join-Path $appDir "build\outputs\apk\modern\release\adhd-focus-app-modern-release.apk"
+        }
         if (!(Test-Path $apk)) {
             throw "Release APK was not generated at $apk. Release signing may not be configured."
         }
-        $target = Join-Path $distDir "KinspaceTablet-release.apk"
+        $target = Join-Path $distDir $(if ($Legacy) { "KinspaceTablet-legacy-release.apk" } else { "KinspaceTablet-release.apk" })
     }
     else {
-        Write-Host "Building debug APK..."
-        & .\gradlew.bat :adhd-focus-app:assembleDebug
-        $apk = Join-Path $appDir "build\outputs\apk\debug\adhd-focus-app-debug.apk"
+        if ($Legacy) {
+            Write-Host "Building legacy debug APK..."
+            & .\gradlew.bat :adhd-focus-app:assembleLegacyDebug
+            $apk = Join-Path $appDir "build\outputs\apk\legacy\debug\adhd-focus-app-legacy-debug.apk"
+        }
+        else {
+            Write-Host "Building modern debug APK..."
+            & .\gradlew.bat :adhd-focus-app:assembleModernDebug
+            $apk = Join-Path $appDir "build\outputs\apk\modern\debug\adhd-focus-app-modern-debug.apk"
+        }
         if (!(Test-Path $apk)) {
             throw "Debug APK was not generated at $apk."
         }
-        $target = Join-Path $distDir "KinspaceTablet-debug.apk"
+        $target = Join-Path $distDir $(if ($Legacy) { "KinspaceTablet-legacy-debug.apk" } else { "KinspaceTablet-debug.apk" })
     }
 
     Copy-Item -Force $apk $target

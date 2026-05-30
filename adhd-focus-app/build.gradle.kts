@@ -50,6 +50,10 @@ android {
     }
 
     productFlavors {
+        create("modern") {
+            dimension = "deviceTier"
+            minSdk = 28
+        }
         create("legacy") {
             dimension = "deviceTier"
             minSdk = 22
