@@ -29,6 +29,12 @@ class TabletSetupManager @Inject constructor(
     fun getCurrentFocusDate(): LocalDate? = prefs.getString(KEY_CURRENT_FOCUS_DATE, null)
         ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
 
+    fun getSettingsPasscodeHash(): String? = prefs.getString(KEY_SETTINGS_PASSCODE_HASH, null)
+
+    fun setSettingsPasscodeHash(hash: String?) {
+        prefs.edit().putString(KEY_SETTINGS_PASSCODE_HASH, hash).apply()
+    }
+
     fun setCurrentFocusDate(date: LocalDate) {
         prefs.edit()
             .putString(KEY_CURRENT_FOCUS_DATE, date.toString())
@@ -52,5 +58,6 @@ class TabletSetupManager @Inject constructor(
         private const val KEY_MEMBER_NAME = "assigned_member_name"
         private const val KEY_HOUSEHOLD_ID = "household_id"
         private const val KEY_CURRENT_FOCUS_DATE = "current_focus_date"
+        private const val KEY_SETTINGS_PASSCODE_HASH = "settings_passcode_hash"
     }
 }

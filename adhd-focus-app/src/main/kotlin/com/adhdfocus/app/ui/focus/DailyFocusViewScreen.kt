@@ -256,7 +256,7 @@ fun DailyFocusViewScreen(
                                             onTaskStart = { taskId -> viewModel.startTask(taskId) },
                                             onTaskEdit = onTaskEditRequested,
                                             onTaskDelete = { taskPendingDelete = it },
-                                            showManagementActions = allowTodoEditing && isViewingToday,
+                                            showManagementActions = allowTodoEditing,
                                             showStartAction = isViewingToday,
                                             onTimerStartRequested = onTimerStartRequested
                                         )

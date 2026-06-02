@@ -163,7 +163,7 @@ private fun CategoryReminderToggleList(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Alarm before ${category.endTimeLabel}",
+                        text = "Alarm before ${endTimeFor(category, preferences)}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -205,6 +205,7 @@ private fun CategoryReminderLeadPickerGrid(
                         category = category,
                         categoryEnabled = enabledFor(category, preferences),
                         leadMinutes = leadMinutesFor(category, preferences),
+                        endTime = endTimeFor(category, preferences),
                         onCategoryEnabledChanged = { newValue ->
                             onPreferencesChanged(
                                 preferences.copy(
@@ -225,6 +226,16 @@ private fun CategoryReminderLeadPickerGrid(
                                 )
                             )
                         },
+                        onEndTimeChanged = { newValue ->
+                            onPreferencesChanged(
+                                preferences.copy(
+                                    morningEndTime = if (category == TodoCategoryReminder.MORNING) newValue else preferences.morningEndTime,
+                                    afternoonEndTime = if (category == TodoCategoryReminder.AFTERNOON) newValue else preferences.afternoonEndTime,
+                                    eveningEndTime = if (category == TodoCategoryReminder.EVENING) newValue else preferences.eveningEndTime,
+                                    bedtimeEndTime = if (category == TodoCategoryReminder.BEDTIME) newValue else preferences.bedtimeEndTime
+                                )
+                            )
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -242,8 +253,10 @@ private fun CategoryReminderLeadPicker(
     category: TodoCategoryReminder,
     categoryEnabled: Boolean,
     leadMinutes: Int,
+    endTime: String,
     onCategoryEnabledChanged: (Boolean) -> Unit,
     onLeadMinutesChanged: (Int) -> Unit,
+    onEndTimeChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var pickerInitialized by remember(category) { mutableStateOf(false) }
@@ -279,7 +292,7 @@ private fun CategoryReminderLeadPicker(
             )
         }
         Text(
-            text = "Ends at ${category.endTimeLabel}",
+            text = "Ends at $endTime",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -287,6 +300,12 @@ private fun CategoryReminderLeadPicker(
             text = "$leadMinutes minute${if (leadMinutes == 1) "" else "s"} before end",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.primary
+        )
+
+        TimePickerField(
+            label = "Category End Time",
+            value = endTime,
+            onValueChanged = onEndTimeChanged
         )
 
         AndroidView(
@@ -343,5 +362,17 @@ private fun enabledFor(
         TodoCategoryReminder.AFTERNOON -> preferences.afternoonEnabled
         TodoCategoryReminder.EVENING -> preferences.eveningEnabled
         TodoCategoryReminder.BEDTIME -> preferences.bedtimeEnabled
+    }
+}
+
+private fun endTimeFor(
+    category: TodoCategoryReminder,
+    preferences: CategoryReminderPreferences
+): String {
+    return when (category) {
+        TodoCategoryReminder.MORNING -> preferences.morningEndTime
+        TodoCategoryReminder.AFTERNOON -> preferences.afternoonEndTime
+        TodoCategoryReminder.EVENING -> preferences.eveningEndTime
+        TodoCategoryReminder.BEDTIME -> preferences.bedtimeEndTime
     }
 }

@@ -82,7 +82,16 @@ fun CreateTodoScreen(
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    val repeatOptions = listOf("once", "daily", "weekly", "monthly", "yearly", "custom")
+    val repeatOptions = listOf(
+        "Once" to "once",
+        "Daily" to "daily",
+        "Weekdays" to "weekdays",
+        "Weekends" to "weekends",
+        "Weekly" to "weekly",
+        "Monthly" to "monthly",
+        "Yearly" to "yearly",
+        "Custom" to "custom"
+    )
 
     LaunchedEffect(taskId) {
         if (isEditing) {
@@ -247,10 +256,10 @@ fun CreateTodoScreen(
 
                 NativeSpinnerField(
                     label = "Repeat",
-                    value = repeatValue,
-                    options = repeatOptions,
+                    value = repeatOptions.firstOrNull { it.second == repeatValue }?.first ?: "Once",
+                    options = repeatOptions.map { it.first },
                     onValueSelected = {
-                        repeatValue = it
+                        repeatValue = repeatOptions.firstOrNull { option -> option.first == it }?.second ?: "once"
                         viewModel.clearError()
                     }
                 )

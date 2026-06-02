@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter
 
 enum class TodoCategoryReminder(
     val groupName: String,
-    val endTime: LocalTime
+    val defaultEndTime: LocalTime
 ) {
     MORNING("Morning", LocalTime.of(12, 0)),
     AFTERNOON("Afternoon", LocalTime.of(17, 0)),
@@ -16,7 +16,7 @@ enum class TodoCategoryReminder(
         get() = groupName
 
     val endTimeLabel: String
-        get() = endTime.format(DISPLAY_TIME_FORMATTER)
+        get() = defaultEndTime.format(DISPLAY_TIME_FORMATTER)
 
     companion object {
         private val DISPLAY_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")

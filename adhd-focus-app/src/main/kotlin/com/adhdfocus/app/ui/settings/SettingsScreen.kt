@@ -426,28 +426,28 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Button(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    enabled = !isSaving
                 ) {
-                    Button(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        enabled = !isSaving
-                    ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.height(20.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text("Done")
-                        }
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.height(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Done")
                     }
+                }
 
-                    if (!hasSettingsPasscode || settingsUnlocked) {
+                if (!hasSettingsPasscode || settingsUnlocked) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         OutlinedButton(
                             onClick = onChangeMemberClick,
                             modifier = Modifier
@@ -455,7 +455,7 @@ fun SettingsScreen(
                                 .height(48.dp),
                             enabled = !isSaving
                         ) {
-                            Text("Change member")
+                            Text("Switch Member")
                         }
 
                         OutlinedButton(
@@ -465,7 +465,7 @@ fun SettingsScreen(
                                 .height(48.dp),
                             enabled = !isSaving
                         ) {
-                            Text("Reset to Defaults")
+                            Text("Reset Settings")
                         }
                     }
                 }

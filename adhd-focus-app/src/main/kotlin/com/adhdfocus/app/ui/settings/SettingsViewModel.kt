@@ -165,9 +165,14 @@ class SettingsViewModel @Inject constructor(
                 _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
-                _settingsPasscodeHash.value = preferences.settingsPasscodeHash
-                _hasSettingsPasscode.value = !preferences.settingsPasscodeHash.isNullOrBlank()
-                _settingsUnlocked.value = preferences.settingsPasscodeHash.isNullOrBlank()
+                val tabletPasscodeHash = setupManager.getSettingsPasscodeHash()
+                if (tabletPasscodeHash.isNullOrBlank() && !preferences.settingsPasscodeHash.isNullOrBlank()) {
+                    setupManager.setSettingsPasscodeHash(preferences.settingsPasscodeHash)
+                }
+                val resolvedPasscodeHash = setupManager.getSettingsPasscodeHash()
+                _settingsPasscodeHash.value = resolvedPasscodeHash
+                _hasSettingsPasscode.value = !resolvedPasscodeHash.isNullOrBlank()
+                _settingsUnlocked.value = resolvedPasscodeHash.isNullOrBlank()
                 _allowTodoEditing.value = preferences.enableTodoEditing
                 _customTodoGroups.value = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
                 _showPasscodeSetupDialog.value = false
@@ -221,6 +226,7 @@ class SettingsViewModel @Inject constructor(
             return
         }
         _settingsPasscodeHash.value = PinValidator.hashPin(passcode)
+        setupManager.setSettingsPasscodeHash(_settingsPasscodeHash.value)
         _settingsUnlocked.value = true
         _showPasscodeSetupDialog.value = false
         _hasSettingsPasscode.value = true
@@ -229,6 +235,7 @@ class SettingsViewModel @Inject constructor(
 
     fun clearSettingsPasscode() {
         _settingsPasscodeHash.value = null
+        setupManager.setSettingsPasscodeHash(null)
         _settingsUnlocked.value = true
         _hasSettingsPasscode.value = false
         saveCurrentSettings()
@@ -492,7 +499,7 @@ class SettingsViewModel @Inject constructor(
                     visibleTodoGroups = "[]",
                     notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
                     customTodoGroups = serializeList(_customTodoGroups.value),
-                    settingsPasscodeHash = _settingsPasscodeHash.value,
+                    settingsPasscodeHash = null,
                     enableTodoEditing = _allowTodoEditing.value,
                     dailyResetTime = _dailyResetTime.value,
                     affirmationFrequency = _affirmationFrequency.value,
