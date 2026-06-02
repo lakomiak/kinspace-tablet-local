@@ -468,6 +468,10 @@ class UserPreferencesManager @Inject constructor(
         require(prefs.categoryReminderPreferences.bedtimeLeadMinutes >= 0) {
             "bedtimeLeadMinutes must be non-negative"
         }
+        validateTimeFormat(prefs.categoryReminderPreferences.morningEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.afternoonEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.eveningEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.bedtimeEndTime)
     }
 
     /**
