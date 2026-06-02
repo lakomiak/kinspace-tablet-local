@@ -14,3 +14,15 @@ release-keystore.jks
 .kiro/specs/adhd-focus-app/.config.kiro
 
 gradle-*.zip
+gradle-temp/
+
+# Root-level local debug artifacts and dumps
+/*.png
+/*.db
+/*.sqlite
+/*.sql
+/*.xml
+
+# Keep real source/assets under the app module
+!/adhd-focus-app/**/*.png
+!/adhd-focus-app/**/*.xml
