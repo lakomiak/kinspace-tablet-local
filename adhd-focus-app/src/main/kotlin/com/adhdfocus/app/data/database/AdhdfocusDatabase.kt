@@ -16,6 +16,7 @@ import com.adhdfocus.app.data.model.EfficiencyMetric
 import com.adhdfocus.app.data.model.SyncQueueItem
 import com.adhdfocus.app.data.model.OfflineUpdateQueueItem
 import com.adhdfocus.app.data.model.PuzzleProgress
+import com.adhdfocus.app.data.model.TaskSessionMetric
 import com.adhdfocus.app.data.model.TaskDayCompletion
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.UserDao
@@ -28,6 +29,7 @@ import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
 import com.adhdfocus.app.data.dao.PuzzleProgressDao
+import com.adhdfocus.app.data.dao.TaskSessionMetricDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 
 @Database(
@@ -43,9 +45,10 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
         SyncQueueItem::class,
         OfflineUpdateQueueItem::class,
         TaskDayCompletion::class,
-        PuzzleProgress::class
+        PuzzleProgress::class,
+        TaskSessionMetric::class
     ],
-    version = 16,
+    version = 18,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -62,6 +65,7 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
     abstract fun offlineUpdateQueueDao(): OfflineUpdateQueueDao
     abstract fun taskDayCompletionDao(): TaskDayCompletionDao
     abstract fun puzzleProgressDao(): PuzzleProgressDao
+    abstract fun taskSessionMetricDao(): TaskSessionMetricDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -387,6 +391,44 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS task_session_metrics (
+                        id TEXT NOT NULL,
+                        taskId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        householdId TEXT NOT NULL,
+                        configuredDurationSeconds INTEGER,
+                        activeDurationSeconds INTEGER NOT NULL,
+                        totalPausedSeconds INTEGER NOT NULL,
+                        pauseCount INTEGER NOT NULL,
+                        resetCount INTEGER NOT NULL,
+                        timerStartedAt INTEGER NOT NULL,
+                        endedAt INTEGER NOT NULL,
+                        outcome TEXT NOT NULL,
+                        completedTask INTEGER NOT NULL,
+                        completedAfterTimerEnded INTEGER NOT NULL,
+                        stoppedBeforeTimerEnded INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_session_metrics_taskId ON task_session_metrics(taskId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_session_metrics_userId ON task_session_metrics(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_session_metrics_householdId ON task_session_metrics(householdId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_session_metrics_endedAt ON task_session_metrics(endedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_task_session_user_ended_at ON task_session_metrics(userId, endedAt)")
+            }
+        }
+
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_puzzle_progress_ageBandKey ON puzzle_progress(ageBandKey)")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -407,7 +449,9 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
-            MIGRATION_15_16
+            MIGRATION_15_16,
+            MIGRATION_16_17,
+            MIGRATION_17_18
         )
     }
 }

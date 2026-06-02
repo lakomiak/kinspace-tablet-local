@@ -1,10 +1,8 @@
 package com.adhdfocus.app.ui.focus
 
 import android.util.Log
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
 import com.adhdfocus.app.domain.sync.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.Streak
@@ -15,11 +13,8 @@ import com.adhdfocus.app.domain.gamification.BadgeSystem
 import com.adhdfocus.app.domain.puzzle.PuzzleSystem
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.progress.ProgressTracker
-import com.adhdfocus.app.domain.persistence.TaskPersistenceManager
 import com.adhdfocus.app.domain.task.TaskManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
-import com.adhdfocus.app.domain.sync.CloudSyncManager
-import com.adhdfocus.app.domain.sync.RestApiClient
 import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.streak.StreakCalculationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -54,9 +48,6 @@ class FocusViewModel @Inject constructor(
     private val progressTracker: ProgressTracker,
     private val userPreferencesManager: UserPreferencesManager,
     private val setupManager: TabletSetupManager,
-    private val taskPersistenceManager: TaskPersistenceManager,
-    private val restApiClient: RestApiClient,
-    private val cloudSyncManager: CloudSyncManager,
     private val taskDayCompletionRepository: TaskDayCompletionRepository,
     private val streakRepository: StreakRepository,
     private val streakCalculationManager: StreakCalculationManager,
@@ -100,7 +91,7 @@ class FocusViewModel @Inject constructor(
             currentUserId = userId
             _selectedDate.value = LocalDate.now()
             setupManager.setCurrentFocusDate(_selectedDate.value)
-            refreshFromCloud(householdId, userId, _selectedDate.value)
+            refreshCurrentTasks(fromCloud = false)
         }
 
         startDayRolloverWatcher()
@@ -130,12 +121,6 @@ class FocusViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Refreshes tasks from cloud.
-     *
-     * @param householdId Household ID
-     * @param userId User ID
-     */
     fun refreshFromCloud(
         householdId: String,
         userId: String,
@@ -145,57 +130,19 @@ class FocusViewModel @Inject constructor(
         currentUserId = userId
 
         viewModelScope.launch {
-            _syncStatus.value = SyncStatus.SYNCING
+            _syncStatus.value = SyncStatus.SYNCED
+            _isLoading.value = true
             try {
-                val cloudSnapshot = withContext(Dispatchers.IO) {
-                    restApiClient.fetchTasks(householdId, targetDate, userId)
-                }
-                Log.d(
-                    tag,
-                    "refreshFromCloud householdId=$householdId userId=$userId targetDate=$targetDate cloudCount=${cloudSnapshot.tasks.size} dayCompletionCount=${cloudSnapshot.dayCompletions.size}"
-                )
-                taskPersistenceManager.replaceTasksForHousehold(householdId, cloudSnapshot.tasks)
-                importCloudCompletionsForDate(
-                    householdId = householdId,
-                    userId = userId,
-                    targetDate = targetDate,
-                    dayCompletions = cloudSnapshot.dayCompletions
-                )
                 val memberName = setupManager.getAssignedMemberName()
                 val visibleTasks = resolveVisibleTasks(householdId, userId, memberName, targetDate)
                 applyDisplayedTasks(visibleTasks, householdId, userId, memberName)
-                _syncStatus.value = SyncStatus.SYNCED
             } catch (e: Exception) {
-                Log.e(tag, "refreshFromCloud failed householdId=$householdId userId=$userId", e)
+                Log.e(tag, "Local refresh failed householdId=$householdId userId=$userId", e)
                 _syncStatus.value = SyncStatus.ERROR
+            } finally {
+                _isLoading.value = false
             }
         }
-    }
-
-    private suspend fun importCloudCompletionsForDate(
-        householdId: String,
-        userId: String,
-        targetDate: LocalDate,
-        dayCompletions: List<com.adhdfocus.app.domain.sync.CloudTaskDayCompletion>
-    ) {
-        val completedTaskIds = dayCompletions
-            .asSequence()
-            .filter { it.familyMemberId == userId }
-            .filter { it.targetDate == targetDate }
-            .filter { it.isCompleted }
-            .map { it.taskId }
-            .toList()
-
-        Log.d(
-            tag,
-            "importCloudCompletionsForDate householdId=$householdId userId=$userId targetDate=$targetDate completedCount=${completedTaskIds.size}"
-        )
-        taskDayCompletionRepository.replaceCompletionsForDate(
-            householdId = householdId,
-            userId = userId,
-            date = targetDate,
-            completedTaskIds = completedTaskIds
-        )
     }
 
     fun refreshCurrentTasks(fromCloud: Boolean = true) {
@@ -206,10 +153,10 @@ class FocusViewModel @Inject constructor(
             return
         }
 
-        if (fromCloud) {
-            refreshFromCloud(householdId, userId, _selectedDate.value)
-        } else {
+        if (_selectedDate.value == LocalDate.now()) {
             loadTodaysTasks(householdId, userId)
+        } else {
+            refreshFromCloud(householdId, userId, _selectedDate.value)
         }
     }
 
@@ -262,7 +209,7 @@ class FocusViewModel @Inject constructor(
                     lastObservedDate = currentDate
                     if (wasShowingToday) {
                         _selectedDate.value = currentDate
-                        refreshCurrentTasks(fromCloud = true)
+                        refreshCurrentTasks(fromCloud = false)
                     }
                 }
             }
@@ -436,23 +383,6 @@ class FocusViewModel @Inject constructor(
         }
     }
 
-    private suspend fun syncCurrentChanges(householdId: String, userId: String) {
-        _syncStatus.value = SyncStatus.SYNCING
-        try {
-            val result = withContext(Dispatchers.IO) {
-                cloudSyncManager.syncPendingChanges(householdId, userId)
-            }
-            if (result.success) {
-                _syncStatus.value = SyncStatus.SYNCED
-            } else {
-                _syncStatus.value = SyncStatus.ERROR
-            }
-        } catch (e: Exception) {
-            Log.e(tag, "syncCurrentChanges failed householdId=$householdId userId=$userId", e)
-            _syncStatus.value = SyncStatus.ERROR
-        }
-    }
-
     private suspend fun updateTaskCompletion(taskId: String, complete: Boolean) {
         val selectedDate = _selectedDate.value
         val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
@@ -494,9 +424,6 @@ class FocusViewModel @Inject constructor(
                 date = selectedDate,
                 isCompleted = complete
             )
-            if (householdId.isNotBlank() && userId.isNotBlank()) {
-                syncCurrentChanges(householdId, userId)
-            }
             return
         }
 
@@ -513,29 +440,6 @@ class FocusViewModel @Inject constructor(
             isCompleted = complete
         )
 
-        runCatching {
-            val completion = withContext(Dispatchers.IO) {
-                restApiClient.syncDayCompletion(
-                    householdId = householdId,
-                    taskId = taskId,
-                    familyMemberId = userId,
-                    targetDate = selectedDate,
-                    isCompleted = complete,
-                    completedAt = if (complete) Instant.now() else null
-                )
-            }
-            Log.d(
-                tag,
-                "syncDayCompletion householdId=$householdId userId=$userId taskId=$taskId date=$selectedDate complete=$complete cloudCompleted=${completion.isCompleted}"
-            )
-        }.onFailure { error ->
-            Log.e(
-                tag,
-                "syncDayCompletion failed householdId=$householdId userId=$userId taskId=$taskId date=$selectedDate complete=$complete",
-                error
-            )
-        }
-
         val refreshedTasks = resolveVisibleTasks(householdId, userId, memberName, selectedDate)
         Log.d(tag, "updateTaskCompletion refreshedTasks count=${refreshedTasks.size} after taskId=$taskId complete=$complete")
         applyDisplayedTasks(
@@ -545,17 +449,6 @@ class FocusViewModel @Inject constructor(
             memberName = memberName,
             triggerAffirmations = true
         )
-        if (householdId.isNotBlank() && userId.isNotBlank()) {
-            runCatching {
-                syncCurrentChanges(householdId, userId)
-            }.onFailure { error ->
-                Log.e(
-                    tag,
-                    "Immediate cloud sync after historical completion failed householdId=$householdId userId=$userId taskId=$taskId date=$selectedDate",
-                    error
-                )
-            }
-        }
     }
 
     private fun shouldUseDateScopedCompletion(task: Task): Boolean {

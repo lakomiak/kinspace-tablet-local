@@ -6,11 +6,13 @@ import android.os.Build
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.EfficiencyMetric
 import com.adhdfocus.app.data.dao.EfficiencyMetricDao
+import com.adhdfocus.app.data.dao.TaskSessionMetricDao
+import com.adhdfocus.app.data.model.TaskSessionMetric
+import com.adhdfocus.app.data.model.TaskSessionOutcome
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
-import com.adhdfocus.app.domain.sync.CloudSyncManager
 import com.adhdfocus.app.domain.task.TaskManager
 import com.adhdfocus.app.domain.timer.TaskCompletionSessionMetrics
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,8 +45,8 @@ class TimerViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val setupManager: TabletSetupManager,
     private val taskManager: TaskManager,
-    private val cloudSyncManager: CloudSyncManager,
     private val efficiencyMetricDao: EfficiencyMetricDao,
+    private val taskSessionMetricDao: TaskSessionMetricDao,
     private val efficiencyCalculator: EfficiencyCalculator
 ) : ViewModel() {
 
@@ -168,6 +170,7 @@ class TimerViewModel @Inject constructor(
     fun cancelTimer() {
         timerJob?.cancel()
         audioNotificationManager.stopSound()
+        persistSessionOutcome(completedTask = false)
         clearSessionTracking()
         _isRunning.value = false
         _isPaused.value = false
@@ -279,13 +282,7 @@ class TimerViewModel @Inject constructor(
                 stopTimerForCompletion()
                 taskManager.completeTask(taskId, metrics)
                 metrics?.let { recordCompletionMetric(it) }
-                val householdId = setupManager.getHouseholdId().orEmpty()
-                val userId = setupManager.getAssignedMemberId().orEmpty()
-                if (householdId.isNotBlank() && userId.isNotBlank()) {
-                    withContext(Dispatchers.IO) {
-                        cloudSyncManager.syncPendingChanges(householdId, userId)
-                    }
-                }
+                persistSessionOutcome(completedTask = true)
                 clearSessionTracking()
                 onCompleted?.invoke()
             } catch (_: Exception) {
@@ -391,6 +388,49 @@ class TimerViewModel @Inject constructor(
                 completedAt = metrics.completedAt
             )
         )
+    }
+
+    private fun persistSessionOutcome(completedTask: Boolean) {
+        val taskId = currentTaskId ?: return
+        val startedAt = sessionStartedAt ?: return
+        val endedAt = Instant.now()
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        val userId = setupManager.getAssignedMemberId().orEmpty()
+        if (householdId.isBlank() || userId.isBlank()) return
+
+        val totalPausedSeconds = accumulatedPausedSeconds + pauseStartedAt?.let {
+            Duration.between(it, endedAt).seconds.coerceAtLeast(0)
+        }.orZero()
+        val activeDurationSeconds = activeElapsedSeconds.coerceAtLeast(0L).toInt()
+        val completedAfterTimerEnded = completedTask && _timeRemaining.value == 0
+        val stoppedBeforeTimerEnded = !completedTask && _timeRemaining.value > 0
+        val outcome = when {
+            completedTask && completedAfterTimerEnded -> TaskSessionOutcome.COMPLETED_AFTER_TIME_END
+            completedTask -> TaskSessionOutcome.COMPLETED_BEFORE_TIME_END
+            _timeRemaining.value > 0 -> TaskSessionOutcome.CANCELED_BEFORE_TIME_END
+            else -> TaskSessionOutcome.CANCELED_AFTER_TIME_END
+        }
+
+        viewModelScope.launch {
+            taskSessionMetricDao.insert(
+                TaskSessionMetric(
+                    taskId = taskId,
+                    userId = userId,
+                    householdId = householdId,
+                    configuredDurationSeconds = configuredDurationSeconds.takeIf { it > 0 },
+                    activeDurationSeconds = activeDurationSeconds,
+                    totalPausedSeconds = totalPausedSeconds.toInt(),
+                    pauseCount = pauseCount,
+                    resetCount = resetCount,
+                    timerStartedAt = startedAt,
+                    endedAt = endedAt,
+                    outcome = outcome,
+                    completedTask = completedTask,
+                    completedAfterTimerEnded = completedAfterTimerEnded,
+                    stoppedBeforeTimerEnded = stoppedBeforeTimerEnded
+                )
+            )
+        }
     }
 }
 

@@ -55,6 +55,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
@@ -79,9 +82,41 @@ fun PuzzleSection(
     val unlockedPieces = currentPuzzle?.piecesUnlocked ?: 0
     val totalPieces = currentPuzzle?.totalPieces ?: 30
     val progress = if (totalPieces > 0) (unlockedPieces * 100) / totalPieces else 0
+    val puzzleAccessibilitySummary = remember(
+        selectedAgeBand,
+        puzzleDefinition,
+        unlockedPieces,
+        totalPieces,
+        progress
+    ) {
+        buildString {
+            append("Puzzle progress. ")
+            append(puzzleDefinition.title)
+            append(". ")
+            append(puzzleDefinition.subtitle)
+            append(". ")
+            append("Age band ")
+            append(selectedAgeBand.ageRangeLabel)
+            append(". ")
+            append("$unlockedPieces of $totalPieces pieces revealed. ")
+            append("$progress percent complete. ")
+            append(
+                if (unlockedPieces >= totalPieces) {
+                    "Puzzle complete. The next scene begins automatically."
+                } else {
+                    "Finish the day to reveal the next piece."
+                }
+            )
+        }
+    }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Achievements puzzle"
+                stateDescription = puzzleAccessibilitySummary
+            },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -257,7 +292,11 @@ private fun PuzzleRevealCard(
                 width = 1.dp,
                 brush = Brush.linearGradient(listOf(Color.White, Color(0xFFBFAFD9))),
                 shape = RoundedCornerShape(24.dp)
-            ),
+            )
+            .semantics {
+                contentDescription = puzzleDefinition.title
+                stateDescription = "$piecesUnlocked of $totalPieces puzzle pieces revealed"
+            },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {

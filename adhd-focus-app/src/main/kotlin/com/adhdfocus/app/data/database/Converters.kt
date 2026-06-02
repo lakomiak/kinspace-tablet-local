@@ -6,6 +6,7 @@ import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserRole
 import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.model.SyncStatus
+import com.adhdfocus.app.data.model.TaskSessionOutcome
 import com.adhdfocus.app.data.model.AffirmationType
 import com.adhdfocus.app.data.model.AffirmationTone
 import com.adhdfocus.app.data.model.SyncOperation
@@ -74,6 +75,16 @@ class Converters {
     @TypeConverter
     fun syncStatusToString(status: SyncStatus?): String? {
         return status?.name
+    }
+
+    @TypeConverter
+    fun fromTaskSessionOutcome(value: String?): TaskSessionOutcome? {
+        return value?.let { TaskSessionOutcome.valueOf(it) }
+    }
+
+    @TypeConverter
+    fun taskSessionOutcomeToString(outcome: TaskSessionOutcome?): String? {
+        return outcome?.name
     }
 
     @TypeConverter

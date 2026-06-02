@@ -34,6 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,18 +48,11 @@ import coil.compose.AsyncImage
 @Composable
 fun MemberSelectionScreen(
     onMemberSelected: () -> Unit,
-    onReauthenticate: () -> Unit,
     viewModel: MemberSelectionViewModel = hiltViewModel()
 ) {
     val members by viewModel.members.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val requiresReauth by viewModel.requiresReauth.collectAsState()
-
-    LaunchedEffect(requiresReauth) {
-        if (requiresReauth) onReauthenticate()
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -138,6 +135,17 @@ private fun MemberCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .semantics {
+                role = Role.Button
+                contentDescription = buildString {
+                    append("Select ")
+                    append(member.name)
+                    if (!member.email.isNullOrBlank()) {
+                        append(", ")
+                        append(member.email)
+                    }
+                }
+            }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(

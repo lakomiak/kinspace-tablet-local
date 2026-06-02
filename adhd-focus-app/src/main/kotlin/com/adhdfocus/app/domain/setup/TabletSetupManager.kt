@@ -26,8 +26,22 @@ class TabletSetupManager @Inject constructor(
 
     fun getHouseholdId(): String? = prefs.getString(KEY_HOUSEHOLD_ID, null)
 
+    fun getHouseholdName(): String? = prefs.getString(KEY_HOUSEHOLD_NAME, null)
+
     fun getCurrentFocusDate(): LocalDate? = prefs.getString(KEY_CURRENT_FOCUS_DATE, null)
         ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+    fun getSettingsPasscodeHash(): String? = prefs.getString(KEY_SETTINGS_PASSCODE_HASH, null)
+
+    fun setSettingsPasscodeHash(hash: String?) {
+        prefs.edit().apply {
+            if (hash.isNullOrBlank()) {
+                remove(KEY_SETTINGS_PASSCODE_HASH)
+            } else {
+                putString(KEY_SETTINGS_PASSCODE_HASH, hash)
+            }
+        }.apply()
+    }
 
     fun setCurrentFocusDate(date: LocalDate) {
         prefs.edit()
@@ -35,11 +49,16 @@ class TabletSetupManager @Inject constructor(
             .apply()
     }
 
-    fun completeSetup(memberId: String, memberName: String, householdId: String) {
+    fun completeSetup(memberId: String, memberName: String, householdId: String, householdName: String? = null) {
         prefs.edit()
             .putString(KEY_MEMBER_ID, memberId)
             .putString(KEY_MEMBER_NAME, memberName)
             .putString(KEY_HOUSEHOLD_ID, householdId)
+            .apply {
+                if (!householdName.isNullOrBlank()) {
+                    putString(KEY_HOUSEHOLD_NAME, householdName)
+                }
+            }
             .apply()
     }
 
@@ -51,6 +70,8 @@ class TabletSetupManager @Inject constructor(
         private const val KEY_MEMBER_ID = "assigned_member_id"
         private const val KEY_MEMBER_NAME = "assigned_member_name"
         private const val KEY_HOUSEHOLD_ID = "household_id"
+        private const val KEY_HOUSEHOLD_NAME = "household_name"
         private const val KEY_CURRENT_FOCUS_DATE = "current_focus_date"
+        private const val KEY_SETTINGS_PASSCODE_HASH = "settings_passcode_hash"
     }
 }

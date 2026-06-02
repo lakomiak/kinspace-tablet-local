@@ -3,19 +3,12 @@ package com.adhdfocus.app.domain.task
 import android.util.Log
 import android.os.Build
 import com.adhdfocus.app.data.dao.TaskDao
-import com.adhdfocus.app.data.model.SyncOperation
-import com.adhdfocus.app.data.model.SyncQueueItem
 import com.adhdfocus.app.data.model.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
-import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
-import com.adhdfocus.app.domain.sync.RestApiClient
-import com.adhdfocus.app.domain.sync.SyncQueueManager
 import com.adhdfocus.app.domain.timer.TaskCompletionSessionMetrics
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import java.time.Instant
 import java.util.UUID
@@ -36,11 +29,8 @@ import java.util.UUID
  * - Property 6: Pending Sync Indicator - All local changes must be marked with PENDING sync status
  */
 class TaskManager @Inject constructor(
-    private val taskRepository: TaskRepository,
     private val taskDao: TaskDao,
-    private val syncQueueManager: SyncQueueManager,
-    private val affirmationTriggerManager: AffirmationTriggerManager,
-    private val restApiClient: RestApiClient
+    private val affirmationTriggerManager: AffirmationTriggerManager
 ) {
     private val tag = "TaskManager"
     /**
@@ -108,19 +98,11 @@ class TaskManager @Inject constructor(
             status = TaskStatus.INCOMPLETE,
             createdAt = now,
             updatedAt = now,
-            syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
+            syncStatus = SyncStatus.SYNCED
         )
 
-        // Persist task locally
         taskDao.insert(task)
-
-        // Queue for sync
-        queueTaskForSync(task, SyncOperation.CREATE, assignedUserId)
-
-        // Sync the new task directly so the cloud snapshot is immediately current
-        val syncedTask = syncTaskCreationToCloud(task, assignedMemberName)
-
-        return syncedTask ?: task
+        return task
     }
 
     /**
@@ -200,18 +182,11 @@ class TaskManager @Inject constructor(
                 TaskStatus.IN_PROGRESS, null -> existingTask.completedAt
             },
             updatedAt = Instant.now(),
-            syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
+            syncStatus = SyncStatus.SYNCED
         )
 
-        // Persist update locally
         taskDao.update(updatedTask)
-
-        // Queue for sync
-        queueTaskForSync(updatedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
-
-        val syncedTask = syncTaskUpdateToCloud(updatedTask)
-
-        return syncedTask ?: updatedTask
+        return updatedTask
     }
 
     /**
@@ -230,12 +205,10 @@ class TaskManager @Inject constructor(
         val updatedTask = existingTask.copy(
             status = TaskStatus.IN_PROGRESS,
             updatedAt = Instant.now(),
-            syncStatus = SyncStatus.PENDING
+            syncStatus = SyncStatus.SYNCED
         )
 
         taskDao.update(updatedTask)
-        queueTaskForSync(updatedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
-
         return updatedTask
     }
 
@@ -268,25 +241,12 @@ class TaskManager @Inject constructor(
             completedAt = now,
             actualDurationMinutes = completionMetrics?.actualDurationMinutes ?: existingTask.actualDurationMinutes,
             updatedAt = now,
-            syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
+            syncStatus = SyncStatus.SYNCED
         )
 
-        // Persist completion locally
         taskDao.update(completedTask)
-
-        // Queue for sync
-        queueTaskForSync(completedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
-
-        val syncedTask = syncTaskStateToCloud(
-            task = completedTask,
-            completed = true,
-            completionMetrics = completionMetrics
-        )
-
-        // Trigger affirmation on task completion (Property 18: Affirmation on Task Completion)
-        affirmationTriggerManager.checkAndTriggerTaskCompleteAffirmation(syncedTask ?: completedTask)
-
-        return syncedTask ?: completedTask
+        affirmationTriggerManager.checkAndTriggerTaskCompleteAffirmation(completedTask)
+        return completedTask
     }
 
     /**
@@ -309,15 +269,11 @@ class TaskManager @Inject constructor(
             status = TaskStatus.INCOMPLETE,
             completedAt = null,
             updatedAt = now,
-            syncStatus = SyncStatus.PENDING
+            syncStatus = SyncStatus.SYNCED
         )
 
         taskDao.update(reopenedTask)
-        queueTaskForSync(reopenedTask, SyncOperation.UPDATE, existingTask.assignedUserId)
-
-        val syncedTask = syncTaskStateToCloud(reopenedTask, completed = false)
-
-        return syncedTask ?: reopenedTask
+        return reopenedTask
     }
 
     /**
@@ -338,16 +294,10 @@ class TaskManager @Inject constructor(
         val deletedTask = existingTask.copy(
             isDeleted = true,
             updatedAt = Instant.now(),
-            syncStatus = SyncStatus.PENDING  // Property 6: Pending Sync Indicator
+            syncStatus = SyncStatus.SYNCED
         )
 
-        // Persist soft delete locally
         taskDao.update(deletedTask)
-
-        // Queue for sync
-        queueTaskForSync(deletedTask, SyncOperation.DELETE, existingTask.assignedUserId)
-
-        syncTaskDeletionToCloud(deletedTask)
     }
 
     /**
@@ -417,162 +367,6 @@ class TaskManager @Inject constructor(
     fun getPendingSyncTasks(userId: String): Flow<List<Task>> {
         require(userId.isNotBlank()) { "User ID cannot be empty" }
         return taskDao.getUserTasksBySyncStatus(userId, SyncStatus.PENDING)
-    }
-
-    /**
-     * Queues a task for synchronization with calendar-cloud.
-     *
-     * Creates a SyncQueueItem with the task data serialized as JSON.
-     *
-     * @param task Task to queue
-     * @param operation Type of operation (CREATE, UPDATE, DELETE)
-     * @param userId User ID for the sync queue
-     */
-    private suspend fun queueTaskForSync(
-        task: Task,
-        operation: SyncOperation,
-        userId: String
-    ) {
-        val payload = serializeTaskToJson(task)
-        runCatching {
-            syncQueueManager.queueItem(
-                taskId = task.id,
-                userId = userId,
-                operation = operation,
-                payload = payload
-            )
-        }.onFailure { error ->
-            Log.w(tag, "Unable to queue task for sync taskId=${task.id} operation=$operation", error)
-        }
-    }
-
-    private suspend fun syncTaskStateToCloud(
-        task: Task,
-        completed: Boolean,
-        completionMetrics: TaskCompletionSessionMetrics? = null
-    ): Task? {
-        return try {
-            val updatedTask = withContext(Dispatchers.IO) {
-                val payload = mutableMapOf<String, Any?>(
-                    "status" to (if (completed) TaskStatus.COMPLETED else TaskStatus.INCOMPLETE),
-                    "done" to completed,
-                    "completedAt" to (if (completed) task.completedAt else null)
-                )
-                if (completionMetrics != null) {
-                    payload["actualDurationMinutes"] = completionMetrics.actualDurationMinutes
-                    payload["actualDurationSeconds"] = completionMetrics.actualDurationSeconds
-                    payload["timerConfiguredDurationSeconds"] = completionMetrics.configuredDurationSeconds
-                    payload["timerStartedAt"] = completionMetrics.timerStartedAt?.toString()
-                    payload["timerStoppedAt"] = completionMetrics.timerStoppedAt.toString()
-                    payload["timerTotalPausedSeconds"] = completionMetrics.totalPausedSeconds
-                    payload["timerPauseCount"] = completionMetrics.pauseCount
-                    payload["timerResetCount"] = completionMetrics.resetCount
-                }
-                restApiClient.updateTask(task.householdId, task.id, payload)
-            }
-
-            taskDao.update(updatedTask)
-            syncQueueManager.removeItemsByTask(task.id)
-            updatedTask
-        } catch (e: Exception) {
-            Log.e(tag, "Failed to sync task state to cloud taskId=${task.id} completed=$completed", e)
-            null
-        }
-    }
-
-    private suspend fun syncTaskCreationToCloud(task: Task, memberName: String?): Task? {
-        return try {
-            val createdTask = withContext(Dispatchers.IO) {
-                restApiClient.createTask(task.householdId, task, memberName)
-            }
-
-            taskDao.update(createdTask)
-            syncQueueManager.removeItemsByTask(task.id)
-            createdTask
-        } catch (e: Exception) {
-            Log.e(tag, "Failed to sync task creation to cloud taskId=${task.id}", e)
-            null
-        }
-    }
-
-    private suspend fun syncTaskUpdateToCloud(task: Task): Task? {
-        return try {
-            val updatedTask = withContext(Dispatchers.IO) {
-                restApiClient.updateTask(
-                    task.householdId,
-                    task.id,
-                    mapOf(
-                        "title" to task.title,
-                        "text" to task.title,
-                        "description" to task.description,
-                        "todoGroup" to task.todoGroup,
-                        "group" to task.todoGroup,
-                        "category" to task.todoGroup,
-                        "estimatedDurationMinutes" to task.estimatedDurationMinutes,
-                        "estimatedDurationSeconds" to task.estimatedDurationSeconds?.takeIf { it > 0 },
-                        "repeat" to task.repeatRule,
-                        "repeatRule" to task.repeatRule,
-                        "dueDate" to task.dueDate,
-                        "status" to task.status,
-                        "done" to (task.status == TaskStatus.COMPLETED),
-                        "completedAt" to task.completedAt,
-                        "timer" to task.timerDurationMs?.let { mapOf("durationMs" to it) }
-                    )
-                )
-            }
-
-            taskDao.update(updatedTask)
-            syncQueueManager.removeItemsByTask(task.id)
-            updatedTask
-        } catch (e: Exception) {
-            Log.e(tag, "Failed to sync task update to cloud taskId=${task.id}", e)
-            null
-        }
-    }
-
-    private suspend fun syncTaskDeletionToCloud(task: Task) {
-        runCatching {
-            withContext(Dispatchers.IO) {
-                restApiClient.deleteTask(task.householdId, task.id)
-            }
-            syncQueueManager.removeItemsByTask(task.id)
-        }.onFailure { error ->
-            Log.e(tag, "Failed to sync task deletion to cloud taskId=${task.id}", error)
-        }
-    }
-
-    /**
-     * Serializes a task to JSON for sync queue storage.
-     *
-     * @param task Task to serialize
-     * @return JSON string representation of the task
-     */
-    private fun serializeTaskToJson(task: Task): String {
-        // Simple JSON serialization - in production would use kotlinx.serialization or Gson
-        return """
-            {
-                "id":"${task.id}",
-                "householdId":"${task.householdId}",
-                "assignedUserId":"${task.assignedUserId}",
-                "title":"${task.title.replace("\"", "\\\"")}",
-                "description":"${task.description?.replace("\"", "\\\"") ?: ""}",
-                "todoGroup":"${task.todoGroup}",
-                "repeat":"${task.repeatRule.replace("\"", "\\\"")}",
-                "repeatRule":"${task.repeatRule.replace("\"", "\\\"")}",
-                "estimatedDurationMinutes":${task.estimatedDurationMinutes},
-                "estimatedDurationSeconds":${task.estimatedDurationSeconds},
-                "timerDurationMs":${task.timerDurationMs},
-                "actualDurationMinutes":${task.actualDurationMinutes},
-                "status":"${task.status}",
-                "done":${task.status == TaskStatus.COMPLETED},
-                "dueDate":${task.dueDate?.let { "\"$it\"" } ?: "null"},
-                "createdAt":"${task.createdAt}",
-                "updatedAt":"${task.updatedAt}",
-                "completedAt":${task.completedAt?.let { "\"$it\"" } ?: "null"},
-                "syncStatus":"${task.syncStatus}",
-                "isDeleted":${task.isDeleted}
-            }
-        """.trimIndent()
     }
 
     private fun computeTimerDurationMs(minutes: Int?, seconds: Int?): Long? {

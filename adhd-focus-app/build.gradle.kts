@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "com.adhdfocus.app"
     compileSdk = 36
-    flavorDimensions += "deviceTier"
+    flavorDimensions += listOf("deviceTier", "deploymentMode")
 
     val releaseSigningPropsFile = rootProject.file("release-signing.properties")
     val releaseSigningProps = Properties().apply {
@@ -46,7 +46,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        manifestPlaceholders["appAuthRedirectScheme"] = "kinspacedev"
+        resourceConfigurations += listOf("en")
     }
 
     productFlavors {
@@ -58,6 +58,16 @@ android {
             dimension = "deviceTier"
             minSdk = 22
             versionNameSuffix = "-legacy"
+        }
+        create("production") {
+            dimension = "deploymentMode"
+            buildConfigField("boolean", "ENABLE_KIOSK_MODE", "true")
+        }
+        create("audit") {
+            dimension = "deploymentMode"
+            applicationIdSuffix = ".audit"
+            versionNameSuffix = "-audit"
+            buildConfigField("boolean", "ENABLE_KIOSK_MODE", "false")
         }
     }
 
@@ -110,17 +120,12 @@ dependencies {
     val composeBomVersion = "2023.10.00"
     val roomVersion = "2.6.0"
     val hiltVersion = "2.48"
-    val retrofitVersion = "2.9.0"
-    val okhttpVersion = "4.11.0"
     val coroutinesVersion = "1.7.3"
-    val kotlinVersion = "1.9.22"
     val coreKtxVersion = "1.12.0"
     val lifecycleVersion = "2.6.2"
     val activityComposeVersion = "1.8.0"
     val navigationComposeVersion = "2.7.4"
     val dataStoreVersion = "1.0.0"
-    val securityVersion = "1.1.0-alpha06"
-    val gsonVersion = "2.10.1"
     val junitVersion = "4.13.2"
     val junitExtVersion = "1.1.5"
     val espressoVersion = "3.5.1"
@@ -148,13 +153,6 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
 
-    // Networking - Retrofit and OkHttp
-    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
-    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
-    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
-    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
-    implementation("com.google.code.gson:gson:$gsonVersion")
-
     // Coroutines for async operations
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
@@ -177,14 +175,7 @@ dependencies {
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:$dataStoreVersion")
 
-    // Security
-    implementation("androidx.security:security-crypto:$securityVersion")
-    implementation("com.google.errorprone:error_prone_annotations:2.36.0")
-
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
-    // AppAuth for Cognito OIDC (matches calendar-mobile auth mechanism)
-    implementation("net.openid:appauth:0.11.1")
 
     // Testing - Unit Tests
     testImplementation("junit:junit:$junitVersion")

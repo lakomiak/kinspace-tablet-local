@@ -1,15 +1,15 @@
 package com.adhdfocus.app.ui.settings
 
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
+import com.adhdfocus.app.data.database.DatabaseBackupInfo
+import com.adhdfocus.app.data.database.DatabaseBackupManager
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
-import com.adhdfocus.app.domain.auth.AuthResult
 import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
-import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
@@ -21,7 +21,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
+
+data class BackupListItem(
+    val path: String,
+    val displayName: String,
+    val subtitle: String,
+    val sizeLabel: String
+)
 
 /**
  * SettingsViewModel manages settings UI state and persistence.
@@ -40,11 +50,10 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val themeManager: ThemeManager,
-    private val authManager: com.adhdfocus.app.domain.auth.AuthManager,
     private val audioNotificationManager: AudioNotificationManager,
     private val categoryReminderScheduler: CategoryReminderScheduler,
     private val setupManager: TabletSetupManager,
-    private val cloudCustomTodoGroupsSyncManager: CloudCustomTodoGroupsSyncManager
+    private val backupManager: DatabaseBackupManager
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -97,9 +106,6 @@ class SettingsViewModel @Inject constructor(
     private val _showPasscodeSetupDialog = MutableStateFlow(false)
     val showPasscodeSetupDialog: StateFlow<Boolean> = _showPasscodeSetupDialog
 
-    private val _recoverySignInIntent = MutableStateFlow<Intent?>(null)
-    val recoverySignInIntent: StateFlow<Intent?> = _recoverySignInIntent
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -109,10 +115,30 @@ class SettingsViewModel @Inject constructor(
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving
 
+    private val _backupDirectory = MutableStateFlow("")
+    val backupDirectory: StateFlow<String> = _backupDirectory
+
+    private val _backups = MutableStateFlow<List<BackupListItem>>(emptyList())
+    val backups: StateFlow<List<BackupListItem>> = _backups
+
+    private val _backupStatusMessage = MutableStateFlow<String?>(null)
+    val backupStatusMessage: StateFlow<String?> = _backupStatusMessage
+
+    private val _backupBusy = MutableStateFlow(false)
+    val backupBusy: StateFlow<Boolean> = _backupBusy
+
+    private val _restoreReady = MutableStateFlow(false)
+    val restoreReady: StateFlow<Boolean> = _restoreReady
+
+    private val _restoreTargetName = MutableStateFlow<String?>(null)
+    val restoreTargetName: StateFlow<String?> = _restoreTargetName
+
     private var currentUserId: String? = null
 
     init {
-        // Auto-initialize with the current user's ID from stored tokens
+        _backupDirectory.value = backupManager.getBackupDirectoryPath()
+        refreshBackupList()
+        // Local build: initialize from the tablet's assigned member.
         val userId = resolveUserId()
         if (userId.isNotBlank()) {
             currentUserId = userId
@@ -121,16 +147,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun resolveUserId(): String {
-        // Extract sub from stored ID token
-        val idToken = authManager.getAccessToken() ?: return "default_user"
-        return try {
-            val parts = idToken.split(".")
-            if (parts.size == 3) {
-                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING))
-                val json = org.json.JSONObject(payload)
-                json.optString("sub").takeIf { it.isNotEmpty() } ?: "default_user"
-            } else "default_user"
-        } catch (e: Exception) { "default_user" }
+        return setupManager.getAssignedMemberId().orEmpty()
     }
 
     /**
@@ -153,6 +170,11 @@ class SettingsViewModel @Inject constructor(
             _errorMessage.value = null
             try {
                 val preferences = userPreferencesManager.getPreferencesOrDefault(userId)
+                val storedTabletPasscodeHash = setupManager.getSettingsPasscodeHash()
+                val migratedPasscodeHash = storedTabletPasscodeHash
+                    ?: preferences.settingsPasscodeHash?.takeIf { it.isNotBlank() }?.also { legacyHash ->
+                        setupManager.setSettingsPasscodeHash(legacyHash)
+                    }
                 _theme.value = preferences.theme
                 _notificationPreferences.value =
                     userPreferencesManager.deserializeNotificationPreferences(preferences.notificationPreferences)
@@ -165,22 +187,151 @@ class SettingsViewModel @Inject constructor(
                 _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
-                _settingsPasscodeHash.value = preferences.settingsPasscodeHash
-                _hasSettingsPasscode.value = !preferences.settingsPasscodeHash.isNullOrBlank()
-                _settingsUnlocked.value = preferences.settingsPasscodeHash.isNullOrBlank()
+                _settingsPasscodeHash.value = migratedPasscodeHash
+                _hasSettingsPasscode.value = !migratedPasscodeHash.isNullOrBlank()
+                _settingsUnlocked.value = migratedPasscodeHash.isNullOrBlank()
                 _allowTodoEditing.value = preferences.enableTodoEditing
                 _customTodoGroups.value = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
                 _showPasscodeSetupDialog.value = false
                 
                 // Load theme into ThemeManager
                 themeManager.loadThemeForUser(userId)
-                syncCustomTodoGroupsWithCloud(userId)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load settings: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun refreshBackupList() {
+        viewModelScope.launch {
+            _backups.value = backupManager.getAvailableBackups().map { it.toUiModel() }
+            _backupDirectory.value = backupManager.getBackupDirectoryPath()
+        }
+    }
+
+    fun createBackup() {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                val backup = backupManager.createBackup()
+                if (backup == null) {
+                    _errorMessage.value = "Could not create a backup yet."
+                } else {
+                    _backupStatusMessage.value = "Backup created: ${backup.displayName}"
+                    refreshBackupList()
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to create backup: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun deleteBackup(path: String) {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                if (backupManager.deleteBackup(path)) {
+                    _backupStatusMessage.value = "Backup removed."
+                    refreshBackupList()
+                } else {
+                    _errorMessage.value = "Could not delete that backup."
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to delete backup: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun deleteAllBackups() {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                val deleted = backupManager.deleteAllBackups()
+                _backupStatusMessage.value = if (deleted > 0) {
+                    "Deleted $deleted backup${if (deleted == 1) "" else "s"}."
+                } else {
+                    "No backups were removed."
+                }
+                refreshBackupList()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to clear backups: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun restoreBackup(path: String) {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                val restored = backupManager.restoreFromBackup(path)
+                if (restored) {
+                    _restoreTargetName.value = _backups.value.firstOrNull { it.path == path }?.displayName ?: "backup"
+                    _restoreReady.value = true
+                    _backupStatusMessage.value = "Backup restored. Restart the app to load the restored household data."
+                } else {
+                    _errorMessage.value = "Could not restore that backup."
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to restore backup: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun importBackupFromUri(uri: Uri) {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                val backup = backupManager.importBackupFromUri(uri)
+                if (backup == null) {
+                    _errorMessage.value = "Could not import that backup file."
+                } else {
+                    _backupStatusMessage.value = "Imported backup: ${backup.displayName}"
+                    refreshBackupList()
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to import backup: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun exportBackupToUri(path: String, uri: Uri) {
+        viewModelScope.launch {
+            _backupBusy.value = true
+            _backupStatusMessage.value = null
+            try {
+                if (backupManager.exportBackupToUri(path, uri)) {
+                    _backupStatusMessage.value = "Backup exported successfully."
+                } else {
+                    _errorMessage.value = "Could not export that backup."
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to export backup: ${e.message}"
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun acknowledgeRestoreRestart() {
+        _restoreReady.value = false
+        _restoreTargetName.value = null
     }
 
     fun lockSettings() {
@@ -221,6 +372,7 @@ class SettingsViewModel @Inject constructor(
             return
         }
         _settingsPasscodeHash.value = PinValidator.hashPin(passcode)
+        setupManager.setSettingsPasscodeHash(_settingsPasscodeHash.value)
         _settingsUnlocked.value = true
         _showPasscodeSetupDialog.value = false
         _hasSettingsPasscode.value = true
@@ -229,6 +381,7 @@ class SettingsViewModel @Inject constructor(
 
     fun clearSettingsPasscode() {
         _settingsPasscodeHash.value = null
+        setupManager.setSettingsPasscodeHash(null)
         _settingsUnlocked.value = true
         _hasSettingsPasscode.value = false
         saveCurrentSettings()
@@ -262,51 +415,6 @@ class SettingsViewModel @Inject constructor(
     fun removeCustomTodoGroup(group: String) {
         _customTodoGroups.value = _customTodoGroups.value.filterNot { it.equals(group, ignoreCase = true) }
         saveCurrentSettings()
-    }
-
-    fun startCloudRecoverySignIn() {
-        viewModelScope.launch {
-            _isSaving.value = true
-            _errorMessage.value = null
-            try {
-                _recoverySignInIntent.value = authManager.buildSignInIntent()
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to start Kinspace login: ${e.message}"
-            } finally {
-                _isSaving.value = false
-            }
-        }
-    }
-
-    fun handleCloudRecoveryResult(data: Intent?) {
-        viewModelScope.launch {
-            _isSaving.value = true
-            _errorMessage.value = null
-            try {
-                val response = data?.let { net.openid.appauth.AuthorizationResponse.fromIntent(it) }
-                val exception = data?.let { net.openid.appauth.AuthorizationException.fromIntent(it) }
-                when (val result = authManager.handleAuthorizationResponse(response, exception)) {
-                    is AuthResult.Success -> {
-                        _settingsPasscodeHash.value = null
-                        _settingsUnlocked.value = true
-                        _showPasscodeSetupDialog.value = true
-                        saveCurrentSettings()
-                    }
-                    is AuthResult.Error -> {
-                        _errorMessage.value = result.message
-                    }
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "Kinspace login failed: ${e.message}"
-            } finally {
-                _recoverySignInIntent.value = null
-                _isSaving.value = false
-            }
-        }
-    }
-
-    fun clearRecoverySignInIntent() {
-        _recoverySignInIntent.value = null
     }
 
     /**
@@ -492,7 +600,7 @@ class SettingsViewModel @Inject constructor(
                     visibleTodoGroups = "[]",
                     notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
                     customTodoGroups = serializeList(_customTodoGroups.value),
-                    settingsPasscodeHash = _settingsPasscodeHash.value,
+                    settingsPasscodeHash = null,
                     enableTodoEditing = _allowTodoEditing.value,
                     dailyResetTime = _dailyResetTime.value,
                     affirmationFrequency = _affirmationFrequency.value,
@@ -508,7 +616,6 @@ class SettingsViewModel @Inject constructor(
                 if (!success) {
                     _errorMessage.value = "Failed to save settings"
                 } else {
-                    syncCustomTodoGroupsToCloud()
                     viewModelScope.launch {
                         runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
                     }
@@ -526,6 +633,10 @@ class SettingsViewModel @Inject constructor(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun clearBackupStatus() {
+        _backupStatusMessage.value = null
     }
 
     /**
@@ -589,39 +700,24 @@ class SettingsViewModel @Inject constructor(
         return passcode.length == 5 && passcode.all { it.isDigit() }
     }
 
-    private fun syncCustomTodoGroupsToCloud() {
-        val householdId = setupManager.getHouseholdId().orEmpty()
-        if (householdId.isBlank()) return
-        viewModelScope.launch {
-            runCatching {
-                cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
-                    householdId = householdId,
-                    groups = _customTodoGroups.value
-                )
-            }
-        }
+    private fun DatabaseBackupInfo.toUiModel(): BackupListItem {
+        val formattedDate = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US).format(Date(lastModifiedAt))
+        return BackupListItem(
+            path = path,
+            displayName = displayName,
+            subtitle = formattedDate,
+            sizeLabel = formatSize(sizeBytes)
+        )
     }
 
-    private fun syncCustomTodoGroupsWithCloud(userId: String) {
-        val householdId = setupManager.getHouseholdId().orEmpty()
-        if (householdId.isBlank()) return
-        viewModelScope.launch {
-            runCatching {
-                val snapshot = cloudCustomTodoGroupsSyncManager.fetchCustomTodoGroups(householdId)
-                when {
-                    snapshot.fromCloud && snapshot.groups != _customTodoGroups.value -> {
-                        _customTodoGroups.value = snapshot.groups
-                        userPreferencesManager.updateCustomTodoGroups(userId, snapshot.groups)
-                    }
-                    !snapshot.fromCloud && _customTodoGroups.value.isNotEmpty() -> {
-                        cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
-                            householdId = householdId,
-                            groups = _customTodoGroups.value
-                        )
-                    }
-                    else -> Unit
-                }
-            }
-        }
+    private fun formatSize(bytes: Long): String {
+        if (bytes < 1024L) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024.0) return String.format(Locale.US, "%.1f KB", kb)
+        val mb = kb / 1024.0
+        if (mb < 1024.0) return String.format(Locale.US, "%.1f MB", mb)
+        val gb = mb / 1024.0
+        return String.format(Locale.US, "%.2f GB", gb)
     }
+
 }

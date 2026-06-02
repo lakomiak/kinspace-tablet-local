@@ -12,6 +12,7 @@ import java.util.UUID
     indices = [
         Index("householdId"),
         Index("userId"),
+        Index("ageBandKey"),
         Index(value = ["householdId", "userId", "ageBandKey"]),
         Index(value = ["householdId", "userId", "ageBandKey", "cycleIndex"], unique = true)
     ]

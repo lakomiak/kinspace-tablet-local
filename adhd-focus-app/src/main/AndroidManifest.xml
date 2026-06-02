@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -22,10 +20,18 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="fullUser"
             android:theme="@style/Theme.AdhdfocusApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
@@ -42,17 +48,14 @@
             </intent-filter>
         </receiver>
 
-        <!-- AppAuth redirect activity for Cognito OIDC -->
-        <activity
-            android:name="net.openid.appauth.RedirectUriReceiverActivity"
+        <receiver
+            android:name=".KioskBootReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="kinspacedev" android:host="oauth2redirect" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
-        </activity>
+        </receiver>
 
     </application>
 

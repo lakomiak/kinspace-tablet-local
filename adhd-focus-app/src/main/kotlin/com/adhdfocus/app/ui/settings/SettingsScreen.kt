@@ -1,6 +1,6 @@
 package com.adhdfocus.app.ui.settings
 
-import android.app.Activity
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -70,10 +71,15 @@ import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 @Composable
 fun SettingsScreen(
     userId: String,
+    onViewReportsClick: () -> Unit,
+    onManageFamilyClick: () -> Unit,
     onChangeMemberClick: () -> Unit,
+    onRestartAppClick: () -> Unit,
+    onOpenAccessibilitySettingsClick: () -> Unit,
     onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     LaunchedEffect(userId) {
         viewModel.initialize(userId)
     }
@@ -93,12 +99,37 @@ fun SettingsScreen(
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
     val customTodoGroups by viewModel.customTodoGroups.collectAsStateWithLifecycle()
     val showPasscodeSetupDialog by viewModel.showPasscodeSetupDialog.collectAsStateWithLifecycle()
-    val recoverySignInIntent by viewModel.recoverySignInIntent.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val backupDirectory by viewModel.backupDirectory.collectAsStateWithLifecycle()
+    val backups by viewModel.backups.collectAsStateWithLifecycle()
+    val backupStatusMessage by viewModel.backupStatusMessage.collectAsStateWithLifecycle()
+    val backupBusy by viewModel.backupBusy.collectAsStateWithLifecycle()
+    val restoreReady by viewModel.restoreReady.collectAsStateWithLifecycle()
+    val restoreTargetName by viewModel.restoreTargetName.collectAsStateWithLifecycle()
 
     var unlockPasscode by remember { mutableStateOf("") }
+    var backupPendingRestore by remember { mutableStateOf<BackupListItem?>(null) }
+    var backupPendingExport by remember { mutableStateOf<BackupListItem?>(null) }
+
+    val importBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importBackupFromUri(uri)
+        }
+    }
+
+    val exportBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        val backup = backupPendingExport
+        if (uri != null && backup != null) {
+            viewModel.exportBackupToUri(backup.path, uri)
+        }
+        backupPendingExport = null
+    }
 
     DisposableEffect(hasSettingsPasscode) {
         onDispose {
@@ -107,20 +138,6 @@ fun SettingsScreen(
                 unlockPasscode = ""
             }
         }
-    }
-
-    val recoveryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK || result.data != null) {
-            viewModel.handleCloudRecoveryResult(result.data)
-        } else {
-            viewModel.clearRecoverySignInIntent()
-        }
-    }
-
-    LaunchedEffect(recoverySignInIntent) {
-        recoverySignInIntent?.let { recoveryLauncher.launch(it) }
     }
 
     if (isLoading) {
@@ -213,13 +230,6 @@ fun SettingsScreen(
                             ) {
                                 Text("Unlock")
                             }
-                            OutlinedButton(
-                                onClick = { viewModel.startCloudRecoverySignIn() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isSaving
-                            ) {
-                                Text("Reset via Cloud")
-                            }
                         }
                     }
                 } else {
@@ -252,6 +262,181 @@ fun SettingsScreen(
                                 }
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Family") {
+                        Text(
+                            text = "Add or remove family members and choose which person this tablet should open for by default.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedButton(
+                            onClick = onManageFamilyClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Manage Family Members")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Local Backup") {
+                        Text(
+                            text = "Create exportable local backups of this tablet's family members, todos, reports, streaks, and settings.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Text(
+                            text = "Backup folder: $backupDirectory",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        if (backupStatusMessage != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        shape = MaterialTheme.shapes.small
+                                    )
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = backupStatusMessage!!,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.createBackup() },
+                                modifier = Modifier.weight(1f),
+                                enabled = !backupBusy
+                            ) {
+                                Text(if (backupBusy) "Working..." else "Create Backup")
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.refreshBackupList() },
+                                modifier = Modifier.weight(1f),
+                                enabled = !backupBusy
+                            ) {
+                                Text("Refresh")
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { importBackupLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                                modifier = Modifier.weight(1f),
+                                enabled = !backupBusy
+                            ) {
+                                Text("Import Backup File")
+                            }
+                        }
+
+                        if (backups.isNotEmpty()) {
+                            OutlinedButton(
+                                onClick = { viewModel.deleteAllBackups() },
+                                enabled = !backupBusy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Delete All Backups")
+                            }
+                        }
+
+                        if (backups.isEmpty()) {
+                            Text(
+                                text = "No backups created yet.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            backups.forEach { backup ->
+                                BackupItemRow(
+                                    backup = backup,
+                                    enabled = !backupBusy,
+                                    onRestore = { backupPendingRestore = backup },
+                                    onExport = {
+                                        backupPendingExport = backup
+                                        exportBackupLauncher.launch(backup.displayName)
+                                    },
+                                    onDelete = { viewModel.deleteBackup(backup.path) }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Kiosk Help") {
+                        Text(
+                            text = "Use Kinspace Tablet Local as the family hub home screen on a dedicated tablet.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Recommended steps:\n1. Install Kinspace on the device\n2. Set Kinspace as the Home app when Android asks\n3. Keep Settings protected with a passcode\n4. Create local backups regularly",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "If you need TalkBack or other accessibility services, open Accessibility Settings from here before returning to kiosk mode.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_MAIN).apply {
+                                        addCategory(Intent.CATEGORY_HOME)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Open Home Chooser")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("App Settings")
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = onOpenAccessibilitySettingsClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Accessibility Settings")
+                        }
+                        Text(
+                            text = "For stricter managed-device setup, see KIOSK_DEPLOYMENT.md in the repo.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -424,16 +609,32 @@ fun SettingsScreen(
                     }
                 }
 
+                if (!hasSettingsPasscode || settingsUnlocked) {
+                    SettingSection(title = "Reporting") {
+                        Text(
+                            text = "View local completion, streak, timer, pause, restart, and cancel patterns for each family member using this tablet.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedButton(
+                            onClick = onViewReportsClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open Reports")
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
                         onClick = onBackClick,
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(48.dp),
                         enabled = !isSaving
                     ) {
@@ -448,24 +649,29 @@ fun SettingsScreen(
                     }
 
                     if (!hasSettingsPasscode || settingsUnlocked) {
-                        OutlinedButton(
-                            onClick = onChangeMemberClick,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            enabled = !isSaving
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Change member")
-                        }
+                            OutlinedButton(
+                                onClick = onChangeMemberClick,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                enabled = !isSaving
+                            ) {
+                                Text("Switch Member")
+                            }
 
-                        OutlinedButton(
-                            onClick = { viewModel.resetToDefaults() },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            enabled = !isSaving
-                        ) {
-                            Text("Reset to Defaults")
+                            OutlinedButton(
+                                onClick = { viewModel.resetToDefaults() },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                enabled = !isSaving
+                            ) {
+                                Text("Reset Settings")
+                            }
                         }
                     }
                 }
@@ -480,6 +686,56 @@ fun SettingsScreen(
             onConfirm = { passcode -> viewModel.saveSettingsPasscode(passcode) },
             isLoading = isSaving,
             errorMessage = errorMessage
+        )
+    }
+
+    if (backupPendingRestore != null) {
+        val backup = backupPendingRestore!!
+        AlertDialog(
+            onDismissRequest = { if (!backupBusy) backupPendingRestore = null },
+            title = { Text("Restore Backup") },
+            text = {
+                Text("Restore ${backup.displayName}? This will replace the current local tablet data and require an app restart.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.restoreBackup(backup.path)
+                        backupPendingRestore = null
+                    },
+                    enabled = !backupBusy
+                ) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { backupPendingRestore = null },
+                    enabled = !backupBusy
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (restoreReady) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Restart Required") },
+            text = {
+                Text("The backup ${restoreTargetName ?: "data"} was restored. Restart Kinspace Tablet Local now to load the restored household and reports.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.acknowledgeRestoreRestart()
+                        onRestartAppClick()
+                    }
+                ) {
+                    Text("Restart Now")
+                }
+            }
         )
     }
 }
@@ -509,6 +765,68 @@ fun SettingSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         content()
+    }
+}
+
+@Composable
+fun BackupItemRow(
+    backup: BackupListItem,
+    enabled: Boolean,
+    onRestore: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = backup.displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "${backup.subtitle} • ${backup.sizeLabel}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onRestore,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Restore")
+                }
+                OutlinedButton(
+                    onClick = onExport,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Export")
+                }
+                OutlinedButton(
+                    onClick = onDelete,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Delete")
+                }
+            }
+        }
     }
 }
 

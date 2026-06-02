@@ -1,48 +1,80 @@
-# Kinspace Tablet Install Checklist
+# Kinspace Tablet Local Install Guide
 
-Use this checklist to install the tablet app on a physical Android device.
+Use this guide to install the local-only tablet app on an Android device.
 
 ## Prerequisites
 
 - Android device with Developer Options enabled
 - `USB debugging` enabled
-- USB cable connected to your Windows PC
 - Android platform tools installed so `adb` is available
+- One of the packaged APKs from `dist/`
+
+## Pick The Right APK
+
+- Modern Android tablets:
+  - [KinspaceTabletLocal-debug.apk](C:/Users/allen/kinspace-tablet-local/dist/KinspaceTabletLocal-debug.apk)
+- Older tablets / legacy compatibility:
+  - [KinspaceTabletLocal-legacy-debug.apk](C:/Users/allen/kinspace-tablet-local/dist/KinspaceTabletLocal-legacy-debug.apk)
 
 ## Install Steps
 
-1. Confirm the device is visible to ADB:
+1. Confirm the device is visible:
 
    ```powershell
    adb devices
    ```
 
-2. Install the signed release APK:
+2. Install the chosen APK:
 
    ```powershell
-   adb install -r "C:\Users\allen\calendar-tablet-adhd\dist\KinspaceTablet-release.apk"
+   adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
    ```
 
-3. Open `Kinspace Tablet` from the device app launcher.
-4. Complete onboarding and sign in to Kinspace Cloud.
-5. Assign the tablet to the correct family member.
-6. Verify the Home screen loads todos and the Achievements screen opens normally.
+   or
 
-## If Install Fails
+   ```powershell
+   adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
+   ```
 
-- If you see `INSTALL_FAILED_VERSION_DOWNGRADE`, uninstall the old app first:
+3. Launch `Kinspace Tablet Local`.
+4. Complete local setup on the device:
+   - household name
+   - family members
+   - default member
+5. Open Settings and confirm:
+   - category reminder toggles
+   - reports access
+   - local backup section
 
-  ```powershell
-  adb uninstall com.adhdfocus.app
-  ```
+## Reinstalling
 
-  Then reinstall the APK.
+If you see `INSTALL_FAILED_VERSION_DOWNGRADE`, uninstall first:
 
-- If `adb devices` shows `unauthorized`, unplug and replug the cable, then approve USB debugging on the device.
-- If the app opens to a blank state, confirm the device is connected to the internet and can reach Kinspace Cloud.
+```powershell
+adb uninstall com.adhdfocus.app
+```
 
-## Files
+Then reinstall the APK.
 
-- Release APK: [`dist/KinspaceTablet-release.apk`](./dist/KinspaceTablet-release.apk)
-- Packaging script: [`package-tablet-installer.ps1`](./package-tablet-installer.ps1)
+## Dedicated Device Notes
 
+This app includes kiosk-friendly groundwork:
+
+- home-app intent filter
+- boot relaunch receiver
+- lock-task attempt on resume
+
+For a fully locked-down family hub device, Android device-owner or managed-device setup is still recommended.
+
+See also:
+
+- [KIOSK_DEPLOYMENT.md](C:/Users/allen/kinspace-tablet-local/KIOSK_DEPLOYMENT.md)
+- [kiosk-device-setup.ps1](C:/Users/allen/kinspace-tablet-local/kiosk-device-setup.ps1)
+
+## Local Backup Notes
+
+Backups are created from the Settings screen and stored in the app's Documents area under:
+
+- `kinspace_backups`
+
+These backups are intended to help move the household setup and history between devices without cloud sync.

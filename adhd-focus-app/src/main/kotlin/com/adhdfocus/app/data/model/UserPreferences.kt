@@ -65,12 +65,20 @@ data class CategoryReminderPreferences(
     val afternoonEnabled: Boolean = true,
     val eveningEnabled: Boolean = true,
     val bedtimeEnabled: Boolean = true,
+    val morningEndTime: String = "12:00",
+    val afternoonEndTime: String = "17:00",
+    val eveningEndTime: String = "20:00",
+    val bedtimeEndTime: String = "22:00",
     val morningLeadMinutes: Int = 15,
     val afternoonLeadMinutes: Int = 15,
     val eveningLeadMinutes: Int = 15,
     val bedtimeLeadMinutes: Int = 15
 ) {
     init {
+        require(morningEndTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "morningEndTime must be HH:mm" }
+        require(afternoonEndTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "afternoonEndTime must be HH:mm" }
+        require(eveningEndTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "eveningEndTime must be HH:mm" }
+        require(bedtimeEndTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "bedtimeEndTime must be HH:mm" }
         require(morningLeadMinutes >= 0) { "morningLeadMinutes must be non-negative" }
         require(afternoonLeadMinutes >= 0) { "afternoonLeadMinutes must be non-negative" }
         require(eveningLeadMinutes >= 0) { "eveningLeadMinutes must be non-negative" }

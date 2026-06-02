@@ -452,6 +452,10 @@ class UserPreferencesManager @Inject constructor(
 
     private fun validateNotificationPreferences(notificationPreferences: String) {
         val prefs = deserializeNotificationPreferences(notificationPreferences)
+        validateTimeFormat(prefs.categoryReminderPreferences.morningEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.afternoonEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.eveningEndTime)
+        validateTimeFormat(prefs.categoryReminderPreferences.bedtimeEndTime)
         require(prefs.categoryReminderPreferences.morningLeadMinutes >= 0) {
             "morningLeadMinutes must be non-negative"
         }

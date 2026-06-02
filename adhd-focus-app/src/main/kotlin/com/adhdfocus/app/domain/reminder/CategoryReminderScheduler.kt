@@ -10,6 +10,7 @@ import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,6 +59,7 @@ class CategoryReminderScheduler @Inject constructor(
         TodoCategoryReminder.values().forEach { category ->
             val pendingIntent = reminderPendingIntent(
                 category = category,
+                endTime = category.defaultEndTime,
                 flag = PendingIntent.FLAG_NO_CREATE,
                 memberId = setupManager.getAssignedMemberId().orEmpty(),
                 memberName = setupManager.getAssignedMemberName().orEmpty(),
@@ -78,9 +80,11 @@ class CategoryReminderScheduler @Inject constructor(
     ) {
         val leadMinutes = categoryLeadMinutes(category, preferences).coerceAtLeast(0)
         if (!categoryEnabled(category, preferences)) return
-        val triggerAtMillis = computeNextTriggerAtMillis(category, leadMinutes)
+        val endTime = categoryEndTime(category, preferences)
+        val triggerAtMillis = computeNextTriggerAtMillis(endTime, leadMinutes)
         val pendingIntent = reminderPendingIntent(
             category = category,
+            endTime = endTime,
             flag = PendingIntent.FLAG_UPDATE_CURRENT,
             memberId = memberId,
             memberName = memberName,
@@ -101,6 +105,7 @@ class CategoryReminderScheduler @Inject constructor(
 
     private fun reminderPendingIntent(
         category: TodoCategoryReminder,
+        endTime: LocalTime,
         flag: Int,
         memberId: String,
         memberName: String,
@@ -109,7 +114,7 @@ class CategoryReminderScheduler @Inject constructor(
         val intent = Intent(context, CategoryReminderReceiver::class.java).apply {
             action = CategoryReminderReceiver.ACTION_CATEGORY_REMINDER
             putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_GROUP, category.groupName)
-            putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_END_TIME, category.endTime.toString())
+            putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_END_TIME, endTime.toString())
             putExtra(CategoryReminderReceiver.EXTRA_MEMBER_ID, memberId)
             putExtra(CategoryReminderReceiver.EXTRA_MEMBER_NAME, memberName)
             putExtra(CategoryReminderReceiver.EXTRA_HOUSEHOLD_ID, householdId)
@@ -149,14 +154,28 @@ class CategoryReminderScheduler @Inject constructor(
         }
     }
 
-    private fun computeNextTriggerAtMillis(
+    private fun categoryEndTime(
         category: TodoCategoryReminder,
+        preferences: NotificationPreferences
+    ): LocalTime {
+        val reminderPrefs = preferences.categoryReminderPreferences
+        val raw = when (category) {
+            TodoCategoryReminder.MORNING -> reminderPrefs.morningEndTime
+            TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEndTime
+            TodoCategoryReminder.EVENING -> reminderPrefs.eveningEndTime
+            TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEndTime
+        }
+        return runCatching { LocalTime.parse(raw) }.getOrDefault(category.defaultEndTime)
+    }
+
+    private fun computeNextTriggerAtMillis(
+        endTime: LocalTime,
         leadMinutes: Int
     ): Long {
         val zone = ZoneId.systemDefault()
         val now = java.time.ZonedDateTime.now(zone)
         val candidate = LocalDate.now(zone)
-            .atTime(category.endTime)
+            .atTime(endTime)
             .minusMinutes(leadMinutes.toLong())
             .atZone(zone)
         val next = if (candidate.isAfter(now)) candidate else candidate.plusDays(1)

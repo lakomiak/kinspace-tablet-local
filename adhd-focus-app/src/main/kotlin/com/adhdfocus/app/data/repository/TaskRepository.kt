@@ -6,6 +6,7 @@ import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.domain.task.SyncResult
 import javax.inject.Inject
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -149,6 +150,22 @@ class TaskRepository @Inject constructor(
         val dueDate = dueInstant.atZone(ZoneId.systemDefault()).toLocalDate()
         if (!dueDate.isBefore(today)) return task
 
+        if (repeat == "weekdays" || repeat == "weekends") {
+            var next = dueDate
+            while (next.isBefore(today)) {
+                next = next.plusDays(1)
+                while (!matchesSpecialRepeat(next, repeat)) {
+                    next = next.plusDays(1)
+                }
+            }
+
+            return task.copy(
+                dueDate = next.atStartOfDay(ZoneId.systemDefault()).toInstant(),
+                status = TaskStatus.INCOMPLETE,
+                completedAt = null
+            )
+        }
+
         val (interval, unit) = parseRepeatConfig(repeat)
         if (interval <= 0 || unit == null) return task
 
@@ -176,6 +193,8 @@ class TaskRepository @Inject constructor(
         val repeat = task.repeatRule.trim().lowercase()
 
         if (repeat == "daily") return true
+        if (repeat == "weekdays") return !isWeekend(targetDate) && !targetDate.isBefore(dueDateLocal)
+        if (repeat == "weekends") return isWeekend(targetDate) && !targetDate.isBefore(dueDateLocal)
         if (dueDateLocal == targetDate) return true
         return false
     }
@@ -197,6 +216,18 @@ class TaskRepository @Inject constructor(
         }
 
         return 0 to null
+    }
+
+    private fun matchesSpecialRepeat(date: LocalDate, repeat: String): Boolean {
+        return when (repeat) {
+            "weekdays" -> !isWeekend(date)
+            "weekends" -> isWeekend(date)
+            else -> false
+        }
+    }
+
+    private fun isWeekend(date: LocalDate): Boolean {
+        return date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY
     }
 
     /**

@@ -1,9 +1,14 @@
 package com.adhdfocus.app
 
+import android.view.accessibility.AccessibilityManager
+import android.content.Intent
 import android.os.Bundle
+import android.app.ActivityManager
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -42,10 +47,12 @@ import com.adhdfocus.app.domain.theme.ThemeManager
 import com.adhdfocus.app.ui.common.AffirmationViewModel
 import com.adhdfocus.app.ui.common.component.AffirmationDisplay
 import com.adhdfocus.app.ui.achievements.AchievementsView
-import com.adhdfocus.app.ui.auth.SignInScreen
+import com.adhdfocus.app.ui.family.FamilyManagementScreen
 import com.adhdfocus.app.ui.focus.CreateTodoScreen
 import com.adhdfocus.app.ui.focus.DailyFocusViewScreen
+import com.adhdfocus.app.ui.reports.ReportsScreen
 import com.adhdfocus.app.ui.settings.SettingsScreen
+import com.adhdfocus.app.ui.setup.LocalSetupScreen
 import com.adhdfocus.app.ui.setup.MemberSelectionScreen
 import com.adhdfocus.app.ui.timer.TimerScreen
 import com.adhdfocus.app.ui.theme.AdhdfocusAppThemeWithTheme
@@ -58,9 +65,11 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var themeManager: ThemeManager
     @Inject lateinit var setupManager: TabletSetupManager
     @Inject lateinit var categoryReminderScheduler: CategoryReminderScheduler
+    private var accessibilitySetupGraceUntilMs: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyKioskModePolicy()
         lifecycleScope.launch {
             runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
         }
@@ -78,7 +87,14 @@ class MainActivity : ComponentActivity() {
                         val backStackEntry by navController.currentBackStackEntryAsState()
                         val currentDestination = backStackEntry?.destination
                         var focusRefreshToken by remember { mutableStateOf(0) }
-                        val showChrome = currentDestination?.route != "signin" && currentDestination?.route != "member_selection"
+                        val showChrome = currentDestination?.route != "local_setup" && currentDestination?.route != "member_selection"
+                        val startDestination = remember {
+                            when {
+                                setupManager.getHouseholdId().isNullOrBlank() -> "local_setup"
+                                setupManager.isSetupComplete() -> "focus"
+                                else -> "member_selection"
+                            }
+                        }
 
                         Scaffold(
                             bottomBar = {
@@ -124,22 +140,15 @@ class MainActivity : ComponentActivity() {
                         ) { paddingValues ->
                             NavHost(
                                 navController = navController,
-                                startDestination = "signin",
+                                startDestination = startDestination,
                                 modifier = Modifier.padding(paddingValues)
                             ) {
 
-                            composable("signin") {
-                                SignInScreen(
-                                    onSignInSuccess = {
-                                        // After sign-in: check if tablet has been assigned to a member
-                                        if (setupManager.isSetupComplete()) {
-                                            navController.navigate("focus") {
-                                                popUpTo("signin") { inclusive = true }
-                                            }
-                                        } else {
-                                            navController.navigate("member_selection") {
-                                                popUpTo("signin") { inclusive = true }
-                                            }
+                            composable("local_setup") {
+                                LocalSetupScreen(
+                                    onSetupCompleted = {
+                                        navController.navigate("focus") {
+                                            popUpTo("local_setup") { inclusive = true }
                                         }
                                     }
                                 )
@@ -147,11 +156,6 @@ class MainActivity : ComponentActivity() {
 
                             composable("member_selection") {
                                 MemberSelectionScreen(
-                                    onReauthenticate = {
-                                        navController.navigate("signin") {
-                                            popUpTo("member_selection") { inclusive = true }
-                                        }
-                                    },
                                     onMemberSelected = {
                                         navController.navigate("focus") {
                                             popUpTo("member_selection") { inclusive = true }
@@ -208,11 +212,22 @@ class MainActivity : ComponentActivity() {
                             composable("settings") {
                                 SettingsScreen(
                                     userId = setupManager.getAssignedMemberId() ?: "",
+                                    onViewReportsClick = {
+                                        navController.navigate("reports")
+                                    },
+                                    onManageFamilyClick = {
+                                        navController.navigate("family_management")
+                                    },
                                     onChangeMemberClick = {
-                                        setupManager.resetSetup()
                                         navController.navigate("member_selection") {
                                             popUpTo("settings") { inclusive = true }
                                         }
+                                    },
+                                    onRestartAppClick = {
+                                        restartApplication()
+                                    },
+                                    onOpenAccessibilitySettingsClick = {
+                                        openAccessibilitySettings()
                                     },
                                     onBackClick = {
                                         focusRefreshToken += 1
@@ -224,6 +239,19 @@ class MainActivity : ComponentActivity() {
                             composable("achievements") {
                                 AchievementsView(
                                     onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable("reports") {
+                                ReportsScreen(
+                                    householdId = setupManager.getHouseholdId().orEmpty(),
+                                    onBackClick = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable("family_management") {
+                                FamilyManagementScreen(
+                                    onBackClick = { navController.popBackStack() }
                                 )
                             }
 
@@ -253,5 +281,77 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyKioskModePolicy()
+    }
+
+    private fun applyKioskModePolicy() {
+        runCatching {
+            if (!BuildConfig.ENABLE_KIOSK_MODE) {
+                stopLockTaskIfActive()
+                return@runCatching
+            }
+
+            val activityManager = getSystemService(ActivityManager::class.java)
+            val lockTaskState = activityManager?.lockTaskModeState ?: ActivityManager.LOCK_TASK_MODE_NONE
+            if (shouldBypassKioskForAccessibility()) {
+                if (lockTaskState != ActivityManager.LOCK_TASK_MODE_NONE) {
+                    stopLockTaskIfActive()
+                }
+            } else {
+                if (lockTaskState == ActivityManager.LOCK_TASK_MODE_NONE) {
+                    startLockTask()
+                }
+            }
+        }
+    }
+
+    private fun shouldBypassKioskForAccessibility(): Boolean {
+        if (SystemClock.elapsedRealtime() < accessibilitySetupGraceUntilMs) {
+            return true
+        }
+
+        val accessibilityManager = getSystemService(AccessibilityManager::class.java)
+        if (accessibilityManager?.isEnabled == true) {
+            return true
+        }
+
+        val accessibilityEnabled = runCatching {
+            Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
+        }.getOrDefault(false)
+
+        return accessibilityEnabled
+    }
+
+    private fun stopLockTaskIfActive() {
+        runCatching { stopLockTask() }
+    }
+
+    private fun openAccessibilitySettings() {
+        accessibilitySetupGraceUntilMs = SystemClock.elapsedRealtime() + 5 * 60 * 1000L
+        stopLockTaskIfActive()
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }
+    }
+
+    private fun restartApplication() {
+        runCatching {
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+            }
+        }
+        finishAffinity()
+        Runtime.getRuntime().exit(0)
     }
 }

@@ -38,11 +38,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -95,6 +101,28 @@ fun TimerScreen(
         animatedProgress < 0.9f -> Color(0xFFFB8C00)
         else -> Color(0xFFE53935)
     }
+    val timerStateSummary = remember(timeRemaining, isPaused, timerCompleted, progress, taskId) {
+        buildString {
+            append("Timer")
+            if (taskId.isNotBlank()) {
+                append(". Task timer active")
+            }
+            append(". ")
+            append("Time remaining ")
+            append(viewModel.getFormattedTime(timeRemaining))
+            append(". ")
+            append("${viewModel.getProgressPercentage()} percent complete")
+            append(". ")
+            append(
+                when {
+                    timerCompleted -> "Timer complete"
+                    isPaused -> "Paused"
+                    isRunning -> "Running"
+                    else -> "Stopped"
+                }
+            )
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -122,7 +150,13 @@ fun TimerScreen(
             verticalArrangement = Arrangement.spacedBy(sectionSpacing)
         ) {
             Box(
-                modifier = Modifier.size(ringSize),
+                modifier = Modifier
+                    .size(ringSize)
+                    .semantics {
+                        contentDescription = "Timer countdown"
+                        stateDescription = timerStateSummary
+                        progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f)
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
@@ -343,7 +377,12 @@ fun CompactTimerDisplay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .semantics {
+                        contentDescription = "Timer progress"
+                        stateDescription = "${viewModel.getProgressPercentage()} percent complete"
+                        progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                    },
                 color = progressColor,
                 trackColor = MaterialTheme.colorScheme.surface
             )
@@ -356,7 +395,7 @@ fun CompactTimerDisplay(
                     onClick = onPauseResume,
                     modifier = Modifier
                         .fillMaxWidth(0.48f)
-                        .height(40.dp),
+                        .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFB8C00)
                     )
@@ -372,7 +411,7 @@ fun CompactTimerDisplay(
                     onClick = onCancel,
                     modifier = Modifier
                         .fillMaxWidth(0.48f)
-                        .height(40.dp),
+                        .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFE53935)
                     )

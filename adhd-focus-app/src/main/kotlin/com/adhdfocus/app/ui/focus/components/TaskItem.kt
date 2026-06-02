@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,11 +106,41 @@ fun TaskItem(
             TaskStatus.IN_PROGRESS -> "To Do in progress"
             TaskStatus.COMPLETED -> "Completed To Do"
         }
+        val syncDescription = when (task.syncStatus) {
+            SyncStatus.PENDING -> "Pending sync"
+            else -> "Saved locally"
+        }
+        val taskAccessibilityDescription = remember(
+            task.title,
+            statusDescription,
+            timerLabel,
+            syncDescription,
+            task.description
+        ) {
+            buildString {
+                append(task.title)
+                append(", ")
+                append(statusDescription)
+                timerLabel?.let {
+                    append(", timer ")
+                    append(it)
+                }
+                append(", ")
+                append(syncDescription)
+                task.description?.takeIf { it.isNotBlank() }?.let {
+                    append(", ")
+                    append(it)
+                }
+            }
+        }
 
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = "${task.title}, $statusDescription" },
+                .semantics {
+                    contentDescription = taskAccessibilityDescription
+                    stateDescription = statusDescription
+                },
             colors = CardDefaults.cardColors(
                 containerColor = if (isCompleted) {
                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
@@ -244,6 +275,9 @@ fun TaskItem(
                                     .size(8.dp)
                                     .clip(CircleShape)
                                     .background(Color(0xFF1E88E5))
+                                    .semantics {
+                                        contentDescription = "Pending sync"
+                                    }
                             )
                         }
                     }

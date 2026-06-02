@@ -7,10 +7,8 @@ import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
-import com.adhdfocus.app.domain.preferences.CloudCustomTodoGroupsSyncManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
-import com.adhdfocus.app.domain.setup.TabletSetupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,9 +32,7 @@ import javax.inject.Inject
 class UserPreferencesViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val audioNotificationManager: AudioNotificationManager,
-    private val categoryReminderScheduler: CategoryReminderScheduler,
-    private val setupManager: TabletSetupManager,
-    private val cloudCustomTodoGroupsSyncManager: CloudCustomTodoGroupsSyncManager
+    private val categoryReminderScheduler: CategoryReminderScheduler
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -116,7 +112,6 @@ class UserPreferencesViewModel @Inject constructor(
                 _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
-                syncCustomTodoGroupsWithCloud(userId)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load preferences: ${e.message}"
             } finally {
@@ -318,7 +313,6 @@ class UserPreferencesViewModel @Inject constructor(
                 if (!success) {
                     _errorMessage.value = "Failed to save preferences"
                 } else {
-                    syncCustomTodoGroupsToCloud()
                     viewModelScope.launch {
                         runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
                     }
@@ -371,41 +365,5 @@ class UserPreferencesViewModel @Inject constructor(
      */
     private fun serializeNotificationPreferences(prefs: NotificationPreferences): String {
         return json.encodeToString(prefs)
-    }
-
-    private fun syncCustomTodoGroupsToCloud() {
-        val householdId = setupManager.getHouseholdId().orEmpty()
-        if (householdId.isBlank()) return
-        viewModelScope.launch {
-            runCatching {
-                cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
-                    householdId = householdId,
-                    groups = _customTodoGroups.value
-                )
-            }
-        }
-    }
-
-    private fun syncCustomTodoGroupsWithCloud(userId: String) {
-        val householdId = setupManager.getHouseholdId().orEmpty()
-        if (householdId.isBlank()) return
-        viewModelScope.launch {
-            runCatching {
-                val snapshot = cloudCustomTodoGroupsSyncManager.fetchCustomTodoGroups(householdId)
-                when {
-                    snapshot.fromCloud && snapshot.groups != _customTodoGroups.value -> {
-                        _customTodoGroups.value = snapshot.groups
-                        userPreferencesManager.updateCustomTodoGroups(userId, snapshot.groups)
-                    }
-                    !snapshot.fromCloud && _customTodoGroups.value.isNotEmpty() -> {
-                        cloudCustomTodoGroupsSyncManager.saveCustomTodoGroups(
-                            householdId = householdId,
-                            groups = _customTodoGroups.value
-                        )
-                    }
-                    else -> Unit
-                }
-            }
-        }
     }
 }
