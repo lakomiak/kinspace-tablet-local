@@ -627,7 +627,6 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-<<<<<<< HEAD
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -647,26 +646,8 @@ fun SettingsScreen(
                         } else {
                             Text("Done")
                         }
-=======
-                Button(
-                    onClick = onBackClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    enabled = !isSaving
-                ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Done")
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
                     }
-                }
 
-<<<<<<< HEAD
                     if (!hasSettingsPasscode || settingsUnlocked) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -691,31 +672,6 @@ fun SettingsScreen(
                             ) {
                                 Text("Reset Settings")
                             }
-=======
-                if (!hasSettingsPasscode || settingsUnlocked) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onChangeMemberClick,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            enabled = !isSaving
-                        ) {
-                            Text("Switch Member")
-                        }
-
-                        OutlinedButton(
-                            onClick = { viewModel.resetToDefaults() },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            enabled = !isSaving
-                        ) {
-                            Text("Reset Settings")
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
                         }
                     }
                 }

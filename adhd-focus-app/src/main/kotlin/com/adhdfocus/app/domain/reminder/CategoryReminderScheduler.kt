@@ -61,7 +61,6 @@ class CategoryReminderScheduler @Inject constructor(
                 category = category,
                 endTime = category.defaultEndTime,
                 flag = PendingIntent.FLAG_NO_CREATE,
-                endTime = category.defaultEndTime,
                 memberId = setupManager.getAssignedMemberId().orEmpty(),
                 memberName = setupManager.getAssignedMemberName().orEmpty(),
                 householdId = setupManager.getHouseholdId().orEmpty()
@@ -87,7 +86,6 @@ class CategoryReminderScheduler @Inject constructor(
             category = category,
             endTime = endTime,
             flag = PendingIntent.FLAG_UPDATE_CURRENT,
-            endTime = endTime,
             memberId = memberId,
             memberName = memberName,
             householdId = householdId
@@ -109,7 +107,6 @@ class CategoryReminderScheduler @Inject constructor(
         category: TodoCategoryReminder,
         endTime: LocalTime,
         flag: Int,
-        endTime: LocalTime,
         memberId: String,
         memberName: String,
         householdId: String
@@ -162,21 +159,13 @@ class CategoryReminderScheduler @Inject constructor(
         preferences: NotificationPreferences
     ): LocalTime {
         val reminderPrefs = preferences.categoryReminderPreferences
-<<<<<<< HEAD
         val raw = when (category) {
-=======
-        val rawValue = when (category) {
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
             TodoCategoryReminder.MORNING -> reminderPrefs.morningEndTime
             TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEndTime
             TodoCategoryReminder.EVENING -> reminderPrefs.eveningEndTime
             TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEndTime
         }
-<<<<<<< HEAD
         return runCatching { LocalTime.parse(raw) }.getOrDefault(category.defaultEndTime)
-=======
-        return runCatching { LocalTime.parse(rawValue) }.getOrDefault(category.defaultEndTime)
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
     }
 
     private fun computeNextTriggerAtMillis(

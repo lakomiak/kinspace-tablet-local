@@ -187,20 +187,9 @@ class SettingsViewModel @Inject constructor(
                 _puzzleAgeBand.value = PuzzleAgeBand.fromKey(preferences.puzzleAgeBand)
                 _timerDefaultDuration.value = preferences.timerDefaultDuration
                 _autoLogoutTimeout.value = preferences.autoLogoutTimeout
-<<<<<<< HEAD
                 _settingsPasscodeHash.value = migratedPasscodeHash
                 _hasSettingsPasscode.value = !migratedPasscodeHash.isNullOrBlank()
                 _settingsUnlocked.value = migratedPasscodeHash.isNullOrBlank()
-=======
-                val tabletPasscodeHash = setupManager.getSettingsPasscodeHash()
-                if (tabletPasscodeHash.isNullOrBlank() && !preferences.settingsPasscodeHash.isNullOrBlank()) {
-                    setupManager.setSettingsPasscodeHash(preferences.settingsPasscodeHash)
-                }
-                val resolvedPasscodeHash = setupManager.getSettingsPasscodeHash()
-                _settingsPasscodeHash.value = resolvedPasscodeHash
-                _hasSettingsPasscode.value = !resolvedPasscodeHash.isNullOrBlank()
-                _settingsUnlocked.value = resolvedPasscodeHash.isNullOrBlank()
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
                 _allowTodoEditing.value = preferences.enableTodoEditing
                 _customTodoGroups.value = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
                 _showPasscodeSetupDialog.value = false

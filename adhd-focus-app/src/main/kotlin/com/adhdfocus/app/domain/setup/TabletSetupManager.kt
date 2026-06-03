@@ -34,7 +34,6 @@ class TabletSetupManager @Inject constructor(
     fun getSettingsPasscodeHash(): String? = prefs.getString(KEY_SETTINGS_PASSCODE_HASH, null)
 
     fun setSettingsPasscodeHash(hash: String?) {
-<<<<<<< HEAD
         prefs.edit().apply {
             if (hash.isNullOrBlank()) {
                 remove(KEY_SETTINGS_PASSCODE_HASH)
@@ -42,9 +41,6 @@ class TabletSetupManager @Inject constructor(
                 putString(KEY_SETTINGS_PASSCODE_HASH, hash)
             }
         }.apply()
-=======
-        prefs.edit().putString(KEY_SETTINGS_PASSCODE_HASH, hash).apply()
->>>>>>> 4f65714c60489fff1b0bd9e94bbb1557cb4bbd9f
     }
 
     fun setCurrentFocusDate(date: LocalDate) {

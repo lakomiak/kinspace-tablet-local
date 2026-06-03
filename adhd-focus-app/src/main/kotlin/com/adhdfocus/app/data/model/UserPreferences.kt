@@ -72,11 +72,7 @@ data class CategoryReminderPreferences(
     val morningLeadMinutes: Int = 15,
     val afternoonLeadMinutes: Int = 15,
     val eveningLeadMinutes: Int = 15,
-    val bedtimeLeadMinutes: Int = 15,
-    val morningEndTime: String = "12:00",
-    val afternoonEndTime: String = "17:00",
-    val eveningEndTime: String = "20:00",
-    val bedtimeEndTime: String = "22:00"
+    val bedtimeLeadMinutes: Int = 15
 ) {
     init {
         require(morningEndTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "morningEndTime must be HH:mm" }

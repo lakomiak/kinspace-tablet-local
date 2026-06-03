@@ -206,7 +206,6 @@ private fun CategoryReminderLeadPickerGrid(
                         categoryEnabled = enabledFor(category, preferences),
                         endTime = endTimeFor(category, preferences),
                         leadMinutes = leadMinutesFor(category, preferences),
-                        endTime = endTimeFor(category, preferences),
                         onCategoryEnabledChanged = { newValue ->
                             onPreferencesChanged(
                                 preferences.copy(
@@ -237,16 +236,6 @@ private fun CategoryReminderLeadPickerGrid(
                                 )
                             )
                         },
-                        onEndTimeChanged = { newValue ->
-                            onPreferencesChanged(
-                                preferences.copy(
-                                    morningEndTime = if (category == TodoCategoryReminder.MORNING) newValue else preferences.morningEndTime,
-                                    afternoonEndTime = if (category == TodoCategoryReminder.AFTERNOON) newValue else preferences.afternoonEndTime,
-                                    eveningEndTime = if (category == TodoCategoryReminder.EVENING) newValue else preferences.eveningEndTime,
-                                    bedtimeEndTime = if (category == TodoCategoryReminder.BEDTIME) newValue else preferences.bedtimeEndTime
-                                )
-                            )
-                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -265,11 +254,9 @@ private fun CategoryReminderLeadPicker(
     categoryEnabled: Boolean,
     endTime: String,
     leadMinutes: Int,
-    endTime: String,
     onCategoryEnabledChanged: (Boolean) -> Unit,
     onEndTimeChanged: (String) -> Unit,
     onLeadMinutesChanged: (Int) -> Unit,
-    onEndTimeChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var pickerInitialized by remember(category) { mutableStateOf(false) }
@@ -387,17 +374,5 @@ private fun enabledFor(
         TodoCategoryReminder.AFTERNOON -> preferences.afternoonEnabled
         TodoCategoryReminder.EVENING -> preferences.eveningEnabled
         TodoCategoryReminder.BEDTIME -> preferences.bedtimeEnabled
-    }
-}
-
-private fun endTimeFor(
-    category: TodoCategoryReminder,
-    preferences: CategoryReminderPreferences
-): String {
-    return when (category) {
-        TodoCategoryReminder.MORNING -> preferences.morningEndTime
-        TodoCategoryReminder.AFTERNOON -> preferences.afternoonEndTime
-        TodoCategoryReminder.EVENING -> preferences.eveningEndTime
-        TodoCategoryReminder.BEDTIME -> preferences.bedtimeEndTime
     }
 }
