@@ -17,7 +17,8 @@ class TabletSetupManager @Inject constructor(
     @ApplicationContext context: Context
 ) {
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+        context.createDeviceProtectedStorageContext()
+            .getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
 
     fun isSetupComplete(): Boolean = prefs.getString(KEY_MEMBER_ID, null) != null
 
