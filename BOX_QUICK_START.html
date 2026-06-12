@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinspace Tablet Local Quick Start</title>
+  <style>
+    :root {
+      --bg: #f7f2e8;
+      --panel: #fffaf2;
+      --ink: #243042;
+      --muted: #5d6572;
+      --line: #d8d1c4;
+      --accent: #dcd0ff;
+      --accent-strong: #79a868;
+      --accent-dark: #5a7e4d;
+      --soft-green: #eef6ea;
+      --soft-green-line: #cadfc2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #e9e2d7;
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    .sheet {
+      width: 281mm;
+      min-height: 194mm;
+      margin: 0 auto;
+      background: var(--bg);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      border: 1px solid var(--line);
+    }
+
+    .panel {
+      padding: 7mm 6.5mm;
+      border-right: 1px dashed var(--line);
+      border-bottom: 1px dashed var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 2.6mm;
+      background: var(--panel);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel:nth-child(3),
+    .panel:nth-child(6) {
+      border-right: 0;
+    }
+
+    .panel:nth-child(4),
+    .panel:nth-child(5),
+    .panel:nth-child(6) {
+      border-bottom: 0;
+    }
+
+    .hero {
+      background:
+        radial-gradient(circle at top left, rgba(220, 208, 255, 0.9), transparent 42%),
+        linear-gradient(160deg, #f2ebff 0%, #f7f2e8 72%);
+      justify-content: space-between;
+    }
+
+    .brand-mark {
+      width: 100%;
+      max-width: 52mm;
+      align-self: center;
+      display: block;
+      margin-top: 2mm;
+    }
+
+    .eyebrow {
+      color: var(--accent-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 8pt;
+      font-weight: 800;
+    }
+
+    .pill {
+      display: inline-block;
+      background: var(--accent);
+      border-radius: 999px;
+      padding: 1.8mm 3.2mm;
+      font-size: 8pt;
+      font-weight: 700;
+      align-self: flex-start;
+    }
+
+    h1, h2, p, ul, ol {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 19pt;
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      font-size: 11.5pt;
+      line-height: 1.14;
+      letter-spacing: -0.02em;
+    }
+
+    p,
+    li {
+      font-size: 8.2pt;
+      line-height: 1.24;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .callout {
+      background: var(--soft-green);
+      border: 1px solid var(--soft-green-line);
+      border-radius: 14px;
+      padding: 3.2mm 3.8mm;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.2mm;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 2.8mm;
+      background: white;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 1mm;
+      font-size: 8.5pt;
+    }
+
+    .step-list,
+    .simple-list {
+      margin: 0;
+      padding-left: 4mm;
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+    }
+
+    .section-label {
+      color: var(--accent-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 7.8pt;
+      font-weight: 800;
+    }
+
+    .footer-chip {
+      margin-top: auto;
+      background: var(--ink);
+      color: white;
+      border-radius: 999px;
+      padding: 2.4mm 3.6mm;
+      font-size: 7.8pt;
+      font-weight: 700;
+      align-self: flex-start;
+    }
+
+    .print-note {
+      width: 281mm;
+      margin: 0 auto;
+      padding: 8px 2px 18px;
+      font-size: 12px;
+      color: #4f5968;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .sheet {
+        width: 100%;
+        min-height: auto;
+        border: 0;
+      }
+
+      .print-note {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <section class="panel hero">
+      <div class="eyebrow">Quick Start Guide</div>
+      <img class="brand-mark" src="adhd-focus-app/src/main/res/drawable/kinspace_splash_mark.png" alt="Kinspace">
+      <div class="pill">Kinspace Tablet Local</div>
+      <div>
+        <h1>Let's get focused</h1>
+        <p class="muted">A simple tablet for routines, to-dos, timers, reminders, achievements, and family progress.</p>
+      </div>
+      <div class="footer-chip">Start with setup, then add your daily routines.</div>
+    </section>
+
+    <section class="panel">
+      <div class="section-label">1. First-Time Setup</div>
+      <h2>Get started in five easy steps</h2>
+      <ol class="step-list">
+        <li>Turn on the tablet and open Kinspace.</li>
+        <li>Enter a household name.</li>
+        <li>Add each family member by name.</li>
+        <li>Optionally enter a birthdate.</li>
+        <li>Tap <strong>Finish local setup</strong>.</li>
+      </ol>
+      <div class="callout">
+        <p><strong>Good to know:</strong> initial setup adds everyone as a <strong>Member</strong>. You can manage people later in Settings.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-label">2. Daily Use</div>
+      <h2>Use Home for the everyday routine</h2>
+      <div class="mini-grid">
+        <div class="mini-card">
+          <strong>Home</strong>
+          <p>See today's tasks, progress, and sections like Morning and Afternoon.</p>
+        </div>
+        <div class="mini-card">
+          <strong>Today</strong>
+          <p>Jump back to the current day anytime with the Today button.</p>
+        </div>
+        <div class="mini-card">
+          <strong>Add</strong>
+          <p>Use the floating <strong>+</strong> button to create a new task.</p>
+        </div>
+        <div class="mini-card">
+          <strong>Complete</strong>
+          <p>Tap a task to mark it done and update daily progress.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>Helpful feature:</strong> when typing a task title, Kinspace suggests matching past task names so you can reuse them quickly.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-label">3. Build Better Routines</div>
+      <h2>Create tasks that are easy to keep using</h2>
+      <ul class="simple-list">
+        <li>Tasks can be added or edited on <strong>any selected day</strong>.</li>
+        <li>Repeat options include <strong>Once, Daily, Weekdays, Weekends, Weekly, Monthly, Yearly,</strong> and <strong>Custom</strong>.</li>
+        <li>Use timers for tasks that benefit from focus support.</li>
+        <li>Browse earlier or later days with the date controls on Home.</li>
+      </ul>
+      <div class="callout">
+        <p><strong>Best first step:</strong> create your main recurring routines first, then fine-tune reminders later.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-label">4. Settings That Matter</div>
+      <h2>Caregiver controls in one place</h2>
+      <ul class="simple-list">
+        <li>Set one <strong>tablet-wide 5-digit passcode</strong> for Settings.</li>
+        <li>Manage family members and choose who the tablet opens to first.</li>
+        <li>Adjust reminders for <strong>Morning, Afternoon, Evening,</strong> and <strong>Bedtime</strong>.</li>
+        <li>Set category end times separately for each part of the day.</li>
+        <li>Use <strong>Kiosk Help</strong> if this will be a dedicated tablet.</li>
+      </ul>
+      <div class="callout">
+        <p><strong>Reminder tip:</strong> category alarms are separate from task timers, so you can tune daily routine reminders without changing the task itself.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-label">5. Protect Your Data</div>
+      <h2>Use backups and reports regularly</h2>
+      <ul class="simple-list">
+        <li>Create a local backup after major changes.</li>
+        <li>Use <strong>Restore</strong> if you ever need to recover the tablet.</li>
+        <li>Open <strong>Reports</strong> to review each family member's progress.</li>
+        <li>Export summaries with <strong>Quick Export</strong>, <strong>Save TXT</strong>, or <strong>Save CSV</strong>.</li>
+      </ul>
+      <div class="callout">
+        <p><strong>Recommended weekly habit:</strong> review reports once a week, then create a fresh backup.</p>
+      </div>
+      <div class="footer-chip">Need help later? Open Settings on the tablet.</div>
+    </section>
+  </div>
+
+  <div class="print-note">
+    Print tip: use A4 paper at 100% scale. This layout is designed to stay as a foldable quick-start on a regular printer page.
+  </div>
+</body>
+</html>

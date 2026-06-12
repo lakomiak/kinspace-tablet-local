@@ -37,11 +37,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adhdfocus.app.data.model.Task
@@ -210,12 +214,13 @@ fun DailyFocusViewScreen(
                                         )
                                     }
 
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        AutoSizingDateText(
                                             text = dateLabel,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1
+                                            style = MaterialTheme.typography.titleLarge
                                         )
                                         if (!isViewingToday) {
                                             Text(
@@ -343,4 +348,33 @@ fun DailyFocusViewScreen(
         }
     }
 
+}
+
+@Composable
+private fun AutoSizingDateText(
+    text: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    minFontSizeSp: Int = 18
+) {
+    var fontSize by remember(text, style) {
+        mutableStateOf(
+            if (style.fontSize != TextUnit.Unspecified) style.fontSize else 28.sp
+        )
+    }
+
+    Text(
+        text = text,
+        modifier = modifier.padding(horizontal = 8.dp),
+        style = style.copy(fontSize = fontSize),
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize.value > minFontSizeSp) {
+                fontSize = (fontSize.value - 1).sp
+            }
+        }
+    )
 }

@@ -3,6 +3,7 @@ package com.adhdfocus.app.data.database
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import android.os.StatFs
 import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -206,6 +207,37 @@ class DatabaseBackupManager @Inject constructor(
         }
     }
 
+    fun getDatabaseSize(): Long {
+        return try {
+            listOf(databaseFile, walFile, shmFile)
+                .filter { it.exists() }
+                .sumOf { it.length() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+
+    fun getAvailableStorageBytes(): Long {
+        return try {
+            val statFs = StatFs((context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir).absolutePath)
+            statFs.availableBytes
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+
+    fun getTotalStorageBytes(): Long {
+        return try {
+            val statFs = StatFs((context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir).absolutePath)
+            statFs.totalBytes
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+
     fun getBackupDirectoryPath(): String = backupDir.absolutePath
 
     fun importBackupFromUri(uri: Uri): DatabaseBackupInfo? {
@@ -251,11 +283,15 @@ class DatabaseBackupManager @Inject constructor(
         val householdId = context.getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
             .getString("household_id", "")
             .orEmpty()
+        val installType = context.getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+            .getString("install_type", "")
+            .orEmpty()
         return """
             {
               "createdAt": "$timestamp",
               "database": "${databaseFile.name}",
               "householdId": "$householdId",
+              "installType": "$installType",
               "format": "kinspace-local-backup-v1"
             }
         """.trimIndent()

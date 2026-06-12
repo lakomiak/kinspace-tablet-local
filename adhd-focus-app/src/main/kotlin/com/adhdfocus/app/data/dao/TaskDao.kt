@@ -96,6 +96,17 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE householdId = :householdId AND isDeleted = 0")
     suspend fun getTasksByHouseholdOnce(householdId: String): List<Task>
 
+    @Query(
+        """
+        SELECT DISTINCT title FROM tasks
+        WHERE householdId = :householdId
+        AND isDeleted = 0
+        AND TRIM(title) != ''
+        ORDER BY title COLLATE NOCASE ASC
+        """
+    )
+    suspend fun getDistinctTaskTitlesByHousehold(householdId: String): List<String>
+
     @Query("DELETE FROM tasks WHERE id = :taskId")
     suspend fun deleteTaskById(taskId: String)
 

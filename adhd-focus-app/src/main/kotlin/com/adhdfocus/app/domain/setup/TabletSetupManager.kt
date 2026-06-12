@@ -2,6 +2,7 @@ package com.adhdfocus.app.domain.setup
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.adhdfocus.app.BuildConfig
 import java.time.LocalDate
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -27,6 +28,12 @@ class TabletSetupManager @Inject constructor(
     fun getHouseholdId(): String? = prefs.getString(KEY_HOUSEHOLD_ID, null)
 
     fun getHouseholdName(): String? = prefs.getString(KEY_HOUSEHOLD_NAME, null)
+
+    fun getInstallType(): String =
+        prefs.getString(KEY_INSTALL_TYPE, null)
+            ?: defaultInstallType().also { installType ->
+                prefs.edit().putString(KEY_INSTALL_TYPE, installType).apply()
+            }
 
     fun getCurrentFocusDate(): LocalDate? = prefs.getString(KEY_CURRENT_FOCUS_DATE, null)
         ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -54,6 +61,7 @@ class TabletSetupManager @Inject constructor(
             .putString(KEY_MEMBER_ID, memberId)
             .putString(KEY_MEMBER_NAME, memberName)
             .putString(KEY_HOUSEHOLD_ID, householdId)
+            .putString(KEY_INSTALL_TYPE, defaultInstallType())
             .apply {
                 if (!householdName.isNullOrBlank()) {
                     putString(KEY_HOUSEHOLD_NAME, householdName)
@@ -66,11 +74,14 @@ class TabletSetupManager @Inject constructor(
         prefs.edit().clear().apply()
     }
 
+    private fun defaultInstallType(): String = if (BuildConfig.ENABLE_KIOSK_MODE) "KIOSK" else "STANDARD"
+
     companion object {
         private const val KEY_MEMBER_ID = "assigned_member_id"
         private const val KEY_MEMBER_NAME = "assigned_member_name"
         private const val KEY_HOUSEHOLD_ID = "household_id"
         private const val KEY_HOUSEHOLD_NAME = "household_name"
+        private const val KEY_INSTALL_TYPE = "install_type"
         private const val KEY_CURRENT_FOCUS_DATE = "current_focus_date"
         private const val KEY_SETTINGS_PASSCODE_HASH = "settings_passcode_hash"
     }

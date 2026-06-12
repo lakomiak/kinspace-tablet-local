@@ -250,6 +250,13 @@ class TaskRepository @Inject constructor(
         return taskDao.getTasksByHouseholdOnce(householdId)
     }
 
+    suspend fun getDistinctTaskTitlesByHousehold(householdId: String): List<String> {
+        return taskDao.getDistinctTaskTitlesByHousehold(householdId)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+    }
+
     /**
      * Gets all tasks for a user.
      *

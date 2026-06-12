@@ -3,11 +3,11 @@
     <!-- Brand background -->
     <item android:drawable="@color/brand_background"/>
 
-    <!-- Centered Kinspace logo -->
+    <!-- Keep the launch splash simple and smaller so Android does not crop or soften it. -->
     <item
         android:gravity="center"
-        android:width="280dp"
-        android:height="280dp">
+        android:width="196dp"
+        android:height="196dp">
         <bitmap
             android:src="@drawable/kinspace_logo"
             android:gravity="center"

@@ -46,7 +46,7 @@ class LocalSetupViewModel @Inject constructor(
         _householdName.value = value
     }
 
-    fun addMember(displayName: String, birthDate: LocalDate?, role: UserRole) {
+    fun addMember(displayName: String, birthDate: LocalDate?) {
         val trimmedName = displayName.trim()
         if (trimmedName.isBlank()) {
             _errorMessage.value = "Each family member needs a name."
@@ -56,7 +56,7 @@ class LocalSetupViewModel @Inject constructor(
         _members.value = _members.value + DraftFamilyMember(
             displayName = trimmedName,
             birthDate = birthDate,
-            role = role
+            role = UserRole.ADHD_USER
         )
         _errorMessage.value = null
     }
@@ -101,7 +101,7 @@ class LocalSetupViewModel @Inject constructor(
                 )
             }
 
-            val defaultMember = draftMembers.firstOrNull { it.role == UserRole.ADHD_USER } ?: draftMembers.first()
+            val defaultMember = draftMembers.first()
             setupManager.completeSetup(
                 memberId = defaultMember.id,
                 memberName = defaultMember.displayName,

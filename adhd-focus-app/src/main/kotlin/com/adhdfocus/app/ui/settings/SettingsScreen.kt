@@ -106,6 +106,7 @@ fun SettingsScreen(
     val backups by viewModel.backups.collectAsStateWithLifecycle()
     val backupStatusMessage by viewModel.backupStatusMessage.collectAsStateWithLifecycle()
     val backupBusy by viewModel.backupBusy.collectAsStateWithLifecycle()
+    val storageUsage by viewModel.storageUsage.collectAsStateWithLifecycle()
     val restoreReady by viewModel.restoreReady.collectAsStateWithLifecycle()
     val restoreTargetName by viewModel.restoreTargetName.collectAsStateWithLifecycle()
 
@@ -279,6 +280,34 @@ fun SettingsScreen(
                         ) {
                             Text("Manage Family Members")
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Storage") {
+                        Text(
+                            text = "Track how much local space Kinspace is using for live family data and backups.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Text(
+                            text = "Live tablet data: ${formatBytes(storageUsage.databaseSizeBytes)}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Text(
+                            text = "Backups on this tablet: ${formatBytes(storageUsage.backupSizeBytes)}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Text(
+                            text = "Free device storage: ${formatBytes(storageUsage.availableStorageBytes)} of ${formatBytes(storageUsage.totalStorageBytes)}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -738,6 +767,19 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0L) return "0 B"
+    val units = listOf("B", "KB", "MB", "GB", "TB")
+    var value = bytes.toDouble()
+    var unitIndex = 0
+    while (value >= 1024 && unitIndex < units.lastIndex) {
+        value /= 1024
+        unitIndex++
+    }
+    val decimals = if (value >= 100 || unitIndex == 0) 0 else 1
+    return "%.${decimals}f %s".format(value, units[unitIndex])
 }
 
 /**

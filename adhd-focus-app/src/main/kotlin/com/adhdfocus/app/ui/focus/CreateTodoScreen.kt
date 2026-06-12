@@ -17,9 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,7 @@ fun CreateTodoScreen(
     val isEditing = !taskId.isNullOrBlank()
     val editingTask by viewModel.editingTask.collectAsStateWithLifecycle()
     val todoGroups by viewModel.todoGroups.collectAsStateWithLifecycle()
+    val pastTodoTitles by viewModel.pastTodoTitles.collectAsStateWithLifecycle()
 
     var title by rememberSaveable(taskId) { mutableStateOf("") }
     var dueDate by rememberSaveable(taskId) { mutableStateOf("") }
@@ -79,6 +82,7 @@ fun CreateTodoScreen(
     var timerMinutes by rememberSaveable(taskId) { mutableStateOf(0) }
     var timerSeconds by rememberSaveable(taskId) { mutableStateOf(0) }
     var formInitialized by rememberSaveable(taskId) { mutableStateOf(false) }
+    var titleSuggestionsExpanded by rememberSaveable(taskId) { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -101,6 +105,21 @@ fun CreateTodoScreen(
             formInitialized = false
         }
         viewModel.refreshTodoGroups()
+        viewModel.refreshPastTodoTitles()
+    }
+
+    val filteredTitleSuggestions = remember(title, pastTodoTitles) {
+        val query = title.trim()
+        if (query.isBlank()) {
+            emptyList()
+        } else {
+            pastTodoTitles
+                .filter { suggestion ->
+                    suggestion.contains(query, ignoreCase = true) &&
+                        !suggestion.equals(query, ignoreCase = true)
+                }
+                .take(6)
+        }
     }
 
     LaunchedEffect(editingTask?.id) {
@@ -187,16 +206,44 @@ fun CreateTodoScreen(
                     fontWeight = FontWeight.Medium
                 )
 
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = {
-                        title = it
-                        if (error != null) viewModel.clearError()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("To Do title") },
-                    singleLine = true
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = {
+                            title = it
+                            titleSuggestionsExpanded = it.trim().isNotBlank()
+                            if (error != null) viewModel.clearError()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("To Do title") },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (filteredTitleSuggestions.isNotEmpty()) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Show title suggestions"
+                                )
+                            }
+                        }
+                    )
+
+                    DropdownMenu(
+                        expanded = titleSuggestionsExpanded && filteredTitleSuggestions.isNotEmpty(),
+                        onDismissRequest = { titleSuggestionsExpanded = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        filteredTitleSuggestions.forEach { suggestion ->
+                            DropdownMenuItem(
+                                text = { Text(suggestion) },
+                                onClick = {
+                                    title = suggestion
+                                    titleSuggestionsExpanded = false
+                                    if (error != null) viewModel.clearError()
+                                }
+                            )
+                        }
+                    }
+                }
 
                 NativeDateField(
                     label = "Due date",

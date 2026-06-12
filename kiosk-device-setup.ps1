@@ -96,6 +96,11 @@ if ($ShowCommands) {
     Write-Host "Open app settings:"
     Write-Host "adb shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$packageName"
     Write-Host ""
-    Write-Host "Example device-owner / lock-task policy commands vary by environment."
-    Write-Host "Use [KIOSK_DEPLOYMENT.md](C:\Users\allen\kinspace-tablet-local\KIOSK_DEPLOYMENT.md) as the main deployment reference."
+    Write-Host "Set device owner on a freshly reset device:"
+    Write-Host "adb shell dpm set-device-owner $packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"
+    Write-Host ""
+    Write-Host "Remove active admin on a test device:"
+    Write-Host "adb shell dpm remove-active-admin $packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"
+    Write-Host ""
+    Write-Host "Use KIOSK_DEPLOYMENT.md as the main deployment reference."
 }

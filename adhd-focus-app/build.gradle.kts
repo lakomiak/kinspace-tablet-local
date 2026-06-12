@@ -143,6 +143,7 @@ dependencies {
 
     // Jetpack Core
     implementation("androidx.core:core-ktx:$coreKtxVersion")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycleVersion")

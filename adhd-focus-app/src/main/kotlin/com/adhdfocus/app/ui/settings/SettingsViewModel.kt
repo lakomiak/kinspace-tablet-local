@@ -33,6 +33,16 @@ data class BackupListItem(
     val sizeLabel: String
 )
 
+data class StorageUsageUiState(
+    val databaseSizeBytes: Long = 0L,
+    val backupSizeBytes: Long = 0L,
+    val availableStorageBytes: Long = 0L,
+    val totalStorageBytes: Long = 0L
+) {
+    val usedStorageBytes: Long
+        get() = (totalStorageBytes - availableStorageBytes).coerceAtLeast(0L)
+}
+
 /**
  * SettingsViewModel manages settings UI state and persistence.
  *
@@ -127,6 +137,9 @@ class SettingsViewModel @Inject constructor(
     private val _backupBusy = MutableStateFlow(false)
     val backupBusy: StateFlow<Boolean> = _backupBusy
 
+    private val _storageUsage = MutableStateFlow(StorageUsageUiState())
+    val storageUsage: StateFlow<StorageUsageUiState> = _storageUsage
+
     private val _restoreReady = MutableStateFlow(false)
     val restoreReady: StateFlow<Boolean> = _restoreReady
 
@@ -208,6 +221,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _backups.value = backupManager.getAvailableBackups().map { it.toUiModel() }
             _backupDirectory.value = backupManager.getBackupDirectoryPath()
+            _storageUsage.value = StorageUsageUiState(
+                databaseSizeBytes = backupManager.getDatabaseSize(),
+                backupSizeBytes = backupManager.getTotalBackupSize(),
+                availableStorageBytes = backupManager.getAvailableStorageBytes(),
+                totalStorageBytes = backupManager.getTotalStorageBytes()
+            )
         }
     }
 

@@ -3,6 +3,7 @@ package com.adhdfocus.app.ui.focus
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.model.Task
+import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.task.TaskManager
 import com.adhdfocus.app.domain.visibility.TodoGroupVisibilityManager
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateTodoViewModel @Inject constructor(
     private val taskManager: TaskManager,
+    private val taskRepository: TaskRepository,
     private val setupManager: TabletSetupManager,
     private val todoGroupVisibilityManager: TodoGroupVisibilityManager
 ) : ViewModel() {
@@ -33,9 +35,13 @@ class CreateTodoViewModel @Inject constructor(
     private val _todoGroups = MutableStateFlow<List<String>>(listOf("Morning", "Afternoon", "Evening", "Bedtime", "Other"))
     val todoGroups: StateFlow<List<String>> = _todoGroups
 
+    private val _pastTodoTitles = MutableStateFlow<List<String>>(emptyList())
+    val pastTodoTitles: StateFlow<List<String>> = _pastTodoTitles
+
     init {
         viewModelScope.launch {
             refreshTodoGroups()
+            refreshPastTodoTitles()
         }
     }
 
@@ -128,6 +134,17 @@ class CreateTodoViewModel @Inject constructor(
                 _todoGroups.value = todoGroupVisibilityManager.getAllTodoGroups()
             } else {
                 _todoGroups.value = todoGroupVisibilityManager.getAllTodoGroups(memberId)
+            }
+        }
+    }
+
+    fun refreshPastTodoTitles() {
+        viewModelScope.launch {
+            val householdId = setupManager.getHouseholdId().orEmpty()
+            _pastTodoTitles.value = if (householdId.isBlank()) {
+                emptyList()
+            } else {
+                taskRepository.getDistinctTaskTitlesByHousehold(householdId)
             }
         }
     }

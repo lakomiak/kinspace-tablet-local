@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,18 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adhdfocus.app.data.model.UserRole
 import java.time.LocalDate
 
 @Composable
@@ -54,7 +46,6 @@ fun LocalSetupScreen(
 
     var memberName by remember { mutableStateOf("") }
     var memberBirthDate by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf(UserRole.ADHD_USER) }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -93,7 +84,9 @@ fun LocalSetupScreen(
             )
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -123,29 +116,14 @@ fun LocalSetupScreen(
                         singleLine = true
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RoleButton(
-                            label = "Member",
-                            selected = selectedRole == UserRole.ADHD_USER,
-                            onClick = { selectedRole = UserRole.ADHD_USER }
-                        )
-                        RoleButton(
-                            label = "Caregiver",
-                            selected = selectedRole == UserRole.CAREGIVER,
-                            onClick = { selectedRole = UserRole.CAREGIVER }
-                        )
-                    }
-
                     Button(
                         onClick = {
                             viewModel.addMember(
                                 displayName = memberName,
-                                birthDate = memberBirthDate.toLocalDateOrNull(),
-                                role = selectedRole
+                                birthDate = memberBirthDate.toLocalDateOrNull()
                             )
                             memberName = ""
                             memberBirthDate = ""
-                            selectedRole = UserRole.ADHD_USER
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -186,7 +164,7 @@ fun LocalSetupScreen(
                                 )
                                 Text(
                                     text = buildString {
-                                        append(if (member.role == UserRole.CAREGIVER) "Caregiver" else "Member")
+                                        append("Member")
                                         member.birthDate?.let { append(" • $it") }
                                     },
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -226,29 +204,6 @@ fun LocalSetupScreen(
                     Text("Finish local setup")
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun RoleButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val semanticsModifier = Modifier.semantics {
-        role = Role.RadioButton
-        this.selected = selected
-        stateDescription = if (selected) "Selected" else "Not selected"
-        contentDescription = "$label role"
-    }
-    if (selected) {
-        Button(onClick = onClick, modifier = semanticsModifier) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(onClick = onClick, modifier = semanticsModifier) {
-            Text(label)
         }
     }
 }

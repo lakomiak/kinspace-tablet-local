@@ -16,6 +16,10 @@ class ReportExportManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
+    private val tabletSetupPrefs by lazy {
+        context.getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+    }
+
     private val reportsDir = File(
         context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir,
         "kinspace_reports"
@@ -59,6 +63,7 @@ class ReportExportManager @Inject constructor(
         lines += "Generated: ${SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US).format(Date())}"
         lines += "Member: $memberName"
         lines += "Household ID: $householdId"
+        lines += "Install Type: ${tabletSetupPrefs.getString("install_type", "STANDARD")}"
         lines += ""
         lines += "Overview"
         lines += "Completed To Dos: ${summary.completedTodos}"
@@ -116,6 +121,7 @@ class ReportExportManager @Inject constructor(
         rows += listOf("meta", "generated_at", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()), "")
         rows += listOf("meta", "member", memberName, "")
         rows += listOf("meta", "household_id", householdId, "")
+        rows += listOf("meta", "install_type", tabletSetupPrefs.getString("install_type", "STANDARD").orEmpty(), "")
         rows += listOf("overview", "completed_todos", summary.completedTodos.toString(), "")
         rows += listOf("overview", "current_streak", summary.currentStreak.toString(), "")
         rows += listOf("overview", "best_streak", summary.bestStreak.toString(), "")

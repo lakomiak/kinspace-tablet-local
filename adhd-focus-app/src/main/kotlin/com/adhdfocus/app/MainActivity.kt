@@ -1,17 +1,34 @@
 package com.adhdfocus.app
 
 import android.view.accessibility.AccessibilityManager
+import android.app.admin.DevicePolicyManager
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.ComponentName
+import android.content.Context
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Bundle
 import android.app.ActivityManager
 import android.os.SystemClock
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -19,13 +36,20 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -41,6 +65,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
+import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.theme.ThemeManager
@@ -55,9 +80,12 @@ import com.adhdfocus.app.ui.settings.SettingsScreen
 import com.adhdfocus.app.ui.setup.LocalSetupScreen
 import com.adhdfocus.app.ui.setup.MemberSelectionScreen
 import com.adhdfocus.app.ui.timer.TimerScreen
+import com.adhdfocus.app.ui.welcome.WelcomeScreen
 import com.adhdfocus.app.ui.theme.AdhdfocusAppThemeWithTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -68,6 +96,7 @@ class MainActivity : ComponentActivity() {
     private var accessibilitySetupGraceUntilMs: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         applyKioskModePolicy()
         lifecycleScope.launch {
@@ -87,14 +116,10 @@ class MainActivity : ComponentActivity() {
                         val backStackEntry by navController.currentBackStackEntryAsState()
                         val currentDestination = backStackEntry?.destination
                         var focusRefreshToken by remember { mutableStateOf(0) }
-                        val showChrome = currentDestination?.route != "local_setup" && currentDestination?.route != "member_selection"
-                        val startDestination = remember {
-                            when {
-                                setupManager.getHouseholdId().isNullOrBlank() -> "local_setup"
-                                setupManager.isSetupComplete() -> "focus"
-                                else -> "member_selection"
-                            }
-                        }
+                        val showChrome = currentDestination?.route != "welcome" &&
+                            currentDestination?.route != "local_setup" &&
+                            currentDestination?.route != "member_selection"
+                        val startDestination = "welcome"
 
                         Scaffold(
                             bottomBar = {
@@ -143,6 +168,25 @@ class MainActivity : ComponentActivity() {
                                 startDestination = startDestination,
                                 modifier = Modifier.padding(paddingValues)
                             ) {
+
+                            composable("welcome") {
+                                val isSetupComplete = remember {
+                                    setupManager.isSetupComplete() && !setupManager.getHouseholdId().isNullOrBlank()
+                                }
+                                WelcomeScreen(
+                                    isSetupComplete = isSetupComplete,
+                                    onContinueClick = {
+                                        val nextRoute = when {
+                                            setupManager.getHouseholdId().isNullOrBlank() -> "local_setup"
+                                            setupManager.isSetupComplete() -> "focus"
+                                            else -> "member_selection"
+                                        }
+                                        navController.navigate(nextRoute) {
+                                            popUpTo("welcome") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
 
                             composable("local_setup") {
                                 LocalSetupScreen(
@@ -278,6 +322,13 @@ class MainActivity : ComponentActivity() {
                             .align(Alignment.TopCenter)
                             .padding(top = 16.dp)
                     )
+                    BatteryStatusPill(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .offset(y = (-4).dp)
+                            .padding(end = 4.dp)
+                    )
                 }
             }
         }
@@ -295,6 +346,8 @@ class MainActivity : ComponentActivity() {
                 return@runCatching
             }
 
+            ensureLockTaskPackagesIfDeviceOwner()
+
             val activityManager = getSystemService(ActivityManager::class.java)
             val lockTaskState = activityManager?.lockTaskModeState ?: ActivityManager.LOCK_TASK_MODE_NONE
             if (shouldBypassKioskForAccessibility()) {
@@ -302,11 +355,26 @@ class MainActivity : ComponentActivity() {
                     stopLockTaskIfActive()
                 }
             } else {
-                if (lockTaskState == ActivityManager.LOCK_TASK_MODE_NONE) {
+                if (lockTaskState == ActivityManager.LOCK_TASK_MODE_NONE && canEnterDedicatedLockTask()) {
                     startLockTask()
                 }
             }
         }
+    }
+
+    private fun ensureLockTaskPackagesIfDeviceOwner() {
+        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java) ?: return
+        val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
+        if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+            runCatching {
+                devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
+            }
+        }
+    }
+
+    private fun canEnterDedicatedLockTask(): Boolean {
+        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java)
+        return devicePolicyManager?.isLockTaskPermitted(packageName) == true
     }
 
     private fun shouldBypassKioskForAccessibility(): Boolean {
@@ -354,4 +422,105 @@ class MainActivity : ComponentActivity() {
         finishAffinity()
         Runtime.getRuntime().exit(0)
     }
+}
+
+@Composable
+private fun BatteryStatusPill(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var batteryPercent by remember { mutableIntStateOf(readBatteryPercent(context)) }
+    var isCharging by remember { mutableStateOf(readBatteryCharging(context)) }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                batteryPercent = readBatteryPercent(context ?: return)
+                isCharging = readBatteryCharging(context)
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
+
+    Row(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+            .wrapContentWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BatteryGlyph(
+            level = batteryPercent,
+            charging = isCharging,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.size(6.dp))
+        Text(
+            text = "$batteryPercent%",
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun BatteryGlyph(
+    level: Int,
+    charging: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 14.dp, height = 8.dp)
+                .border(width = 1.dp, color = color, shape = MaterialTheme.shapes.extraSmall)
+                .padding(1.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(level.coerceIn(0, 100) / 100f)
+                    .fillMaxHeight()
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(
+                        when {
+                            charging -> Color(0xFF5FBF67)
+                            level <= 15 -> Color(0xFFCC4B4B)
+                            else -> color
+                        }
+                    )
+            )
+        }
+        Box(
+            modifier = Modifier
+                .padding(start = 1.dp)
+                .size(width = 2.dp, height = 4.dp)
+                .clip(MaterialTheme.shapes.extraSmall)
+                .background(color)
+        )
+    }
+}
+
+private fun readBatteryPercent(context: Context): Int {
+    val batteryManager = context.getSystemService(BatteryManager::class.java)
+    return batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        ?.takeIf { it in 0..100 }
+        ?: 0
+}
+
+private fun readBatteryCharging(context: Context): Boolean {
+    val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+    return status == BatteryManager.BATTERY_STATUS_CHARGING ||
+        status == BatteryManager.BATTERY_STATUS_FULL
 }
