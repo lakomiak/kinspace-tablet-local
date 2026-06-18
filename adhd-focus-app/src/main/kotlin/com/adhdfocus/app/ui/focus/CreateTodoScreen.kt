@@ -48,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.PopupProperties
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.NumberPicker
@@ -230,6 +231,7 @@ fun CreateTodoScreen(
                     DropdownMenu(
                         expanded = titleSuggestionsExpanded && filteredTitleSuggestions.isNotEmpty(),
                         onDismissRequest = { titleSuggestionsExpanded = false },
+                        properties = PopupProperties(focusable = false),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         filteredTitleSuggestions.forEach { suggestion ->
@@ -292,7 +294,7 @@ fun CreateTodoScreen(
                 }
 
                 NativeSpinnerField(
-                    label = "Todo group",
+                    label = "Time period",
                     value = selectedGroup,
                     options = (todoGroups + "Other").distinct(),
                     onValueSelected = {

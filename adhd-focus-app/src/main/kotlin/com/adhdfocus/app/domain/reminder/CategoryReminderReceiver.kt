@@ -79,19 +79,13 @@ class CategoryReminderReceiver : BroadcastReceiver() {
         val notificationPrefs = userPreferencesManager.deserializeNotificationPreferences(
             prefs.notificationPreferences
         )
-        val reminderCategory = TodoCategoryReminder.fromGroupName(categoryGroup) ?: return
-        val reminderPrefs = notificationPrefs.categoryReminderPreferences
-        val categoryEnabled = when (reminderCategory) {
-            TodoCategoryReminder.MORNING -> reminderPrefs.morningEnabled
-            TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEnabled
-            TodoCategoryReminder.EVENING -> reminderPrefs.eveningEnabled
-            TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEnabled
-        }
-        if (!reminderPrefs.enabled || !categoryEnabled) return
+        val reminderEnabled = isReminderEnabled(categoryGroup, prefs.customTodoGroups, notificationPrefs) ?: return
+        if (!reminderEnabled) return
 
         if (notificationPrefs.soundEnabled) {
             audioNotificationManager.playCategoryReminderSound(
-                notificationPrefs.timerAlarmSound
+                notificationPrefs.timerAlarmSound,
+                durationMs = 2_500L
             )
         }
 
@@ -101,6 +95,30 @@ class CategoryReminderReceiver : BroadcastReceiver() {
                 categoryGroup = categoryGroup,
                 outstanding = outstanding.size
             )
+        }
+    }
+
+    private fun isReminderEnabled(
+        categoryGroup: String,
+        customTodoGroupsJson: String,
+        notificationPrefs: com.adhdfocus.app.data.model.NotificationPreferences
+    ): Boolean? {
+        val reminderCategory = TodoCategoryReminder.fromGroupName(categoryGroup)
+        return if (reminderCategory != null) {
+            val reminderPrefs = notificationPrefs.categoryReminderPreferences
+            if (!reminderPrefs.enabled) return false
+            when (reminderCategory) {
+                TodoCategoryReminder.MORNING -> reminderPrefs.morningEnabled
+                TodoCategoryReminder.AFTERNOON -> reminderPrefs.afternoonEnabled
+                TodoCategoryReminder.EVENING -> reminderPrefs.eveningEnabled
+                TodoCategoryReminder.BEDTIME -> reminderPrefs.bedtimeEnabled
+            }
+        } else {
+            val customGroups = userPreferencesManager.deserializeCustomTodoGroups(customTodoGroupsJson)
+            notificationPrefs.customTimePeriodReminderPreferences
+                .firstOrNull { it.groupName.equals(categoryGroup, ignoreCase = true) }
+                ?.enabled
+                ?: customGroups.any { it.equals(categoryGroup, ignoreCase = true) }
         }
     }
 
@@ -152,10 +170,10 @@ class CategoryReminderReceiver : BroadcastReceiver() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Category Reminders",
+            "Time Period Reminders",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Audible reminders before category time windows end"
+            description = "Audible reminders before time period windows end"
             setSound(null, null)
             enableVibration(false)
         }

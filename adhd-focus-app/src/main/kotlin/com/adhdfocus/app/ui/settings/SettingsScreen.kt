@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adhdfocus.app.BuildConfig
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
@@ -55,10 +56,8 @@ import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
  * Sections:
  * - Display settings (theme, text size, animations)
  * - Notification settings (enable/disable, frequency, sound)
- * - Behavior settings (daily reset time, auto-logout timeout)
  * - Todo_Group visibility toggles
  * - Affirmation settings (frequency, enable/disable)
- * - Gamification settings (badges, streaks, efficiency)
  * - About section
  *
  * Features:
@@ -86,14 +85,7 @@ fun SettingsScreen(
 
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val notificationPreferences by viewModel.notificationPreferences.collectAsStateWithLifecycle()
-    val dailyResetTime by viewModel.dailyResetTime.collectAsStateWithLifecycle()
     val affirmationFrequency by viewModel.affirmationFrequency.collectAsStateWithLifecycle()
-    val gamificationEnabled by viewModel.gamificationEnabled.collectAsStateWithLifecycle()
-    val badgesEnabled by viewModel.badgesEnabled.collectAsStateWithLifecycle()
-    val streaksEnabled by viewModel.streaksEnabled.collectAsStateWithLifecycle()
-    val efficiencyMetricsEnabled by viewModel.efficiencyMetricsEnabled.collectAsStateWithLifecycle()
-    val timerDefaultDuration by viewModel.timerDefaultDuration.collectAsStateWithLifecycle()
-    val autoLogoutTimeout by viewModel.autoLogoutTimeout.collectAsStateWithLifecycle()
     val settingsUnlocked by viewModel.settingsUnlocked.collectAsStateWithLifecycle()
     val hasSettingsPasscode by viewModel.hasSettingsPasscode.collectAsStateWithLifecycle()
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
@@ -109,6 +101,7 @@ fun SettingsScreen(
     val storageUsage by viewModel.storageUsage.collectAsStateWithLifecycle()
     val restoreReady by viewModel.restoreReady.collectAsStateWithLifecycle()
     val restoreTargetName by viewModel.restoreTargetName.collectAsStateWithLifecycle()
+    val kioskModeEnabled = BuildConfig.ENABLE_KIOSK_MODE
 
     var unlockPasscode by remember { mutableStateOf("") }
     var backupPendingRestore by remember { mutableStateOf<BackupListItem?>(null) }
@@ -421,45 +414,47 @@ fun SettingsScreen(
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "If you need TalkBack or other accessibility services, open Accessibility Settings from here before returning to kiosk mode.",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_MAIN).apply {
-                                        addCategory(Intent.CATEGORY_HOME)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier.weight(1f)
+                        if (!kioskModeEnabled) {
+                            Text(
+                                text = "If you need TalkBack or other accessibility services, open Accessibility Settings from here before returning to kiosk mode.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text("Open Home Chooser")
+                                OutlinedButton(
+                                    onClick = {
+                                        val intent = Intent(Intent.ACTION_MAIN).apply {
+                                            addCategory(Intent.CATEGORY_HOME)
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Open Home Chooser")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = android.net.Uri.parse("package:${context.packageName}")
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("App Settings")
+                                }
                             }
                             OutlinedButton(
-                                onClick = {
-                                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.parse("package:${context.packageName}")
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier.weight(1f)
+                                onClick = onOpenAccessibilitySettingsClick,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("App Settings")
+                                Text("Accessibility Settings")
                             }
-                        }
-                        OutlinedButton(
-                            onClick = onOpenAccessibilitySettingsClick,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Accessibility Settings")
                         }
                         Text(
                             text = "For stricter managed-device setup, see KIOSK_DEPLOYMENT.md in the repo.",
@@ -486,7 +481,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    SettingSection(title = "Custom Categories") {
+                    SettingSection(title = "Custom Time Periods") {
                         CustomTodoGroupsPanel(
                             categories = customTodoGroups,
                             onAddCategory = { viewModel.addCustomTodoGroup(it) },
@@ -515,97 +510,12 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    SettingSection(title = "Category Reminders") {
+                    SettingSection(title = "Time Period Reminders") {
                         CategoryReminderPreferencesPanel(
                             preferences = notificationPreferences,
+                            customGroups = customTodoGroups,
                             onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
                             onPreviewReminder = { viewModel.previewCategoryReminder() }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    SettingSection(title = "Behavior") {
-                        TimePickerField(
-                            label = "Daily Reset Time",
-                            value = dailyResetTime,
-                            onValueChanged = { viewModel.updateDailyResetTime(it) }
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        DurationInput(
-                            label = "Auto-Logout Timeout (minutes, 0 = disabled)",
-                            value = autoLogoutTimeout,
-                            onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    SettingSection(title = "Affirmations") {
-                        FrequencySlider(
-                            label = "Affirmation Frequency",
-                            value = affirmationFrequency,
-                            onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    SettingSection(title = "Gamification") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Enable Gamification",
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Switch(
-                                checked = gamificationEnabled,
-                                onCheckedChange = { viewModel.updateGamificationEnabled(it) }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Gamification Elements",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(8.dp)
-                        )
-
-                        SettingToggle(
-                            label = "Badges",
-                            checked = badgesEnabled,
-                            onCheckedChange = { viewModel.updateBadgesEnabled(it) }
-                        )
-
-                        SettingToggle(
-                            label = "Streaks",
-                            checked = streaksEnabled,
-                            onCheckedChange = { viewModel.updateStreaksEnabled(it) }
-                        )
-
-                        SettingToggle(
-                            label = "Efficiency Metrics",
-                            checked = efficiencyMetricsEnabled,
-                            onCheckedChange = { viewModel.updateEfficiencyMetricsEnabled(it) }
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        DurationInput(
-                            label = "Timer Default Duration (minutes)",
-                            value = timerDefaultDuration,
-                            onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
                         )
                     }
 

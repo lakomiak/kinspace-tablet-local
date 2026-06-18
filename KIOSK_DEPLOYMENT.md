@@ -22,13 +22,13 @@ The app package is:
 Modern:
 
 ```powershell
-adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
 ```
 
 Legacy:
 
 ```powershell
-adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
 ```
 
 ## Option 1: Simple Home App Setup
@@ -74,14 +74,15 @@ Important:
 
 - device-owner setup usually must be done on a freshly reset device
 - provisioning steps vary by vendor and Android version
-- Kinspace can now self-apply `setLockTaskPackages(...)` once it is already the device owner
+- Kinspace can self-apply `setLockTaskPackages(...)` once it is already the device owner
+- use the modern APK for Android 14 and newer devices
 
 Typical AOSP test flow on a freshly reset device:
 
 ```powershell
-adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
 adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
-adb shell monkey -p com.adhdfocus.app -c android.intent.category.LAUNCHER 1
+adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.adhdfocus.app/.MainActivity
 ```
 
 After that:
@@ -89,6 +90,7 @@ After that:
 - Kinspace can set itself as lock-task allowlisted
 - Kinspace can enter true dedicated lock task automatically
 - HOME + boot relaunch keep the device on the family hub surface
+- once the app is up, the system nav buttons and app switching should be blocked by lock task
 
 ## ADB Helper Script
 
@@ -116,7 +118,7 @@ adb devices
 Launch the app:
 
 ```powershell
-adb shell monkey -p com.adhdfocus.app -c android.intent.category.LAUNCHER 1
+adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.adhdfocus.app/.MainActivity
 ```
 
 Open app settings:

@@ -188,7 +188,9 @@ class ReportsViewModel @Inject constructor(
         val completedAfterEndSessions = sessions.filter { it.completedAfterTimerEnded }
         val completionMinutes = completedSessions.map { it.activeDurationSeconds / 60.0 }
         val categoryBreakdown = completedEntries
-            .groupingBy { entry -> tasksById[entry.taskId]?.todoGroup?.ifBlank { "Other" } ?: "Other" }
+            .groupingBy { entry ->
+                tasksById[entry.taskId]?.title?.trim().takeUnless { it.isNullOrBlank() } ?: "Untitled To Do"
+            }
             .eachCount()
             .toList()
             .sortedByDescending { it.second }

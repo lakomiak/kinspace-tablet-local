@@ -108,17 +108,9 @@ fun FamilyManagementScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RolePickerButton("Member", selectedRole == UserRole.ADHD_USER) {
-                        selectedRole = UserRole.ADHD_USER
-                    }
-                    RolePickerButton("Caregiver", selectedRole == UserRole.CAREGIVER) {
-                        selectedRole = UserRole.CAREGIVER
-                    }
-                }
                 Button(
                     onClick = {
-                        viewModel.addMember(name, birthDate.toLocalDateOrNull(), selectedRole)
+                        viewModel.addMember(name, birthDate.toLocalDateOrNull(), UserRole.ADHD_USER)
                         name = ""
                         birthDate = ""
                         selectedRole = UserRole.ADHD_USER
@@ -155,7 +147,7 @@ fun FamilyManagementScreen(
                         )
                         Text(
                             text = buildString {
-                                append(if (member.role == UserRole.CAREGIVER) "Caregiver" else "Member")
+                                append("Member")
                                 member.birthDate?.let { append(" | $it") }
                                 if (activeMemberId == member.id) append(" | Active")
                             },
@@ -214,21 +206,13 @@ fun FamilyManagementScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RolePickerButton("Member", selectedRole == UserRole.ADHD_USER) {
-                            selectedRole = UserRole.ADHD_USER
-                        }
-                        RolePickerButton("Caregiver", selectedRole == UserRole.CAREGIVER) {
-                            selectedRole = UserRole.CAREGIVER
-                        }
-                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         editingMemberId?.let {
-                            viewModel.updateMember(it, name, birthDate.toLocalDateOrNull(), selectedRole)
+                            viewModel.updateMember(it, name, birthDate.toLocalDateOrNull(), UserRole.ADHD_USER)
                         }
                         editingMemberId = null
                         name = ""
@@ -252,25 +236,6 @@ fun FamilyManagementScreen(
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun RolePickerButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val semanticsModifier = Modifier.semantics {
-        role = Role.RadioButton
-        this.selected = selected
-        stateDescription = if (selected) "Selected" else "Not selected"
-        contentDescription = "$label role"
-    }
-    if (selected) {
-        Button(onClick = onClick, modifier = semanticsModifier) { Text(label) }
-    } else {
-        OutlinedButton(onClick = onClick, modifier = semanticsModifier) { Text(label) }
     }
 }
 

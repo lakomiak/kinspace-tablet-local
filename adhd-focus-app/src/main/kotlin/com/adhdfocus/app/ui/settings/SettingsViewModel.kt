@@ -467,14 +467,20 @@ class SettingsViewModel @Inject constructor(
      * Plays the currently selected timer alarm sound.
      */
     fun previewTimerAlarm() {
-        audioNotificationManager.playTimerCompletionSound(_notificationPreferences.value.timerAlarmSound)
+        audioNotificationManager.playTimerCompletionSound(
+            _notificationPreferences.value.timerAlarmSound,
+            durationMs = 2_500L
+        )
     }
 
     /**
      * Plays the category reminder sound preview.
      */
     fun previewCategoryReminder() {
-        audioNotificationManager.playCategoryReminderSound(_notificationPreferences.value.timerAlarmSound)
+        audioNotificationManager.playCategoryReminderSound(
+            _notificationPreferences.value.timerAlarmSound,
+            durationMs = 2_500L
+        )
     }
 
     /**

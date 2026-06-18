@@ -1,7 +1,5 @@
 package com.adhdfocus.app.ui.reports
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -63,28 +61,6 @@ fun ReportsScreen(
     val selectedMemberId by viewModel.selectedMemberId.collectAsStateWithLifecycle()
     val summary by viewModel.summary.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val exportStatus by viewModel.exportStatus.collectAsStateWithLifecycle()
-    val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
-    val reportsDirectory by viewModel.reportsDirectory.collectAsStateWithLifecycle()
-    var pendingReportExportFormat by remember { mutableStateOf<String?>(null) }
-
-    val exportTxtLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/plain")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportSummaryTextToUri(householdId, uri)
-        }
-        pendingReportExportFormat = null
-    }
-
-    val exportCsvLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportSummaryCsvToUri(householdId, uri)
-        }
-        pendingReportExportFormat = null
-    }
 
     LaunchedEffect(householdId) {
         viewModel.initialize(householdId)
@@ -113,69 +89,9 @@ fun ReportsScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Select a family member to view local tablet stats and timer patterns.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.exportCurrentSummary(householdId) },
-                    enabled = !isLoading && !isExporting && selectedMemberId != null,
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Text(if (isExporting) "Exporting..." else "Quick Export")
-                }
-                OutlinedButton(
-                    onClick = {
-                        pendingReportExportFormat = "txt"
-                        exportTxtLauncher.launch("kinspace-summary.txt")
-                    },
-                    enabled = !isLoading && !isExporting && selectedMemberId != null,
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Text("Save TXT")
-                }
-                OutlinedButton(
-                    onClick = {
-                        pendingReportExportFormat = "csv"
-                        exportCsvLauncher.launch("kinspace-summary.csv")
-                    },
-                    enabled = !isLoading && !isExporting && selectedMemberId != null,
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Text("Save CSV")
-                }
-            }
-        }
-
-        if (exportStatus != null) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = exportStatus!!,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "Report folder: $reportsDirectory",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontSize = 13.sp
-                    )
-                    OutlinedButton(onClick = { viewModel.clearExportStatus() }) {
-                        Text("Dismiss")
-                    }
-                }
-            }
+            text = "Select a family member to view local tablet stats and timer patterns.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         }
 
         if (members.isNotEmpty()) {
@@ -247,8 +163,8 @@ fun ReportsScreen(
                 chartStyle = TrendChartStyle.Line
             )
             BreakdownCard(
-                title = "Completed To Dos By Category",
-                description = "Which routine categories this person completes most often on the tablet.",
+                title = "Completed To Dos By To Do",
+                description = "Which To Dos this person completes most often on the tablet.",
                 items = summary.categoryBreakdown
             )
             BreakdownCard(

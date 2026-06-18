@@ -47,14 +47,14 @@ fun CustomTodoGroupsPanel(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "Custom Categories",
+            text = "Custom Time Periods",
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Text(
-            text = "Create categories that can be assigned to new todos.",
+            text = "Create time periods that can be assigned to new todos.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -67,7 +67,7 @@ fun CustomTodoGroupsPanel(
                 value = newCategory,
                 onValueChange = { newCategory = it },
                 modifier = Modifier.weight(1f),
-                label = { Text("New category") },
+                label = { Text("New time period") },
                 singleLine = true
             )
             Button(
@@ -83,7 +83,7 @@ fun CustomTodoGroupsPanel(
 
         if (categories.isEmpty()) {
             Text(
-                text = "No custom categories yet.",
+                text = "No custom time periods yet.",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.adhdfocus.app.data.model.CustomTimePeriodReminderPreference
 import com.adhdfocus.app.data.model.CategoryReminderPreferences
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.domain.reminder.TodoCategoryReminder
@@ -32,6 +33,7 @@ import com.adhdfocus.app.domain.reminder.TodoCategoryReminder
 @Composable
 fun CategoryReminderPreferencesPanel(
     preferences: NotificationPreferences,
+    customGroups: List<String> = emptyList(),
     onPreferencesChanged: (NotificationPreferences) -> Unit,
     onPreviewReminder: () -> Unit
 ) {
@@ -48,7 +50,7 @@ fun CategoryReminderPreferencesPanel(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Category Reminders",
+            text = "Time Period Reminders",
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -63,12 +65,12 @@ fun CategoryReminderPreferencesPanel(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Audible reminders before category end times",
+                    text = "Audible reminders before time period end times",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Choose which category alarms are active, set each category end time, and decide how many minutes before each category ends they should sound.",
+                    text = "Choose which time period alarms are active, set each time period end time, and decide how many minutes before each one ends they should sound.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,15 +103,23 @@ fun CategoryReminderPreferencesPanel(
                 }
             )
 
+            if (customGroups.isNotEmpty()) {
+                CustomTimePeriodReminderGrid(
+                    customGroups = customGroups,
+                    preferences = preferences,
+                    onPreferencesChanged = onPreferencesChanged
+                )
+            }
+
             OutlinedButton(
                 onClick = onPreviewReminder,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Preview 15-second Reminder")
+                Text("Preview Reminder")
             }
         } else {
             Text(
-                text = "Enable category reminders to choose end times and lead times for Morning, Afternoon, Evening, and Bedtime.",
+                text = "Enable time period reminders to choose end times and lead times for Morning, Afternoon, Evening, Bedtime, and any custom time periods you add.",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -138,13 +148,13 @@ private fun CategoryReminderToggleList(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Category Alarm Toggles",
+            text = "Time Period Alarm Toggles",
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "Turn each category alarm on or off individually.",
+            text = "Turn each time period alarm on or off individually.",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -303,7 +313,7 @@ private fun CategoryReminderLeadPicker(
         )
 
         TimePickerField(
-            label = "Category End Time",
+            label = "Time Period End Time",
             value = endTime,
             onValueChanged = onEndTimeChanged
         )
@@ -332,6 +342,139 @@ private fun CategoryReminderLeadPicker(
                 picker.isEnabled = categoryEnabled
                 picker.alpha = if (categoryEnabled) 1f else 0.5f
                 val clamped = leadMinutes.coerceIn(0, 720)
+                if (picker.value != clamped) {
+                    picker.value = clamped
+                }
+                pickerInitialized = true
+            }
+        )
+    }
+}
+
+@Composable
+private fun CustomTimePeriodReminderGrid(
+    customGroups: List<String>,
+    preferences: NotificationPreferences,
+    onPreferencesChanged: (NotificationPreferences) -> Unit
+) {
+    val customRemindersByGroup = remember(customGroups, preferences.customTimePeriodReminderPreferences) {
+        preferences.customTimePeriodReminderPreferences.associateBy { it.groupName.lowercase() }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Custom Time Periods",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "New time periods are added here automatically and can use their own reminder time.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        customGroups.forEach { groupName ->
+            val reminder = customRemindersByGroup[groupName.lowercase()]
+                ?: CustomTimePeriodReminderPreference(groupName = groupName)
+            CustomTimePeriodReminderCard(
+                reminder = reminder,
+                onReminderChanged = { updated ->
+                    val updatedList = preferences.customTimePeriodReminderPreferences
+                        .filterNot { it.groupName.equals(groupName, ignoreCase = true) } + updated
+                    onPreferencesChanged(
+                        preferences.copy(customTimePeriodReminderPreferences = updatedList)
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomTimePeriodReminderCard(
+    reminder: CustomTimePeriodReminderPreference,
+    onReminderChanged: (CustomTimePeriodReminderPreference) -> Unit
+) {
+    var pickerInitialized by remember(reminder.groupName) { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = reminder.groupName,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (reminder.enabled) "Alarm on" else "Alarm off",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Switch(
+                checked = reminder.enabled,
+                onCheckedChange = { enabled ->
+                    onReminderChanged(reminder.copy(enabled = enabled))
+                }
+            )
+        }
+        Text(
+            text = "Ends at ${reminder.endTime}",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "${reminder.leadMinutes} minute${if (reminder.leadMinutes == 1) "" else "s"} before end",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        TimePickerField(
+            label = "Time Period End Time",
+            value = reminder.endTime,
+            onValueChanged = { newValue ->
+                onReminderChanged(reminder.copy(endTime = newValue))
+            }
+        )
+
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp),
+            factory = { context ->
+                NumberPicker(context).apply {
+                    descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                    minValue = 0
+                    maxValue = 720
+                    wrapSelectorWheel = false
+                    value = reminder.leadMinutes.coerceIn(minValue, maxValue)
+                    pickerInitialized = true
+                    setOnValueChangedListener { _, _, newValue ->
+                        if (pickerInitialized) {
+                            onReminderChanged(reminder.copy(leadMinutes = newValue))
+                        }
+                    }
+                    isEnabled = reminder.enabled
+                    alpha = if (reminder.enabled) 1f else 0.5f
+                }
+            },
+            update = { picker ->
+                picker.isEnabled = reminder.enabled
+                picker.alpha = if (reminder.enabled) 1f else 0.5f
+                val clamped = reminder.leadMinutes.coerceIn(0, 720)
                 if (picker.value != clamped) {
                     picker.value = clamped
                 }

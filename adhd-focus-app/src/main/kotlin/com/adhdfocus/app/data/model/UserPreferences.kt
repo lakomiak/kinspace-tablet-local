@@ -46,7 +46,8 @@ data class NotificationPreferences(
     val vibrationEnabled: Boolean = true,
     val visualAlertsEnabled: Boolean = true,
     val timerAlarmSound: TimerAlarmSound = TimerAlarmSound.ALARM,
-    val categoryReminderPreferences: CategoryReminderPreferences = CategoryReminderPreferences()
+    val categoryReminderPreferences: CategoryReminderPreferences = CategoryReminderPreferences(),
+    val customTimePeriodReminderPreferences: List<CustomTimePeriodReminderPreference> = emptyList()
 )
 
 @Serializable
@@ -88,5 +89,19 @@ data class CategoryReminderPreferences(
         require(timeRegex.matches(afternoonEndTime)) { "afternoonEndTime must be in HH:mm format" }
         require(timeRegex.matches(eveningEndTime)) { "eveningEndTime must be in HH:mm format" }
         require(timeRegex.matches(bedtimeEndTime)) { "bedtimeEndTime must be in HH:mm format" }
+    }
+}
+
+@Serializable
+data class CustomTimePeriodReminderPreference(
+    val groupName: String,
+    val enabled: Boolean = true,
+    val endTime: String = "18:00",
+    val leadMinutes: Int = 15
+) {
+    init {
+        require(groupName.isNotBlank()) { "groupName cannot be blank" }
+        require(endTime.matches(Regex("^([0-1][0-9]|2[0-3]):[0-5][0-9]$"))) { "endTime must be HH:mm" }
+        require(leadMinutes >= 0) { "leadMinutes must be non-negative" }
     }
 }

@@ -4,6 +4,7 @@ import com.adhdfocus.app.data.dao.UserPreferencesDao
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
+import com.adhdfocus.app.data.model.CustomTimePeriodReminderPreference
 import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import javax.inject.Singleton
 import kotlinx.serialization.encodeToString
@@ -402,6 +403,19 @@ class UserPreferencesManager @Inject constructor(
         }
     }
 
+    fun syncCustomTimePeriodReminderPreferences(
+        notificationPreferences: NotificationPreferences,
+        customGroups: List<String>
+    ): NotificationPreferences {
+        val cleanedGroups = customGroups.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        val existingByGroup = notificationPreferences.customTimePeriodReminderPreferences
+            .associateBy { it.groupName.lowercase() }
+        val syncedCustomReminders = cleanedGroups.map { group ->
+            existingByGroup[group.lowercase()] ?: CustomTimePeriodReminderPreference(groupName = group)
+        }
+        return notificationPreferences.copy(customTimePeriodReminderPreferences = syncedCustomReminders)
+    }
+
     /**
      * Creates default preferences for a user.
      *
@@ -472,6 +486,11 @@ class UserPreferencesManager @Inject constructor(
         validateTimeFormat(prefs.categoryReminderPreferences.afternoonEndTime)
         validateTimeFormat(prefs.categoryReminderPreferences.eveningEndTime)
         validateTimeFormat(prefs.categoryReminderPreferences.bedtimeEndTime)
+        prefs.customTimePeriodReminderPreferences.forEach { reminder ->
+            require(reminder.groupName.isNotBlank()) { "custom reminder group name cannot be blank" }
+            validateTimeFormat(reminder.endTime)
+            require(reminder.leadMinutes >= 0) { "custom reminder leadMinutes must be non-negative" }
+        }
     }
 
     /**

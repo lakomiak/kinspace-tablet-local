@@ -65,7 +65,7 @@ try {
     Write-Host $target
     Write-Host ""
     Write-Host "Install on a device with:"
-    Write-Host "adb install -r `"$target`""
+    Write-Host "adb install --user 0 -r `"$target`""
 }
 finally {
     Pop-Location

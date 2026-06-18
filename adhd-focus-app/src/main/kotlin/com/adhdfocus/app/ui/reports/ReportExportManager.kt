@@ -85,7 +85,7 @@ class ReportExportManager @Inject constructor(
             summary.recommendations.forEach { lines += "- $it" }
         }
         lines += ""
-        lines += "Completed To Dos By Category"
+        lines += "Completed To Dos By To Do"
         if (summary.categoryBreakdown.isEmpty()) {
             lines += "- Not enough local history yet."
         } else {
@@ -143,7 +143,7 @@ class ReportExportManager @Inject constructor(
         }
 
         summary.categoryBreakdown.forEach {
-            rows += listOf("category_breakdown", it.label, it.count.toString(), "${it.percentage.format1()}%")
+            rows += listOf("todo_breakdown", it.label, it.count.toString(), "${it.percentage.format1()}%")
         }
 
         summary.timerOutcomeBreakdown.forEach {

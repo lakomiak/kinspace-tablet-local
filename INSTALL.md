@@ -27,13 +27,13 @@ Use this guide to install the local-only tablet app on an Android device.
 2. Install the chosen APK:
 
    ```powershell
-   adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
+   adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
    ```
 
    or
 
    ```powershell
-   adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
+   adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
    ```
 
 3. Launch `Kinspace Tablet Local`.
@@ -45,6 +45,8 @@ Use this guide to install the local-only tablet app on an Android device.
    - category reminder toggles
    - reports access
    - local backup section
+
+If the device has multiple Android users, install and launch the app in user `0` so the Fire HD 8 does not keep attaching it to user `10`.
 
 ## Reinstalling
 

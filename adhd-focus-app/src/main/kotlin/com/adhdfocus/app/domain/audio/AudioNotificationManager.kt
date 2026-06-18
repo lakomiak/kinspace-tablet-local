@@ -30,11 +30,14 @@ class AudioNotificationManager @Inject constructor(
     /**
      * Plays the timer completion notification sound.
      */
-    fun playTimerCompletionSound(alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM) {
+    fun playTimerCompletionSound(
+        alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM,
+        durationMs: Long? = null
+    ) {
         clearStopTimer()
         when (alarmSound) {
-            TimerAlarmSound.ALARM -> playRingtone(RingtoneManager.TYPE_ALARM)
-            TimerAlarmSound.NOTIFICATION -> playRingtone(RingtoneManager.TYPE_NOTIFICATION)
+            TimerAlarmSound.ALARM -> playRingtone(RingtoneManager.TYPE_ALARM, durationMs)
+            TimerAlarmSound.NOTIFICATION -> playRingtone(RingtoneManager.TYPE_NOTIFICATION, durationMs)
             TimerAlarmSound.BEEP -> playBeep()
             TimerAlarmSound.MULTI_BEEP -> playMultipleBeeps(3)
             TimerAlarmSound.SILENT -> Unit
@@ -112,7 +115,7 @@ class AudioNotificationManager @Inject constructor(
         }
     }
 
-    private fun playRingtone(type: Int) {
+    private fun playRingtone(type: Int, durationMs: Long? = null) {
         try {
             val ringtoneUri: Uri = RingtoneManager.getDefaultUri(type)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -120,6 +123,11 @@ class AudioNotificationManager @Inject constructor(
             mediaPlayer = MediaPlayer.create(context, ringtoneUri)
             mediaPlayer?.isLooping = false
             mediaPlayer?.start()
+            durationMs?.let {
+                val stopTask = Runnable { stopSound() }
+                stopRunnable = stopTask
+                mainHandler.postDelayed(stopTask, it.coerceAtLeast(750L))
+            }
         } catch (e: Exception) {
             // Handle error silently
         }

@@ -50,11 +50,18 @@ To package the installers into `dist/`:
 ./package-tablet-local-installer.ps1 -Legacy
 ```
 
+If the tablet exposes multiple Android users, install and launch the APK as user `0`:
+
+```powershell
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
+adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.adhdfocus.app/.MainActivity
+```
+
 ## Install On A Device
 
 ```powershell
-adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
-adb install -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
+adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-legacy-debug.apk"
 ```
 
 ## Architecture

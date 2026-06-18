@@ -51,11 +51,8 @@ import com.adhdfocus.app.ui.settings.CustomTodoGroupsPanel
  * - Theme selection (light/dark)
  * - Todo group visibility toggles
  * - Notification preferences
- * - Daily reset time picker
  * - Affirmation frequency slider
- * - Gamification toggle
  * - Timer default duration input
- * - Auto-logout timeout input
  * - Reset to defaults button
  * - Save/cancel buttons
  * - Loading and error states
@@ -73,11 +70,8 @@ fun UserPreferencesScreen(
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val customTodoGroups by viewModel.customTodoGroups.collectAsStateWithLifecycle()
     val notificationPreferences by viewModel.notificationPreferences.collectAsStateWithLifecycle()
-    val dailyResetTime by viewModel.dailyResetTime.collectAsStateWithLifecycle()
     val affirmationFrequency by viewModel.affirmationFrequency.collectAsStateWithLifecycle()
-    val gamificationEnabled by viewModel.gamificationEnabled.collectAsStateWithLifecycle()
     val timerDefaultDuration by viewModel.timerDefaultDuration.collectAsStateWithLifecycle()
-    val autoLogoutTimeout by viewModel.autoLogoutTimeout.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -166,16 +160,9 @@ fun UserPreferencesScreen(
 
                 CategoryReminderPreferencesPanel(
                     preferences = notificationPreferences,
+                    customGroups = customTodoGroups,
                     onPreferencesChanged = { viewModel.updateNotificationPreferences(it) },
                     onPreviewReminder = { viewModel.previewCategoryReminder() }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                TimePickerField(
-                    label = "Daily Reset Time",
-                    value = dailyResetTime,
-                    onValueChanged = { viewModel.updateDailyResetTime(it) }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -186,40 +173,10 @@ fun UserPreferencesScreen(
                     onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Enable Gamification",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Switch(
-                        checked = gamificationEnabled,
-                        onCheckedChange = { viewModel.updateGamificationEnabled(it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 DurationInput(
                     label = "Timer Default Duration (minutes)",
                     value = timerDefaultDuration,
                     onValueChanged = { viewModel.updateTimerDefaultDuration(it) }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DurationInput(
-                    label = "Auto-Logout Timeout (minutes, 0 = disabled)",
-                    value = autoLogoutTimeout,
-                    onValueChanged = { viewModel.updateAutoLogoutTimeout(it) }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

@@ -1,21 +1,17 @@
 package com.adhdfocus.app
 
-import android.view.accessibility.AccessibilityManager
+import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.BroadcastReceiver
 import android.content.Intent
-import android.content.ComponentName
 import android.content.Context
 import android.content.IntentFilter
-import android.os.BatteryManager
 import android.os.Bundle
-import android.app.ActivityManager
-import android.os.SystemClock
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.net.Uri
-import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
@@ -29,6 +25,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +84,10 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.delay
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -93,16 +95,20 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var themeManager: ThemeManager
     @Inject lateinit var setupManager: TabletSetupManager
     @Inject lateinit var categoryReminderScheduler: CategoryReminderScheduler
-    private var accessibilitySetupGraceUntilMs: Long = 0L
+    private var kioskSurfaceReady = false
+    private var kioskLockEngaged = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        applyKioskModePolicy()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         lifecycleScope.launch {
             runCatching { categoryReminderScheduler.rescheduleForCurrentSetup() }
         }
         setContent {
+            val activity = this@MainActivity
             val currentTheme by themeManager.currentTheme.collectAsStateWithLifecycle()
             AdhdfocusAppThemeWithTheme(theme = currentTheme) {
                 val affirmationViewModel: AffirmationViewModel = hiltViewModel()
@@ -120,6 +126,18 @@ class MainActivity : ComponentActivity() {
                             currentDestination?.route != "local_setup" &&
                             currentDestination?.route != "member_selection"
                         val startDestination = "welcome"
+
+                        LaunchedEffect(currentDestination?.route) {
+                            kioskSurfaceReady = currentDestination?.route == "focus"
+                            if (kioskSurfaceReady) {
+                                delay(400)
+                                activity.enableKioskLockIfEligible()
+                            }
+                        }
+
+                        BackHandler {
+                            navController.popBackStack()
+                        }
 
                         Scaffold(
                             bottomBar = {
@@ -336,74 +354,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        applyKioskModePolicy()
-    }
-
-    private fun applyKioskModePolicy() {
-        runCatching {
-            if (!BuildConfig.ENABLE_KIOSK_MODE) {
-                stopLockTaskIfActive()
-                return@runCatching
-            }
-
-            ensureLockTaskPackagesIfDeviceOwner()
-
-            val activityManager = getSystemService(ActivityManager::class.java)
-            val lockTaskState = activityManager?.lockTaskModeState ?: ActivityManager.LOCK_TASK_MODE_NONE
-            if (shouldBypassKioskForAccessibility()) {
-                if (lockTaskState != ActivityManager.LOCK_TASK_MODE_NONE) {
-                    stopLockTaskIfActive()
-                }
-            } else {
-                if (lockTaskState == ActivityManager.LOCK_TASK_MODE_NONE && canEnterDedicatedLockTask()) {
-                    startLockTask()
-                }
-            }
+        hideSystemBars()
+        if (kioskSurfaceReady) {
+            enableKioskLockIfEligible()
         }
     }
 
-    private fun ensureLockTaskPackagesIfDeviceOwner() {
-        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java) ?: return
-        val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
-        if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
-            runCatching {
-                devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
-            }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemBars()
         }
-    }
-
-    private fun canEnterDedicatedLockTask(): Boolean {
-        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java)
-        return devicePolicyManager?.isLockTaskPermitted(packageName) == true
-    }
-
-    private fun shouldBypassKioskForAccessibility(): Boolean {
-        if (SystemClock.elapsedRealtime() < accessibilitySetupGraceUntilMs) {
-            return true
-        }
-
-        val accessibilityManager = getSystemService(AccessibilityManager::class.java)
-        if (accessibilityManager?.isEnabled == true) {
-            return true
-        }
-
-        val accessibilityEnabled = runCatching {
-            Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
-        }.getOrDefault(false)
-
-        return accessibilityEnabled
-    }
-
-    private fun stopLockTaskIfActive() {
-        runCatching { stopLockTask() }
     }
 
     private fun openAccessibilitySettings() {
-        accessibilitySetupGraceUntilMs = SystemClock.elapsedRealtime() + 5 * 60 * 1000L
-        stopLockTaskIfActive()
         runCatching {
             startActivity(
-                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
             )
@@ -411,16 +378,43 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restartApplication() {
-        runCatching {
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            }
-            if (launchIntent != null) {
-                startActivity(launchIntent)
-            }
-        }
+        runCatching { stopLockTask() }
         finishAffinity()
         Runtime.getRuntime().exit(0)
+    }
+
+    private fun hideSystemBars() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    private fun enableKioskLockIfEligible() {
+        if (!BuildConfig.ENABLE_KIOSK_MODE || kioskLockEngaged) {
+            return
+        }
+
+        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java) ?: return
+        if (!devicePolicyManager.isDeviceOwnerApp(packageName)) {
+            return
+        }
+        if (!devicePolicyManager.isLockTaskPermitted(packageName)) {
+            return
+        }
+
+        val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
+        runCatching {
+            devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
+            devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+        }
+
+        val activityManager = getSystemService(ActivityManager::class.java)
+        if (activityManager?.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) {
+            runCatching { startLockTask() }
+        }
+
+        kioskLockEngaged = true
     }
 }
 
@@ -512,15 +506,17 @@ private fun BatteryGlyph(
 }
 
 private fun readBatteryPercent(context: Context): Int {
-    val batteryManager = context.getSystemService(BatteryManager::class.java)
-    return batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        ?.takeIf { it in 0..100 }
-        ?: 0
+    val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    val level = intent?.getIntExtra("level", -1) ?: -1
+    val scale = intent?.getIntExtra("scale", -1) ?: -1
+    if (level < 0 || scale <= 0) {
+        return 0
+    }
+    return ((level * 100f) / scale).toInt().coerceIn(0, 100)
 }
 
 private fun readBatteryCharging(context: Context): Boolean {
     val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-    return status == BatteryManager.BATTERY_STATUS_CHARGING ||
-        status == BatteryManager.BATTERY_STATUS_FULL
+    val status = intent?.getIntExtra("status", -1) ?: -1
+    return status == 2 || status == 5
 }

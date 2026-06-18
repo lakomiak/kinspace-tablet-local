@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.adhdfocus.app.data.model.CustomTimePeriodReminderPreference
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
@@ -38,6 +39,7 @@ class CategoryReminderScheduler @Inject constructor(
         val notificationPreferences = userPreferencesManager.deserializeNotificationPreferences(
             preferences.notificationPreferences
         )
+        val customGroups = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
         if (!notificationPreferences.categoryReminderPreferences.enabled) {
             cancelAll()
             return
@@ -53,15 +55,53 @@ class CategoryReminderScheduler @Inject constructor(
                 householdId = householdId
             )
         }
+        buildCustomReminderPreferences(
+            customGroups = customGroups,
+            notificationPreferences = notificationPreferences
+        ).forEachIndexed { index, reminder ->
+            scheduleCustomTimePeriodReminder(
+                reminder = reminder,
+                reminderIndex = index,
+                preferences = notificationPreferences,
+                memberId = memberId,
+                memberName = setupManager.getAssignedMemberName().orEmpty(),
+                householdId = householdId
+            )
+        }
     }
 
-    fun cancelAll() {
+    private suspend fun cancelAll() {
+        val memberId = setupManager.getAssignedMemberId().orEmpty()
+        val preferences = if (memberId.isBlank()) null else userPreferencesManager.getPreferences(memberId)
+        val notificationPreferences = preferences?.let {
+            userPreferencesManager.deserializeNotificationPreferences(it.notificationPreferences)
+        } ?: NotificationPreferences()
+        val customGroups = preferences?.let {
+            userPreferencesManager.deserializeCustomTodoGroups(it.customTodoGroups)
+        }.orEmpty()
+
         TodoCategoryReminder.values().forEach { category ->
             val pendingIntent = reminderPendingIntent(
                 category = category,
                 endTime = category.defaultEndTime,
                 flag = PendingIntent.FLAG_NO_CREATE,
-                memberId = setupManager.getAssignedMemberId().orEmpty(),
+                memberId = memberId,
+                memberName = setupManager.getAssignedMemberName().orEmpty(),
+                householdId = setupManager.getHouseholdId().orEmpty()
+            )
+            if (pendingIntent != null) {
+                alarmManager?.cancel(pendingIntent)
+            }
+        }
+        buildCustomReminderPreferences(
+            customGroups = customGroups,
+            notificationPreferences = notificationPreferences
+        ).forEachIndexed { index, reminder ->
+            val pendingIntent = customReminderPendingIntent(
+                reminder = reminder,
+                reminderIndex = index,
+                flag = PendingIntent.FLAG_NO_CREATE,
+                memberId = memberId,
                 memberName = setupManager.getAssignedMemberName().orEmpty(),
                 householdId = setupManager.getHouseholdId().orEmpty()
             )
@@ -111,9 +151,95 @@ class CategoryReminderScheduler @Inject constructor(
         memberName: String,
         householdId: String
     ): PendingIntent? {
+        return reminderPendingIntent(
+            groupName = category.groupName,
+            endTime = endTime,
+            requestCode = category.ordinal + REQUEST_CODE_BASE,
+            flag = flag,
+            memberId = memberId,
+            memberName = memberName,
+            householdId = householdId
+        )
+    }
+
+    private fun scheduleCustomTimePeriodReminder(
+        reminder: CustomTimePeriodReminderPreference,
+        reminderIndex: Int,
+        preferences: NotificationPreferences,
+        memberId: String,
+        memberName: String,
+        householdId: String
+    ) {
+        if (!preferences.categoryReminderPreferences.enabled || !reminder.enabled) return
+        val endTime = runCatching { LocalTime.parse(reminder.endTime) }.getOrDefault(LocalTime.of(18, 0))
+        val triggerAtMillis = computeNextTriggerAtMillis(endTime, reminder.leadMinutes.coerceAtLeast(0))
+        val pendingIntent = customReminderPendingIntent(
+            reminder = reminder,
+            reminderIndex = reminderIndex,
+            flag = PendingIntent.FLAG_UPDATE_CURRENT,
+            memberId = memberId,
+            memberName = memberName,
+            householdId = householdId
+        ) ?: return
+
+        val alarm = alarmManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarm.canScheduleExactAlarms()) {
+            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } else {
+            @Suppress("DEPRECATION")
+            alarm.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        }
+    }
+
+    private fun customReminderPendingIntent(
+        reminder: CustomTimePeriodReminderPreference,
+        reminderIndex: Int,
+        flag: Int,
+        memberId: String,
+        memberName: String,
+        householdId: String
+    ): PendingIntent? {
+        val endTime = runCatching { LocalTime.parse(reminder.endTime) }.getOrDefault(LocalTime.of(18, 0))
+        return reminderPendingIntent(
+            groupName = reminder.groupName,
+            endTime = endTime,
+            requestCode = customRequestCode(reminder.groupName, reminderIndex),
+            flag = flag,
+            memberId = memberId,
+            memberName = memberName,
+            householdId = householdId
+        )
+    }
+
+    private fun buildCustomReminderPreferences(
+        customGroups: List<String>,
+        notificationPreferences: NotificationPreferences
+    ): List<CustomTimePeriodReminderPreference> {
+        val overridesByGroup = notificationPreferences.customTimePeriodReminderPreferences
+            .associateBy { it.groupName.lowercase() }
+        return customGroups
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .map { group ->
+                overridesByGroup[group.lowercase()] ?: CustomTimePeriodReminderPreference(groupName = group)
+            }
+    }
+
+    private fun reminderPendingIntent(
+        groupName: String,
+        endTime: LocalTime,
+        requestCode: Int,
+        flag: Int,
+        memberId: String,
+        memberName: String,
+        householdId: String
+    ): PendingIntent? {
         val intent = Intent(context, CategoryReminderReceiver::class.java).apply {
             action = CategoryReminderReceiver.ACTION_CATEGORY_REMINDER
-            putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_GROUP, category.groupName)
+            putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_GROUP, groupName)
             putExtra(CategoryReminderReceiver.EXTRA_CATEGORY_END_TIME, endTime.toString())
             putExtra(CategoryReminderReceiver.EXTRA_MEMBER_ID, memberId)
             putExtra(CategoryReminderReceiver.EXTRA_MEMBER_NAME, memberName)
@@ -122,7 +248,7 @@ class CategoryReminderScheduler @Inject constructor(
 
         return PendingIntent.getBroadcast(
             context,
-            category.ordinal + REQUEST_CODE_BASE,
+            requestCode,
             intent,
             flag or pendingIntentImmutableFlag()
         )
@@ -168,6 +294,10 @@ class CategoryReminderScheduler @Inject constructor(
         return runCatching { LocalTime.parse(raw) }.getOrDefault(category.defaultEndTime)
     }
 
+    private fun customRequestCode(groupName: String, reminderIndex: Int): Int {
+        return CUSTOM_REQUEST_CODE_BASE + groupName.lowercase().hashCode().absoluteValue + reminderIndex
+    }
+
     private fun computeNextTriggerAtMillis(
         endTime: LocalTime,
         leadMinutes: Int
@@ -184,6 +314,7 @@ class CategoryReminderScheduler @Inject constructor(
 
     private companion object {
         const val REQUEST_CODE_BASE = 42000
+        const val CUSTOM_REQUEST_CODE_BASE = 52000
     }
 
     private fun pendingIntentImmutableFlag(): Int {
@@ -194,3 +325,6 @@ class CategoryReminderScheduler @Inject constructor(
         }
     }
 }
+
+private val Int.absoluteValue: Int
+    get() = if (this == Int.MIN_VALUE) Int.MAX_VALUE else kotlin.math.abs(this)

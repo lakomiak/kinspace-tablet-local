@@ -48,18 +48,18 @@ Write-Host ""
 
 Write-Host "Installing APK..."
 if ([string]::IsNullOrWhiteSpace($DeviceId)) {
-    & adb install -r $apkPath
+    & adb install --user 0 -r $apkPath
 } else {
-    & adb -s $DeviceId install -r $apkPath
+    & adb -s $DeviceId install --user 0 -r $apkPath
 }
 Write-Host ""
 
 if ($Launch) {
     Write-Host "Launching Kinspace Tablet Local..."
     if ([string]::IsNullOrWhiteSpace($DeviceId)) {
-        & adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
+        & adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "$packageName/.MainActivity"
     } else {
-        & adb -s $DeviceId shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
+        & adb -s $DeviceId shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "$packageName/.MainActivity"
     }
     Write-Host ""
 }
@@ -67,9 +67,9 @@ if ($Launch) {
 if ($OpenHomeChooser) {
     Write-Host "Opening Home chooser..."
     if ([string]::IsNullOrWhiteSpace($DeviceId)) {
-        & adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME
+        & adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME
     } else {
-        & adb -s $DeviceId shell am start -a android.intent.action.MAIN -c android.intent.category.HOME
+        & adb -s $DeviceId shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME
     }
     Write-Host ""
 }
@@ -77,9 +77,9 @@ if ($OpenHomeChooser) {
 if ($OpenAppSettings) {
     Write-Host "Opening app settings..."
     if ([string]::IsNullOrWhiteSpace($DeviceId)) {
-        & adb shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$packageName"
+        & adb shell am start --user 0 -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$packageName"
     } else {
-        & adb -s $DeviceId shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$packageName"
+        & adb -s $DeviceId shell am start --user 0 -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$packageName"
     }
     Write-Host ""
 }
@@ -88,13 +88,13 @@ if ($ShowCommands) {
     Write-Host "Useful follow-up commands:"
     Write-Host ""
     Write-Host "Launch app:"
-    Write-Host "adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1"
+    Write-Host "adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n $packageName/.MainActivity"
     Write-Host ""
     Write-Host "Open Home chooser:"
-    Write-Host "adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME"
+    Write-Host "adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME"
     Write-Host ""
     Write-Host "Open app settings:"
-    Write-Host "adb shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$packageName"
+    Write-Host "adb shell am start --user 0 -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$packageName"
     Write-Host ""
     Write-Host "Set device owner on a freshly reset device:"
     Write-Host "adb shell dpm set-device-owner $packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"

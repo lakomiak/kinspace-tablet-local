@@ -1,5 +1,6 @@
 package com.adhdfocus.app.domain.setup
 
+import android.os.Build
 import android.content.Context
 import android.content.SharedPreferences
 import com.adhdfocus.app.BuildConfig
@@ -17,8 +18,12 @@ class TabletSetupManager @Inject constructor(
     @ApplicationContext context: Context
 ) {
     private val prefs: SharedPreferences =
-        context.createDeviceProtectedStorageContext()
-            .getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            context.createDeviceProtectedStorageContext()
+                .getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+        } else {
+            context.getSharedPreferences("tablet_setup", Context.MODE_PRIVATE)
+        }
 
     fun isSetupComplete(): Boolean = prefs.getString(KEY_MEMBER_ID, null) != null
 
