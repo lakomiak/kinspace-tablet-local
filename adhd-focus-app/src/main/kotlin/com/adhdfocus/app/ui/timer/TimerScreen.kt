@@ -52,6 +52,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.adhdfocus.app.ui.theme.CompletedGreen
+import com.adhdfocus.app.ui.theme.InProgressOrange
+import com.adhdfocus.app.ui.theme.IncompleteRed
 
 /**
  * Timer Screen Component
@@ -97,9 +100,9 @@ fun TimerScreen(
     )
 
     val progressColor = when {
-        animatedProgress < 0.5f -> Color(0xFF43A047)
-        animatedProgress < 0.9f -> Color(0xFFFB8C00)
-        else -> Color(0xFFE53935)
+        animatedProgress < 0.5f -> CompletedGreen
+        animatedProgress < 0.9f -> InProgressOrange
+        else -> IncompleteRed
     }
     val timerStateSummary = remember(timeRemaining, isPaused, timerCompleted, progress, taskId) {
         buildString {
@@ -202,8 +205,10 @@ fun TimerScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFB8C00).copy(alpha = 0.1f)
-                    )
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -216,7 +221,7 @@ fun TimerScreen(
                             text = "Paused",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFB8C00)
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
@@ -225,8 +230,10 @@ fun TimerScreen(
             if (timerCompleted) {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFE53935).copy(alpha = 0.12f)
+                        containerColor = MaterialTheme.colorScheme.errorContainer
                     ),
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -240,7 +247,7 @@ fun TimerScreen(
                             text = "Timer complete",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE53935)
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
@@ -249,8 +256,10 @@ fun TimerScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-                )
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
+                ),
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -266,7 +275,7 @@ fun TimerScreen(
                             text = if (isPaused) "Resume" else "Pause",
                             icon = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                             modifier = Modifier.weight(1f),
-                            containerColor = Color(0xFFFB8C00),
+                            containerColor = InProgressOrange,
                             enabled = isRunning
                         ) {
                             if (isPaused) {
@@ -280,9 +289,9 @@ fun TimerScreen(
                             text = "Complete To Do",
                             icon = Icons.Default.Check,
                             modifier = Modifier.weight(1f),
-                            containerColor = Color(0xFF43A047)
+                            containerColor = CompletedGreen
                         ) {
-                            viewModel.completeCurrentTask(onTaskCompleted)
+                            viewModel.completeCurrentTask(taskId, onTaskCompleted)
                         }
                     }
 
@@ -305,7 +314,7 @@ fun TimerScreen(
                                 text = "Cancel",
                                 icon = Icons.Default.Close,
                                 modifier = Modifier.weight(1f),
-                                containerColor = Color(0xFFE53935)
+                                containerColor = IncompleteRed
                             ) {
                                 viewModel.cancelTimer()
                                 onCancel()
@@ -316,7 +325,7 @@ fun TimerScreen(
                             text = "Cancel",
                             icon = Icons.Default.Close,
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = Color(0xFFE53935)
+                            containerColor = IncompleteRed
                         ) {
                             viewModel.cancelTimer()
                             onCancel()
@@ -347,16 +356,18 @@ fun CompactTimerDisplay(
     viewModel: TimerViewModel = hiltViewModel()
 ) {
     val progressColor = when {
-        progress < 0.5f -> Color(0xFF43A047)
-        progress < 0.9f -> Color(0xFFFB8C00)
-        else -> Color(0xFFE53935)
+        progress < 0.5f -> CompletedGreen
+        progress < 0.9f -> InProgressOrange
+        else -> IncompleteRed
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
+        ),
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -397,7 +408,7 @@ fun CompactTimerDisplay(
                         .fillMaxWidth(0.48f)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFB8C00)
+                        containerColor = InProgressOrange
                     )
                 ) {
                     Icon(
@@ -413,7 +424,7 @@ fun CompactTimerDisplay(
                         .fillMaxWidth(0.48f)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE53935)
+                        containerColor = IncompleteRed
                     )
                 ) {
                     Icon(

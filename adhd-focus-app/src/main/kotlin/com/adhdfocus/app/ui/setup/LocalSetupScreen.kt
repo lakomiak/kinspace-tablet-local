@@ -57,6 +57,7 @@ fun LocalSetupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .align(Alignment.TopCenter)
                 .width(contentWidth)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
@@ -64,14 +65,14 @@ fun LocalSetupScreen(
         ) {
             Text(
                 text = "Set Up This Tablet",
-                fontSize = 30.sp,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
-                text = "This local build keeps everything on the device. Add the family members who should use this tablet, then choose who it should open to first.",
-                fontSize = 16.sp,
+                text = "Everything stays on this device. Create the focus profiles this tablet should support, then Kinspace will open to the first profile by default.",
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -86,7 +87,9 @@ fun LocalSetupScreen(
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                ),
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -95,7 +98,7 @@ fun LocalSetupScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Add Family Member",
+                        text = "Add Focus Profile",
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -111,7 +114,8 @@ fun LocalSetupScreen(
                     OutlinedTextField(
                         value = memberBirthDate,
                         onValueChange = { memberBirthDate = it },
-                        label = { Text("Birthdate (YYYY-MM-DD)") },
+                        label = { Text("Birthdate (optional)") },
+                        supportingText = { Text("Use YYYY-MM-DD if you add one") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -133,8 +137,8 @@ fun LocalSetupScreen(
             }
 
             Text(
-                text = "Family Members",
-                fontSize = 18.sp,
+                text = "Profiles",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -147,7 +151,9 @@ fun LocalSetupScreen(
             } else {
                 members.forEach { member ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = MaterialTheme.shapes.large,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier

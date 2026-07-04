@@ -1,6 +1,5 @@
 package com.adhdfocus.app
 
-import android.app.ActivityOptions
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.BroadcastReceiver
@@ -8,15 +7,26 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+import com.adhdfocus.app.domain.setup.TabletSetupManager
 
 class KioskBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
+        if (
+            action != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
+            action != Intent.ACTION_BOOT_COMPLETED &&
+            action != Intent.ACTION_MY_PACKAGE_REPLACED
+        ) {
             return
         }
 
         if (!BuildConfig.ENABLE_KIOSK_MODE) {
+            return
+        }
+
+        val setupManager = TabletSetupManager(context)
+        if (!setupManager.isSetupComplete()) {
+            launchKinspace(context)
             return
         }
 
@@ -40,6 +50,10 @@ class KioskBootReceiver : BroadcastReceiver() {
             )
         }
 
+        launchKinspace(context)
+    }
+
+    private fun launchKinspace(context: Context) {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: return
         launchIntent.addFlags(
@@ -47,9 +61,6 @@ class KioskBootReceiver : BroadcastReceiver() {
                 Intent.FLAG_ACTIVITY_CLEAR_TASK or
                 Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         )
-        val options = ActivityOptions.makeBasic().apply {
-            setLockTaskEnabled(true)
-        }
-        context.startActivity(launchIntent, options.toBundle())
+        context.startActivity(launchIntent)
     }
 }

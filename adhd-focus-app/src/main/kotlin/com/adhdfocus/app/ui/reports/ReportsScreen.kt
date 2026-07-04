@@ -141,12 +141,48 @@ fun ReportsScreen(
             StatsCard("Completed To Dos", summary.completedTodos.toString(), "Tracked completions on this tablet")
             StatsCard("Current Streak", summary.currentStreak.toString(), "Consecutive fully completed days")
             StatsCard("Best Streak", summary.bestStreak.toString(), "Best streak recorded locally")
-            StatsCard("Average Completion Time", "${summary.averageCompletionMinutes.format1()} min", "Average active timer time before completing a task")
-            StatsCard("Average Paused Time", "${summary.averagePausedPercent.format1()}%", "Share of session time spent paused")
-            StatsCard("Restarted Sessions", "${summary.restartedSessionPercent.format1()}%", "Sessions where the timer was reset at least once")
-            StatsCard("Canceled Sessions", "${summary.canceledSessionPercent.format1()}%", "Sessions stopped without completing the todo")
-            StatsCard("Stopped Before End", "${summary.stoppedBeforeEndPercent.format1()}%", "Sessions canceled before the timer ran out")
-            StatsCard("Completed After Timer Ended", "${summary.completedAfterEndPercent.format1()}%", "Sessions finished after the countdown had already ended")
+            TodoMetricBreakdownCard(
+                title = "Average Completion Time By To Do",
+                description = "Average active timer time before completing each To Do.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.averageCompletionMinutes.format1()} min" },
+                percentageValue = null
+            )
+            TodoMetricBreakdownCard(
+                title = "Average Paused Time By To Do",
+                description = "Average share of tracked session time spent paused for each To Do.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.averagePausedPercent.format1()}%" },
+                percentageValue = { it.averagePausedPercent }
+            )
+            TodoMetricBreakdownCard(
+                title = "Restarted Sessions By To Do",
+                description = "Timer sessions where the To Do was restarted or reset at least once.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.restartedSessionPercent.format1()}%" },
+                percentageValue = { it.restartedSessionPercent }
+            )
+            TodoMetricBreakdownCard(
+                title = "Canceled Sessions By To Do",
+                description = "Timer sessions stopped without completing the To Do.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.canceledSessionPercent.format1()}%" },
+                percentageValue = { it.canceledSessionPercent }
+            )
+            TodoMetricBreakdownCard(
+                title = "Stopped Before End By To Do",
+                description = "Timer sessions canceled before the countdown ran out.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.stoppedBeforeEndPercent.format1()}%" },
+                percentageValue = { it.stoppedBeforeEndPercent }
+            )
+            TodoMetricBreakdownCard(
+                title = "Completed After Timer Ended By To Do",
+                description = "Completed sessions where the countdown had already ended.",
+                items = summary.todoBreakdown,
+                valueText = { "${it.completedAfterEndPercent.format1()}%" },
+                percentageValue = { it.completedAfterEndPercent }
+            )
             StatsCard("Best Success Window", summary.successfulTimeWindow, "When this person most often completes timed todos successfully")
             StatsCard("Timed Sessions", summary.sessionCount.toString(), "Recorded timer sessions available for analysis")
             RecommendationsCard(summary.recommendations)
@@ -172,6 +208,93 @@ fun ReportsScreen(
                 description = "How timed sessions tend to end for this person.",
                 items = summary.timerOutcomeBreakdown
             )
+        }
+    }
+}
+
+@Composable
+private fun TodoMetricBreakdownCard(
+    title: String,
+    description: String,
+    items: List<TodoReportBreakdown>,
+    valueText: (TodoReportBreakdown) -> String,
+    percentageValue: ((TodoReportBreakdown) -> Double)?
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp
+            )
+
+            if (items.isEmpty()) {
+                Text(
+                    text = "Not enough timed sessions yet.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                items.forEach { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.todoTitle,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${item.sessionCount} sessions",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Text(
+                                text = valueText(item),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (percentageValue != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surface,
+                                        shape = RoundedCornerShape(999.dp)
+                                    )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth((percentageValue(item) / 100.0).coerceIn(0.0, 1.0).toFloat())
+                                        .height(10.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(999.dp)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

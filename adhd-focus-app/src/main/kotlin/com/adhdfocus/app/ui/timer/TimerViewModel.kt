@@ -3,6 +3,7 @@ package com.adhdfocus.app.ui.timer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.os.Build
+import android.util.Log
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.EfficiencyMetric
 import com.adhdfocus.app.data.dao.EfficiencyMetricDao
@@ -10,6 +11,7 @@ import com.adhdfocus.app.data.dao.TaskSessionMetricDao
 import com.adhdfocus.app.data.model.TaskSessionMetric
 import com.adhdfocus.app.data.model.TaskSessionOutcome
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
+import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
 import com.adhdfocus.app.domain.preferences.UserPreferencesManager
 import com.adhdfocus.app.domain.setup.TabletSetupManager
@@ -26,6 +28,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.math.ceil
 
 /**
@@ -45,10 +48,13 @@ class TimerViewModel @Inject constructor(
     private val userPreferencesManager: UserPreferencesManager,
     private val setupManager: TabletSetupManager,
     private val taskManager: TaskManager,
+    private val taskDayCompletionRepository: TaskDayCompletionRepository,
     private val efficiencyMetricDao: EfficiencyMetricDao,
     private val taskSessionMetricDao: TaskSessionMetricDao,
     private val efficiencyCalculator: EfficiencyCalculator
 ) : ViewModel() {
+
+    private val tag = "TimerViewModel"
 
     private val _timerDuration = MutableStateFlow(0)
     val timerDuration: StateFlow<Int> = _timerDuration
@@ -274,21 +280,62 @@ class TimerViewModel @Inject constructor(
         }
     }
 
-    fun completeCurrentTask(onCompleted: (() -> Unit)? = null) {
-        val taskId = currentTaskId ?: return
+    fun completeCurrentTask(
+        taskIdOverride: String? = null,
+        onCompleted: (() -> Unit)? = null
+    ) {
+        val taskId = taskIdOverride
+            ?.takeIf { it.isNotBlank() }
+            ?: currentTaskId?.takeIf { it.isNotBlank() }
+            ?: return
         viewModelScope.launch {
             try {
                 val metrics = buildCompletionMetrics(taskId)
                 stopTimerForCompletion()
                 taskManager.completeTask(taskId, metrics)
-                metrics?.let { recordCompletionMetric(it) }
-                persistSessionOutcome(completedTask = true)
-                clearSessionTracking()
+                markTaskCompletedForCurrentFocusDate(taskId)
                 onCompleted?.invoke()
-            } catch (_: Exception) {
-                // Keep the screen open if completion fails.
+
+                metrics?.let {
+                    runCatching { recordCompletionMetric(it) }
+                        .onFailure { error ->
+                            Log.w(tag, "Unable to record completion metric for taskId=$taskId", error)
+                        }
+                }
+
+                runCatching { persistSessionOutcome(completedTask = true) }
+                    .onFailure { error ->
+                        Log.w(tag, "Unable to persist completion outcome for taskId=$taskId", error)
+                    }
+            } catch (error: Exception) {
+                Log.e(tag, "Unable to complete taskId=$taskId", error)
+            } finally {
+                clearSessionTracking()
             }
         }
+    }
+
+    private suspend fun markTaskCompletedForCurrentFocusDate(taskId: String) {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        val userId = setupManager.getAssignedMemberId().orEmpty()
+        val focusDate = setupManager.getCurrentFocusDate() ?: LocalDate.now()
+
+        if (householdId.isBlank() || userId.isBlank()) {
+            Log.w(
+                tag,
+                "Skipping date completion for taskId=$taskId because householdId or userId is blank"
+            )
+            return
+        }
+
+        taskDayCompletionRepository.setCompletionForDate(
+            householdId = householdId,
+            userId = userId,
+            taskId = taskId,
+            date = focusDate,
+            isCompleted = true
+        )
+        Log.d(tag, "Marked taskId=$taskId complete for focusDate=$focusDate")
     }
 
     private suspend fun playCompletionAlarm() {

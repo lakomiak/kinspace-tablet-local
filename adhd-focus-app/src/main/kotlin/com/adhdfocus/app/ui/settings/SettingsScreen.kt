@@ -19,6 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -48,7 +50,6 @@ import com.adhdfocus.app.BuildConfig
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
-import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 
 /**
  * SettingsScreen displays comprehensive app settings organized into logical sections.
@@ -170,7 +171,7 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "Settings",
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -405,7 +406,7 @@ fun SettingsScreen(
 
                     SettingSection(title = "Kiosk Help") {
                         Text(
-                            text = "Use Kinspace Tablet Local as the family hub home screen on a dedicated tablet.",
+                            text = "Use Kinspace Tablet Local as the dedicated focus home screen.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -520,6 +521,22 @@ fun SettingsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Affirmations") {
+                        Text(
+                            text = "Adjust how often Kinspace shows encouraging affirmations after progress milestones.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        FrequencySlider(
+                            label = "Affirmation Frequency",
+                            value = affirmationFrequency,
+                            onValueChanged = { viewModel.updateAffirmationFrequency(it.toInt()) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 SettingSection(title = "About") {
@@ -541,7 +558,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Family To Do's management for everyone",
+                            text = "Dedicated focus support for tasks, timers, and progress",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -700,23 +717,28 @@ fun SettingSection(
     title: String,
     content: @Composable () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small
-            )
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        content()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            content()
+        }
     }
 }
 
@@ -980,50 +1002,6 @@ fun NotificationPreferencesPanel(
         ) {
             Text("Preview ${preferences.timerAlarmSound.displayLabel()}")
         }
-    }
-}
-
-@Composable
-fun PuzzleAgeBandSelector(
-    selectedAgeBand: PuzzleAgeBand,
-    onAgeBandSelected: (PuzzleAgeBand) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = "Puzzle Age Band",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Text(
-            text = "Choose the puzzle style that matches this family member best.",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        val options = PuzzleAgeBand.values().map { it.displayName }
-        SettingDropdown(
-            label = "Selected",
-            selectedValue = selectedAgeBand.displayName,
-            options = options,
-            onOptionSelected = { selected ->
-                PuzzleAgeBand.values()
-                    .firstOrNull { it.displayName == selected }
-                    ?.let(onAgeBandSelected)
-            }
-        )
-
-        Text(
-            text = "Current range: ${selectedAgeBand.ageRangeLabel}",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

@@ -40,9 +40,11 @@ fun ProgressHeader(
 
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -57,7 +59,8 @@ fun ProgressHeader(
                 Text(
                     text = "Today's Progress",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
                     text = "$completionPercentage%",
@@ -84,7 +87,7 @@ fun ProgressHeader(
                     completionPercentage >= 50 -> Color(0xFFFB8C00)
                     else -> MaterialTheme.colorScheme.primary
                 },
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -97,7 +100,7 @@ fun ProgressHeader(
                 Text(
                     text = "$completedCount of $totalCount To Do's complete",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
                 )
 
                 if (currentStreak > 0) {
@@ -125,8 +128,9 @@ fun ProgressHeader(
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF43A047).copy(alpha = 0.1f)
-                    )
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier

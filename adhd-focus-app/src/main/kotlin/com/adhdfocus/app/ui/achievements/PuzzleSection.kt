@@ -117,9 +117,9 @@ fun PuzzleSection(
                 contentDescription = "Achievements puzzle"
                 stateDescription = puzzleAccessibilitySummary
             },
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -127,9 +127,8 @@ fun PuzzleSection(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            Color(0xFFFDF8FF),
-                            Color(0xFFF1E9FB),
-                            Color(0xFFE3DDF0)
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.64f),
+                            MaterialTheme.colorScheme.surface
                         )
                     )
                 )
@@ -141,12 +140,12 @@ fun PuzzleSection(
                     text = "Puzzle Progress",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF101336)
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
                     text = "Complete the day to reveal one new piece. A finished puzzle automatically starts the next one.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF443A61)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -160,38 +159,38 @@ fun PuzzleSection(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = Color(0xE6FFF8FF)
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
                             text = selectedAgeBand.ageRangeLabel,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = Color(0xFF2C214A),
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
                     }
                     Text(
                         text = puzzleDefinition.title,
-                        color = Color(0xFF101336),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
                         text = puzzleDefinition.subtitle,
-                        color = Color(0xFF5A5275),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = Color(0xFFF7F1FD)
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
                         text = "Reveal pieces",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        color = Color(0xFF2C214A),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp
                     )
@@ -217,7 +216,7 @@ fun PuzzleSection(
                 } else {
                     "Finish the day to remove the next puzzle piece."
                 },
-                color = Color(0xFF443A61),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp
             )

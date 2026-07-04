@@ -12,7 +12,7 @@ $jimmyPrefs = Join-Path $repoRoot "jimmy_tablet_setup.xml"
 $sallyPrefs = Join-Path $repoRoot "sally_tablet_setup.xml"
 $videoToolsDir = Join-Path $repoRoot "video-tools"
 $segmentsDir = Join-Path $repoRoot "demo-segments"
-$outputVideo = Join-Path $repoRoot "tablet_local_demo_take2.mp4"
+$outputVideo = Join-Path $repoRoot "tablet_local_demo_take2_x2.mp4"
 
 function Invoke-Adb {
     param(
@@ -165,11 +165,11 @@ function Record-OnboardingSegment {
 
     Invoke-Adb @("shell", "input", "tap", "160", "248") | Out-Null
     Wait-Short 250
-    Invoke-Adb @("shell", "input", "text", "Kinspace") | Out-Null
+    Invoke-Adb @("shell", "input", "text", "Smith\'s") | Out-Null
     Wait-Short 300
     Invoke-Adb @("shell", "input", "tap", "160", "378") | Out-Null
     Wait-Short 250
-    Invoke-Adb @("shell", "input", "text", "Jimmy") | Out-Null
+    Invoke-Adb @("shell", "input", "text", "Jack") | Out-Null
     Wait-Short 250
     Invoke-Adb @("shell", "input", "tap", "160", "454") | Out-Null
     Wait-Short 250
@@ -179,7 +179,7 @@ function Record-OnboardingSegment {
     Wait-Short 300
     Invoke-Adb @("shell", "input", "tap", "160", "378") | Out-Null
     Wait-Short 250
-    Invoke-Adb @("shell", "input", "text", "Sally") | Out-Null
+    Invoke-Adb @("shell", "input", "text", "Jill") | Out-Null
     Wait-Short 250
     Invoke-Adb @("shell", "input", "tap", "160", "454") | Out-Null
     Wait-Short 250
@@ -202,7 +202,7 @@ function Record-CreateTodoSegment {
     Wait-Short 900
     Invoke-Adb @("shell", "input", "tap", "170", "230") | Out-Null
     Wait-Short 400
-    Invoke-Adb @("shell", "input", "text", "Read2") | Out-Null
+    Invoke-Adb @("shell", "input", "text", "MorningBrush") | Out-Null
 
     Wait-Process -InputObject $proc
     return Pull-Segment -RemoteName "segment_create_jimmy.mp4" -LocalName "segment_create_jimmy.mp4"
@@ -258,9 +258,14 @@ function Record-ReportsSegment {
 }
 
 function Get-FfmpegPath {
-    $ffmpegPath = & node -p "require('ffmpeg-static') || ''" 2>$null
+    $localFfmpeg = Join-Path $videoToolsDir "node_modules\ffmpeg-static\ffmpeg.exe"
+    if (Test-Path $localFfmpeg) {
+        return $localFfmpeg
+    }
+
+    $ffmpegPath = & node -p "require('./video-tools/node_modules/ffmpeg-static') || ''" 2>$null
     if (-not $ffmpegPath) {
-        throw "ffmpeg-static path could not be resolved."
+        throw "ffmpeg-static path could not be resolved from video-tools."
     }
     return $ffmpegPath.Trim()
 }
@@ -280,6 +285,10 @@ function Stitch-Segments {
 
     $ffmpeg = Get-FfmpegPath
     & $ffmpeg -y -f concat -safe 0 -i $concatFile -c copy $outputVideo
+
+    $speedOutput = [IO.Path]::ChangeExtension($outputVideo, $null) + "_playback.mp4"
+    & $ffmpeg -y -i $outputVideo -filter:v "setpts=0.5*PTS" -an $speedOutput
+    Move-Item -Force $speedOutput $outputVideo
 }
 
 Ensure-Files

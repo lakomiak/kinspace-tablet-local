@@ -7,6 +7,7 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 import com.adhdfocus.app.data.dao.TaskSessionMetricDao
 import com.adhdfocus.app.data.model.TaskSessionMetric
 import com.adhdfocus.app.data.model.TaskSessionOutcome
+import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.data.repository.StreakRepository
 import com.adhdfocus.app.data.repository.UserRepository
@@ -43,6 +44,7 @@ data class ReportSummary(
     val successfulTimeWindow: String = "Not enough data",
     val sessionCount: Int = 0,
     val categoryBreakdown: List<ReportBreakdownItem> = emptyList(),
+    val todoBreakdown: List<TodoReportBreakdown> = emptyList(),
     val timerOutcomeBreakdown: List<ReportBreakdownItem> = emptyList(),
     val recentCompletionTrend: List<ReportTrendPoint> = emptyList(),
     val recentCompletionTimeTrend: List<ReportTrendPoint> = emptyList(),
@@ -53,6 +55,17 @@ data class ReportBreakdownItem(
     val label: String,
     val count: Int,
     val percentage: Double
+)
+
+data class TodoReportBreakdown(
+    val todoTitle: String,
+    val sessionCount: Int,
+    val averageCompletionMinutes: Double,
+    val averagePausedPercent: Double,
+    val restartedSessionPercent: Double,
+    val canceledSessionPercent: Double,
+    val stoppedBeforeEndPercent: Double,
+    val completedAfterEndPercent: Double
 )
 
 @HiltViewModel
@@ -179,7 +192,9 @@ class ReportsViewModel @Inject constructor(
         val sessions = taskSessionMetricDao.getSessionsForUser(householdId, userId)
         val completedTodos = taskDayCompletionDao.getCompletedCountForUser(householdId, userId)
         val completedEntries = taskDayCompletionDao.getCompletedEntriesForUser(householdId, userId)
-        val tasksById = taskRepository.getTasksByHousehold(householdId).associateBy { it.id }
+        val tasks = taskRepository.getTasksByHousehold(householdId)
+        val tasksById = tasks.associateBy { it.id }
+        val memberName = _members.value.firstOrNull { it.id == userId }?.name.orEmpty()
 
         val completedSessions = sessions.filter { it.completedTask }
         val canceledSessions = sessions.filter { !it.completedTask }
@@ -209,6 +224,12 @@ class ReportsViewModel @Inject constructor(
                 percentage = count.percentageOf(sessions.size)
             )
         }.filter { it.count > 0 }
+        val todoBreakdown = buildTodoBreakdown(
+            sessions = sessions,
+            tasks = tasks,
+            userId = userId,
+            memberName = memberName
+        )
         val recentCompletionTrend = buildRecentCompletionTrend(completedEntries)
         val recentCompletionTimeTrend = buildRecentCompletionTimeTrend(completedSessions)
         val recommendations = buildRecommendations(
@@ -237,10 +258,81 @@ class ReportsViewModel @Inject constructor(
             successfulTimeWindow = buildSuccessfulTimeWindow(completedSessions),
             sessionCount = sessions.size,
             categoryBreakdown = categoryBreakdown,
+            todoBreakdown = todoBreakdown,
             timerOutcomeBreakdown = timerOutcomeBreakdown,
             recentCompletionTrend = recentCompletionTrend,
             recentCompletionTimeTrend = recentCompletionTimeTrend,
             recommendations = recommendations
+        )
+    }
+
+    private fun buildTodoBreakdown(
+        sessions: List<TaskSessionMetric>,
+        tasks: List<Task>,
+        userId: String,
+        memberName: String
+    ): List<TodoReportBreakdown> {
+        val userKey = userId.trim().lowercase()
+        val memberKey = memberName.trim().lowercase()
+        val memberTasksByTitle = tasks
+            .filter { task ->
+                val assignedKey = task.assignedUserId.trim().lowercase()
+                assignedKey == userKey || (memberKey.isNotBlank() && assignedKey == memberKey)
+            }
+            .groupBy { task -> task.normalizedReportTitle() }
+
+        val sessionTaskIds = sessions.map { it.taskId }.toSet()
+        val sessionTasksByTitle = tasks
+            .filter { task -> task.id in sessionTaskIds }
+            .groupBy { task -> task.normalizedReportTitle() }
+
+        val allTitles = (memberTasksByTitle.keys + sessionTasksByTitle.keys)
+            .filter { it.isNotBlank() }
+            .ifEmpty {
+                sessions
+                    .map { "Unknown To Do" }
+                    .toSet()
+            }
+
+        return allTitles
+            .map { todoTitle ->
+                val taskIds = (memberTasksByTitle[todoTitle].orEmpty() + sessionTasksByTitle[todoTitle].orEmpty())
+                    .map { it.id }
+                    .toSet()
+                val todoSessions = sessions.filter { session ->
+                    session.taskId in taskIds || (taskIds.isEmpty() && todoTitle == "Unknown To Do")
+                }
+                todoTitle.toReportBreakdown(todoSessions)
+            }
+            .sortedWith(
+                compareByDescending<TodoReportBreakdown> { it.sessionCount }
+                    .thenBy { it.todoTitle.lowercase() }
+            )
+    }
+
+    private fun String.toReportBreakdown(todoSessions: List<TaskSessionMetric>): TodoReportBreakdown {
+        val completedSessions = todoSessions.filter { it.completedTask }
+        return TodoReportBreakdown(
+            todoTitle = this,
+            sessionCount = todoSessions.size,
+            averageCompletionMinutes = completedSessions
+                .map { it.activeDurationSeconds / 60.0 }
+                .averageOrZero(),
+            averagePausedPercent = todoSessions
+                .mapNotNull { it.pausedPercentOrNull() }
+                .averageOrZero(),
+            restartedSessionPercent = todoSessions
+                .filter { it.resetCount > 0 }
+                .percentageOf(todoSessions),
+            canceledSessionPercent = todoSessions
+                .filter { !it.completedTask }
+                .percentageOf(todoSessions),
+            stoppedBeforeEndPercent = todoSessions
+                .filter { it.stoppedBeforeTimerEnded }
+                .percentageOf(todoSessions),
+            completedAfterEndPercent = todoSessions
+                .filter { it.completedAfterTimerEnded }
+                .percentageOf(todoSessions)
         )
     }
 
@@ -351,6 +443,19 @@ class ReportsViewModel @Inject constructor(
 
         return insights.take(4)
     }
+}
+
+private fun TaskSessionMetric.pausedPercentOrNull(): Double? {
+    val totalTracked = activeDurationSeconds + totalPausedSeconds
+    return if (totalTracked <= 0) {
+        null
+    } else {
+        (totalPausedSeconds.toDouble() / totalTracked.toDouble()) * 100.0
+    }
+}
+
+private fun Task.normalizedReportTitle(): String {
+    return title.trim().takeIf { it.isNotBlank() } ?: "Untitled To Do"
 }
 
 private fun Iterable<Double>.averageOrZero(): Double {

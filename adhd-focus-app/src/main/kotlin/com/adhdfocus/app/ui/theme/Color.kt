@@ -3,52 +3,72 @@ package com.adhdfocus.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * WCAG 2.1 AA Compliant Color Palette
- * Based on Kinspace brand colors from calendar-mobile
- * All colors meet minimum contrast ratios:
- * - 4.5:1 for normal text (14sp and below)
- * - 3:1 for large text (18sp and above)
+ * Kinspace Tablet color system.
+ *
+ * The palette stays calm for ADHD/EF use while still giving the app a clear
+ * product identity: sage for progress, warm orange for urgency, and blue for
+ * neutral information.
  */
 
-// Brand Colors from Kinspace Mobile App
-val BrandPrimary = Color(0xFF6F9C62)  // Sage green - primary brand color
-val BrandSecondary = Color(0xFFE58D4E)  // Warm orange - secondary brand color
-val BrandBackground = Color(0xFFF8F5EE)  // Warm off-white background
-val BrandSurface = Color(0xFFFFFFFF)  // Pure white surface
-val BrandText = Color(0xFF1F2933)  // Dark text color
+val BrandPrimary = Color(0xFF5F8F55)
+val BrandSecondary = Color(0xFFD8783C)
+val BrandFocusBlue = Color(0xFF366A8C)
+val BrandBackground = Color(0xFFF8F5EE)
+val BrandSurface = Color(0xFFFFFFFF)
+val BrandText = Color(0xFF1F2933)
+val BrandSurfaceVariant = Color(0xFFECE5D8)
+val BrandOutline = Color(0xFFC9BFAF)
 
-// Light Theme Colors - WCAG 2.1 AA Compliant with Brand Colors
-val PrimaryLight = BrandPrimary  // Sage green - 6.2:1 contrast on white
-val SecondaryLight = BrandSecondary  // Warm orange - 5.8:1 contrast on white
-val TertiaryLight = Color(0xFF6F9C62)  // Sage green accent
-val BackgroundLight = BrandBackground  // Warm off-white
-val SurfaceLight = BrandSurface  // Pure white
-val ErrorLight = Color(0xFFB3261E)  // Dark red - 6.8:1 contrast on white
-val OnBackgroundLight = BrandText  // Dark text
-val OnSurfaceLight = BrandText  // Dark text
+val PrimaryLight = BrandPrimary
+val SecondaryLight = BrandSecondary
+val TertiaryLight = BrandFocusBlue
+val BackgroundLight = BrandBackground
+val SurfaceLight = BrandSurface
+val ErrorLight = Color(0xFFB3261E)
+val OnBackgroundLight = BrandText
+val OnSurfaceLight = BrandText
+val OnPrimaryLight = Color(0xFFFFFFFF)
+val OnSecondaryLight = Color(0xFFFFFFFF)
+val OnTertiaryLight = Color(0xFFFFFFFF)
+val PrimaryContainerLight = Color(0xFFDDEDD6)
+val OnPrimaryContainerLight = Color(0xFF183B16)
+val SecondaryContainerLight = Color(0xFFFFE2CF)
+val OnSecondaryContainerLight = Color(0xFF4F250B)
+val TertiaryContainerLight = Color(0xFFD9EDF8)
+val OnTertiaryContainerLight = Color(0xFF123448)
+val SurfaceVariantLight = BrandSurfaceVariant
+val OnSurfaceVariantLight = Color(0xFF4C463D)
+val OutlineLight = BrandOutline
 
-// Dark Theme Colors - WCAG 2.1 AA Compliant
-val PrimaryDark = Color(0xFFA8D5A0)  // Light sage green - 4.5:1 contrast on dark background
-val SecondaryDark = Color(0xFFFFB88C)  // Light warm orange - 4.5:1 contrast on dark background
-val TertiaryDark = Color(0xFFA8D5A0)  // Light sage green accent
-val BackgroundDark = Color(0xFF121212)  // Dark background
-val SurfaceDark = Color(0xFF1E1E1E)  // Slightly lighter surface
-val ErrorDark = Color(0xFFF2B8B5)  // Light red - 4.5:1 contrast on dark background
-val OnBackgroundDark = Color(0xFFE6E1E5)  // Light text
-val OnSurfaceDark = Color(0xFFE6E1E5)  // Light text
+val PrimaryDark = Color(0xFFA8D5A0)
+val SecondaryDark = Color(0xFFFFB88C)
+val TertiaryDark = Color(0xFFA9D4EC)
+val BackgroundDark = Color(0xFF121212)
+val SurfaceDark = Color(0xFF1E1E1E)
+val ErrorDark = Color(0xFFF2B8B5)
+val OnBackgroundDark = Color(0xFFE6E1E5)
+val OnSurfaceDark = Color(0xFFE6E1E5)
+val OnPrimaryDark = Color(0xFF153812)
+val OnSecondaryDark = Color(0xFF4F250B)
+val OnTertiaryDark = Color(0xFF143548)
+val PrimaryContainerDark = Color(0xFF284F23)
+val OnPrimaryContainerDark = Color(0xFFDDF3D6)
+val SecondaryContainerDark = Color(0xFF693819)
+val OnSecondaryContainerDark = Color(0xFFFFE2CF)
+val TertiaryContainerDark = Color(0xFF234B63)
+val OnTertiaryContainerDark = Color(0xFFD9EDF8)
+val SurfaceVariantDark = Color(0xFF2D2A26)
+val OnSurfaceVariantDark = Color(0xFFD4CCC0)
+val OutlineDark = Color(0xFF6F685E)
 
-// Task Status Colors - WCAG 2.1 AA Compliant
-val IncompleteRed = Color(0xFFB3261E)  // Dark red for incomplete tasks
-val InProgressOrange = BrandSecondary  // Brand orange for in-progress tasks
-val CompletedGreen = BrandPrimary  // Brand green for completed tasks
+val IncompleteRed = Color(0xFFB3261E)
+val InProgressOrange = BrandSecondary
+val CompletedGreen = BrandPrimary
 
-// Additional semantic colors for accessibility
-val SuccessGreen = BrandPrimary  // Success state - brand green
-val WarningOrange = BrandSecondary  // Warning state - brand orange
-val InfoBlue = Color(0xFF0052CC)  // Info state
-val DisabledGray = Color(0xFF79747E)  // Disabled state - 4.5:1 on white
+val SuccessGreen = BrandPrimary
+val WarningOrange = BrandSecondary
+val InfoBlue = BrandFocusBlue
+val DisabledGray = Color(0xFF79747E)
 
-// Outline colors for focus indicators (keyboard navigation)
-val FocusOutlineLight = BrandPrimary  // Brand green outline on light background
-val FocusOutlineDark = Color(0xFFA8D5A0)  // Light sage green outline on dark background
-
+val FocusOutlineLight = BrandPrimary
+val FocusOutlineDark = Color(0xFFA8D5A0)

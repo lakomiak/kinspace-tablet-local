@@ -31,6 +31,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -128,7 +129,14 @@ class MainActivity : ComponentActivity() {
                         val startDestination = "welcome"
 
                         LaunchedEffect(currentDestination?.route) {
-                            kioskSurfaceReady = currentDestination?.route == "focus"
+                            val currentRoute = currentDestination?.route
+                            val isSetupRoute = currentRoute == "welcome" ||
+                                currentRoute == "local_setup" ||
+                                currentRoute == "member_selection"
+                            kioskSurfaceReady = currentRoute == "focus"
+                            if (isSetupRoute) {
+                                activity.disableKioskLockForSetup()
+                            }
                             if (kioskSurfaceReady) {
                                 delay(400)
                                 activity.enableKioskLockIfEligible()
@@ -142,7 +150,10 @@ class MainActivity : ComponentActivity() {
                         Scaffold(
                             bottomBar = {
                                 if (showChrome) {
-                                    NavigationBar {
+                                    NavigationBar(
+                                        containerColor = MaterialTheme.colorScheme.surface,
+                                        tonalElevation = 2.dp
+                                    ) {
                                         val tabs = listOf(
                                             Triple("focus", "Home", Icons.Default.Home),
                                             Triple("achievements", "Achievements", Icons.Default.Favorite),
@@ -162,7 +173,14 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 },
                                                 icon = { Icon(imageVector = icon, contentDescription = label) },
-                                                label = { androidx.compose.material3.Text(label) }
+                                                label = { androidx.compose.material3.Text(label) },
+                                                colors = NavigationBarItemDefaults.colors(
+                                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
                                             )
                                         }
                                     }
@@ -326,7 +344,10 @@ class MainActivity : ComponentActivity() {
                                 TimerScreen(
                                     taskId = taskId,
                                     initialDurationSeconds = durationSeconds,
-                                    onTaskCompleted = { navController.popBackStack("focus", false) },
+                                    onTaskCompleted = {
+                                        focusRefreshToken += 1
+                                        navController.popBackStack("focus", false)
+                                    },
                                     onCancel = { navController.popBackStack() }
                                 )
                             }
@@ -407,6 +428,14 @@ class MainActivity : ComponentActivity() {
         runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            devicePolicyManager.addPersistentPreferredActivity(
+                admin,
+                IntentFilter(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                },
+                ComponentName(this, MainActivity::class.java)
+            )
         }
 
         val activityManager = getSystemService(ActivityManager::class.java)
@@ -415,6 +444,22 @@ class MainActivity : ComponentActivity() {
         }
 
         kioskLockEngaged = true
+    }
+
+    fun disableKioskLockForSetup() {
+        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java)
+        if (devicePolicyManager?.isDeviceOwnerApp(packageName) == true) {
+            val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
+            runCatching {
+                devicePolicyManager.clearPackagePersistentPreferredActivities(admin, packageName)
+            }
+        }
+
+        val activityManager = getSystemService(ActivityManager::class.java)
+        if (activityManager?.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
+            runCatching { stopLockTask() }
+        }
+        kioskLockEngaged = false
     }
 }
 

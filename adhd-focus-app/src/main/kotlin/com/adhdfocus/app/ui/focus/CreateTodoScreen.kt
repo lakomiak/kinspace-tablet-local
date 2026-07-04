@@ -220,10 +220,12 @@ fun CreateTodoScreen(
                         singleLine = true,
                         trailingIcon = {
                             if (filteredTitleSuggestions.isNotEmpty()) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Show title suggestions"
-                                )
+                                IconButton(onClick = { titleSuggestionsExpanded = !titleSuggestionsExpanded }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Show title suggestions"
+                                    )
+                                }
                             }
                         }
                     )
@@ -234,7 +236,7 @@ fun CreateTodoScreen(
                         properties = PopupProperties(focusable = false),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        filteredTitleSuggestions.forEach { suggestion ->
+                        filteredTitleSuggestions.forEach { suggestion -> 
                             DropdownMenuItem(
                                 text = { Text(suggestion) },
                                 onClick = {

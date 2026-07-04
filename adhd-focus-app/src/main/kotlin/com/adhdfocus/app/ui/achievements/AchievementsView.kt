@@ -64,7 +64,7 @@ fun AchievementsView(
         .sortedBy { categorySortOrder(it) }
 
     Scaffold(
-        containerColor = Color(0xFFF5F0FA),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -82,9 +82,9 @@ fun AchievementsView(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFEDE5F7),
-                    titleContentColor = Color(0xFF101336),
-                    navigationIconContentColor = Color(0xFF101336)
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
@@ -105,13 +105,11 @@ fun AchievementsView(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(
-                        Brush.radialGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFFFF8FF),
-                                Color(0xFFF1EAF7),
-                                Color(0xFFDCD5E3)
-                            ),
-                            radius = 1200f
+                                MaterialTheme.colorScheme.background,
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
+                            )
                         )
                     ),
                 contentPadding = PaddingValues(18.dp),
@@ -208,12 +206,12 @@ private fun SeasonHeader(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                brush = Brush.linearGradient(listOf(Color.White, Color(0xFFC9BED8))),
-                shape = RoundedCornerShape(24.dp)
+                brush = Brush.linearGradient(listOf(Color.White, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))),
+                shape = MaterialTheme.shapes.large
             ),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -221,9 +219,8 @@ private fun SeasonHeader(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            Color(0xFFFCF8FF),
-                            Color(0xFFF1E8FA),
-                            Color(0xFFE1D8EA)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                            MaterialTheme.colorScheme.surface
                         )
                     )
                 )
@@ -234,12 +231,12 @@ private fun SeasonHeader(
                 text = "$seasonYear Badge Season",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF101336)
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(
                 text = "Collect the full year, one milestone at a time.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF25214A)
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -271,12 +268,12 @@ private fun BadgeSectionHeader(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF101336)
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF504B66)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -289,10 +286,11 @@ private fun EmptyCategoryState(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Text(
             text = "No $categoryName badges yet. Keep going and this wall will fill up.",
@@ -317,12 +315,12 @@ private fun StreakSection(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.82f),
-                shape = RoundedCornerShape(22.dp)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.34f),
+                shape = MaterialTheme.shapes.large
             ),
-        shape = RoundedCornerShape(22.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -330,8 +328,8 @@ private fun StreakSection(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            Color(0xFFFDF9FF),
-                            Color(0xFFF4ECFB)
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                         )
                     )
                 )
@@ -343,7 +341,7 @@ private fun StreakSection(
                 text = "Your Streaks",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF101336)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Row(
@@ -358,12 +356,12 @@ private fun StreakSection(
                         text = currentStreak.toString(),
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6F7483)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Current Streak",
                         fontSize = 12.sp,
-                        color = Color(0xFF101336)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -372,7 +370,7 @@ private fun StreakSection(
                     modifier = Modifier
                         .width(1.dp)
                         .height(60.dp),
-                    color = Color(0xFFBFB5CF)
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
                 )
 
                 // Best streak
@@ -383,12 +381,12 @@ private fun StreakSection(
                         text = bestStreak.toString(),
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6F7483)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Best Streak",
                         fontSize = 12.sp,
-                        color = Color(0xFF101336)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

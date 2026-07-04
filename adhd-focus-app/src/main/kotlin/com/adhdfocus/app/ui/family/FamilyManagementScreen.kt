@@ -51,7 +51,6 @@ fun FamilyManagementScreen(
 
     var name by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf(UserRole.ADHD_USER) }
     var editingMemberId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -113,7 +112,6 @@ fun FamilyManagementScreen(
                         viewModel.addMember(name, birthDate.toLocalDateOrNull(), UserRole.ADHD_USER)
                         name = ""
                         birthDate = ""
-                        selectedRole = UserRole.ADHD_USER
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -162,7 +160,6 @@ fun FamilyManagementScreen(
                                 editingMemberId = member.id
                                 name = member.displayName
                                 birthDate = member.birthDate?.toString().orEmpty()
-                                selectedRole = member.role
                             }
                         ) {
                             Text("Edit")
@@ -187,7 +184,6 @@ fun FamilyManagementScreen(
                 editingMemberId = null
                 name = ""
                 birthDate = ""
-                selectedRole = UserRole.ADHD_USER
             },
             title = { Text("Edit Family Member") },
             text = {
@@ -217,7 +213,6 @@ fun FamilyManagementScreen(
                         editingMemberId = null
                         name = ""
                         birthDate = ""
-                        selectedRole = UserRole.ADHD_USER
                     }
                 ) {
                     Text("Save")
@@ -229,7 +224,6 @@ fun FamilyManagementScreen(
                         editingMemberId = null
                         name = ""
                         birthDate = ""
-                        selectedRole = UserRole.ADHD_USER
                     }
                 ) {
                     Text("Cancel")

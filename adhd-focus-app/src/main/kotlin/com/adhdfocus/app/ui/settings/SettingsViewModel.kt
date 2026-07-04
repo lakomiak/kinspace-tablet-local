@@ -205,6 +205,10 @@ class SettingsViewModel @Inject constructor(
                 _settingsUnlocked.value = migratedPasscodeHash.isNullOrBlank()
                 _allowTodoEditing.value = preferences.enableTodoEditing
                 _customTodoGroups.value = userPreferencesManager.deserializeCustomTodoGroups(preferences.customTodoGroups)
+                _notificationPreferences.value = userPreferencesManager.syncCustomTimePeriodReminderPreferences(
+                    notificationPreferences = _notificationPreferences.value,
+                    customGroups = _customTodoGroups.value
+                )
                 _showPasscodeSetupDialog.value = false
                 
                 // Load theme into ThemeManager
@@ -414,25 +418,35 @@ class SettingsViewModel @Inject constructor(
     fun addCustomTodoGroup(rawGroup: String) {
         val group = rawGroup.trim()
         if (group.isBlank()) {
-            _errorMessage.value = "Category name cannot be blank"
+            _errorMessage.value = "Time period name cannot be blank"
             return
         }
         val normalized = group.lowercase()
         val defaultGroups = listOf("Morning", "Afternoon", "Evening", "Bedtime", "Other")
         if (defaultGroups.any { it.lowercase() == normalized }) {
-            _errorMessage.value = "That category already exists"
+            _errorMessage.value = "That time period already exists"
             return
         }
         if (_customTodoGroups.value.any { it.equals(group, ignoreCase = true) }) {
-            _errorMessage.value = "That category already exists"
+            _errorMessage.value = "That time period already exists"
             return
         }
-        _customTodoGroups.value = _customTodoGroups.value + group
+        val updatedGroups = _customTodoGroups.value + group
+        _customTodoGroups.value = updatedGroups
+        _notificationPreferences.value = userPreferencesManager.syncCustomTimePeriodReminderPreferences(
+            notificationPreferences = _notificationPreferences.value,
+            customGroups = updatedGroups
+        )
         saveCurrentSettings()
     }
 
     fun removeCustomTodoGroup(group: String) {
-        _customTodoGroups.value = _customTodoGroups.value.filterNot { it.equals(group, ignoreCase = true) }
+        val updatedGroups = _customTodoGroups.value.filterNot { it.equals(group, ignoreCase = true) }
+        _customTodoGroups.value = updatedGroups
+        _notificationPreferences.value = userPreferencesManager.syncCustomTimePeriodReminderPreferences(
+            notificationPreferences = _notificationPreferences.value,
+            customGroups = updatedGroups
+        )
         saveCurrentSettings()
     }
 
@@ -619,11 +633,16 @@ class SettingsViewModel @Inject constructor(
             _isSaving.value = true
             _errorMessage.value = null
             try {
+                val syncedNotificationPreferences = userPreferencesManager.syncCustomTimePeriodReminderPreferences(
+                    notificationPreferences = _notificationPreferences.value,
+                    customGroups = _customTodoGroups.value
+                )
+                _notificationPreferences.value = syncedNotificationPreferences
                 val preferences = UserPreferences(
                     userId = userId,
                     theme = _theme.value,
                     visibleTodoGroups = "[]",
-                    notificationPreferences = serializeNotificationPreferences(_notificationPreferences.value),
+                    notificationPreferences = serializeNotificationPreferences(syncedNotificationPreferences),
                     customTodoGroups = serializeList(_customTodoGroups.value),
                     settingsPasscodeHash = null,
                     enableTodoEditing = _allowTodoEditing.value,

@@ -89,17 +89,15 @@ fun BadgeCardCompact(
         val cardBrush = if (locked) {
             Brush.linearGradient(
                 listOf(
-                    Color(0xFFF8F3FF),
-                    Color(0xFFF2EEF8),
-                    Color(0xFFE9E4EF)
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.surface
                 )
             )
         } else {
             Brush.linearGradient(
                 listOf(
-                    Color(0xFFFFFBF0),
-                    Color(0xFFFFF1C8),
-                    Color(0xFFFFE3A3)
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.colorScheme.surface
                 )
             )
         }
@@ -113,14 +111,14 @@ fun BadgeCardCompact(
                     brush = Brush.linearGradient(
                         listOf(
                             Color.White.copy(alpha = 0.9f),
-                            Color(0xFFC8BED8).copy(alpha = if (locked) 0.7f else 0.45f)
+                            MaterialTheme.colorScheme.outline.copy(alpha = if (locked) 0.65f else 0.38f)
                         )
                     ),
-                    shape = RoundedCornerShape(18.dp)
+                    shape = MaterialTheme.shapes.large
                 ),
-            shape = RoundedCornerShape(18.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (locked) 2.dp else 10.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = if (locked) 1.dp else 3.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -173,7 +171,7 @@ fun BadgeCardCompact(
                             fontSize = 17.sp,
                             lineHeight = 19.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (locked) Color(0xFF101336) else Color(0xFF302100),
+                            color = if (locked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -184,7 +182,7 @@ fun BadgeCardCompact(
                                 .fillMaxWidth()
                                 .height(5.dp),
                             color = if (locked) Color(0xFF7E7893) else Color(0xFFD99318),
-                            trackColor = Color(0xFFC8C1D2).copy(alpha = 0.7f)
+                            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
                         )
 
                         Text(
@@ -194,7 +192,7 @@ fun BadgeCardCompact(
                                 "Earned ${DateTimeUtils.formatDate(badge.earnedAt)}"
                             },
                             fontSize = 11.sp,
-                            color = if (locked) Color(0xFF46415C) else Color(0xFF7B5200),
+                            color = if (locked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSecondaryContainer,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

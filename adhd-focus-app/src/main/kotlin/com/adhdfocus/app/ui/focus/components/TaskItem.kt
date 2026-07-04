@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.dp
 import com.adhdfocus.app.data.model.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
+import com.adhdfocus.app.ui.theme.CompletedGreen
+import com.adhdfocus.app.ui.theme.InProgressOrange
+import com.adhdfocus.app.ui.theme.IncompleteRed
 
 /**
  * To Do Item Component
@@ -94,9 +97,9 @@ fun TaskItem(
         val isCompleted = task.status == TaskStatus.COMPLETED
         val isInProgress = task.status == TaskStatus.IN_PROGRESS
         val statusColor = when (task.status) {
-            TaskStatus.INCOMPLETE -> Color(0xFFE53935)
-            TaskStatus.IN_PROGRESS -> Color(0xFFFB8C00)
-            TaskStatus.COMPLETED -> Color(0xFF43A047)
+            TaskStatus.INCOMPLETE -> IncompleteRed
+            TaskStatus.IN_PROGRESS -> InProgressOrange
+            TaskStatus.COMPLETED -> CompletedGreen
         }
         val timerLabel = remember(task.timerDurationMs, task.estimatedDurationMinutes, task.estimatedDurationSeconds) {
             buildTimerLabel(task)
@@ -148,9 +151,10 @@ fun TaskItem(
                     MaterialTheme.colorScheme.surface
                 }
             ),
+            shape = MaterialTheme.shapes.large,
             elevation = CardDefaults.cardElevation(
                 defaultElevation = when {
-                    isInProgress -> 4.dp
+                    isInProgress -> 3.dp
                     isCompleted -> 0.dp
                     else -> 1.dp
                 }

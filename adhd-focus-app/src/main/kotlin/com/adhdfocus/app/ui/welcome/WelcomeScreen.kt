@@ -50,9 +50,9 @@ fun WelcomeScreen(
 
             Text(
                 text = if (isSetupComplete) {
-                    "Ready to jump back into your family hub?"
+                    "Ready to get focused?"
                 } else {
-                    "Let's set up your Kinspace tablet and get everyone organized."
+                    "Let's set up this Kinspace focus tablet."
                 },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -63,9 +63,9 @@ fun WelcomeScreen(
 
             Text(
                 text = if (isSetupComplete) {
-                    "Open your daily focus, routines, achievements, and reports."
+                    "Open today's tasks, timers, progress, and reports."
                 } else {
-                    "Add your household, create family members, and start building routines together."
+                    "Create profiles, choose who this tablet supports, and start with a calm daily view."
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
