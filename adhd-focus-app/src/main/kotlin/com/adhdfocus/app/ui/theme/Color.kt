@@ -10,8 +10,8 @@ import androidx.compose.ui.graphics.Color
  * neutral information.
  */
 
-val BrandPrimary = Color(0xFF5F8F55)
-val BrandSecondary = Color(0xFFD8783C)
+val BrandPrimary = Color(0xFF4F7948)
+val BrandSecondary = Color(0xFFA84F00)
 val BrandFocusBlue = Color(0xFF366A8C)
 val BrandBackground = Color(0xFFF8F5EE)
 val BrandSurface = Color(0xFFFFFFFF)
@@ -61,7 +61,7 @@ val SurfaceVariantDark = Color(0xFF2D2A26)
 val OnSurfaceVariantDark = Color(0xFFD4CCC0)
 val OutlineDark = Color(0xFF6F685E)
 
-val IncompleteRed = Color(0xFFB3261E)
+val IncompleteRed = Color(0xFFC43E32)
 val InProgressOrange = BrandSecondary
 val CompletedGreen = BrandPrimary
 

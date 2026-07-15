@@ -2,10 +2,13 @@ package com.adhdfocus.app.ui.achievements
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.model.Badge
+import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.data.model.User
 import com.adhdfocus.app.data.repository.BadgeRepository
 import com.adhdfocus.app.data.repository.StreakRepository
+import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.data.repository.UserRepository
+import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.gamification.BadgeSystem
 import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import com.adhdfocus.app.domain.puzzle.PuzzleSystem
@@ -35,7 +38,9 @@ class AchievementsViewModel @Inject constructor(
     private val streakRepository: StreakRepository,
     private val userRepository: UserRepository,
     private val setupManager: TabletSetupManager,
-    private val puzzleSystem: PuzzleSystem
+    private val puzzleSystem: PuzzleSystem,
+    private val taskRepository: TaskRepository,
+    private val taskDayCompletionRepository: TaskDayCompletionRepository
 ) : ViewModel() {
 
     private val _earnedBadges = MutableStateFlow<List<Badge>>(emptyList())
@@ -64,6 +69,9 @@ class AchievementsViewModel @Inject constructor(
 
     private val _currentPuzzle = MutableStateFlow<com.adhdfocus.app.data.model.PuzzleProgress?>(null)
     val currentPuzzle: StateFlow<com.adhdfocus.app.data.model.PuzzleProgress?> = _currentPuzzle
+
+    private val _yearStats = MutableStateFlow(AchievementYearStats())
+    val yearStats: StateFlow<AchievementYearStats> = _yearStats
 
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
@@ -108,6 +116,7 @@ class AchievementsViewModel @Inject constructor(
                     ?: puzzleSystem.getSelectedAgeBand(userId)
                 _selectedPuzzleAgeBand.value = selectedBand
                 _currentPuzzle.value = puzzleSystem.getCurrentPuzzle(householdId, userId, selectedBand)
+                _yearStats.value = loadYearStats(householdId, userId, LocalDate.now().year)
             } finally {
                 _isLoading.value = false
             }
@@ -189,6 +198,7 @@ class AchievementsViewModel @Inject constructor(
             .toMap()
 
         return badges
+            .filter { badge -> badge.badgeType in badgeOrder }
             .groupBy { badge -> badge.badgeType to badge.seasonYear }
             .values
             .map { badgeGroup ->
@@ -206,4 +216,40 @@ class AchievementsViewModel @Inject constructor(
                     .thenBy { it.name }
             )
     }
+
+    private suspend fun loadYearStats(
+        householdId: String,
+        userId: String,
+        year: Int
+    ): AchievementYearStats {
+        val completedTodoCount = taskDayCompletionRepository.getCompletedCountForYear(householdId, userId, year)
+        val memberName = setupManager.getAssignedMemberName()
+        val completedDates = taskDayCompletionRepository.getCompletedDatesForYear(householdId, userId, year)
+        val perfectDayCount = completedDates.count { date ->
+            val visibleTasks = taskRepository.getTasksForDate(householdId, userId, date, memberName)
+            if (visibleTasks.isEmpty()) {
+                false
+            } else {
+                val completedIds = taskDayCompletionRepository.getCompletionsForDate(householdId, userId, date)
+                    .filter { it.isCompleted }
+                    .map { it.taskId }
+                    .toSet()
+                visibleTasks.all { task ->
+                    task.id in completedIds || (date == LocalDate.now() && task.status == TaskStatus.COMPLETED)
+                }
+            }
+        }
+
+        return AchievementYearStats(
+            year = year,
+            completedTodoCount = completedTodoCount,
+            perfectDayCount = perfectDayCount
+        )
+    }
 }
+
+data class AchievementYearStats(
+    val year: Int = LocalDate.now().year,
+    val completedTodoCount: Int = 0,
+    val perfectDayCount: Int = 0
+)

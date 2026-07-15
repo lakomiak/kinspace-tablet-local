@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.Context
 import android.content.IntentFilter
 import android.os.Bundle
+import android.os.Build
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -411,6 +412,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun applyKioskDevicePolicies(
+        devicePolicyManager: DevicePolicyManager,
+        admin: ComponentName
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching {
+                devicePolicyManager.setStatusBarDisabled(admin, true)
+            }
+        }
+    }
+
     private fun enableKioskLockIfEligible() {
         if (!BuildConfig.ENABLE_KIOSK_MODE || kioskLockEngaged) {
             return
@@ -428,6 +440,7 @@ class MainActivity : ComponentActivity() {
         runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            applyKioskDevicePolicies(devicePolicyManager, admin)
             devicePolicyManager.addPersistentPreferredActivity(
                 admin,
                 IntentFilter(Intent.ACTION_MAIN).apply {

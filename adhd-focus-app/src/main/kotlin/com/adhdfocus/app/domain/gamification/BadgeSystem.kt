@@ -11,7 +11,7 @@ import javax.inject.Inject
  * Manages:
  * - Badge earning at milestones
  * - Badge progress tracking for locked badges
- * - Badge categories: Daily Milestones, Weekly Achievements, Streak Milestones, Efficiency Badges
+ * - Badge categories: Daily Milestones and Streak Milestones
  * - Badge display and notifications
  * - Locked badge hints
  */
@@ -23,9 +23,7 @@ class BadgeSystem @Inject constructor(
      */
     enum class BadgeCategory {
         DAILY_MILESTONES,
-        WEEKLY_ACHIEVEMENTS,
         STREAK_MILESTONES,
-        EFFICIENCY_BADGES
     }
 
     /**
@@ -56,25 +54,7 @@ class BadgeSystem @Inject constructor(
             BadgeMilestone("THREE_DAY_STREAK", "3-Day Streak", BadgeCategory.STREAK_MILESTONES,
                 "Maintained a 3-day streak", 3, "streak"),
             BadgeMilestone("SEVEN_DAY_STREAK", "7-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 7-day streak", 7, "streak"),
-            BadgeMilestone("FOURTEEN_DAY_STREAK", "14-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 14-day streak", 14, "streak"),
-            BadgeMilestone("THIRTY_DAY_STREAK", "30-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 30-day streak", 30, "streak"),
-            BadgeMilestone("SIXTY_DAY_STREAK", "60-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 60-day streak", 60, "streak"),
-            BadgeMilestone("NINETY_DAY_STREAK", "90-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 90-day streak", 90, "streak"),
-            BadgeMilestone("ONE_EIGHTY_DAY_STREAK", "180-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 180-day streak", 180, "streak"),
-            BadgeMilestone("TWO_SEVENTY_DAY_STREAK", "270-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 270-day streak", 270, "streak"),
-            BadgeMilestone("YEAR_STREAK", "365-Day Streak", BadgeCategory.STREAK_MILESTONES,
-                "Maintained a 365-day streak", 365, "streak"),
-
-            // Efficiency Badges
-            BadgeMilestone("SPEED_DEMON", "Speed Demon", BadgeCategory.EFFICIENCY_BADGES,
-                "Completed tasks 20% faster than estimated", 120, "efficiency")
+                "Maintained a 7-day streak", 7, "streak")
         )
     }
 
@@ -236,16 +216,6 @@ class BadgeSystem @Inject constructor(
             "ONE_DAY_STREAK" -> if (currentStreak >= 1) 100 else 0
             "THREE_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 3)
             "SEVEN_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 7)
-            "FOURTEEN_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 14)
-            "THIRTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 30)
-            "SIXTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 60)
-            "NINETY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 90)
-            "ONE_EIGHTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 180)
-            "TWO_SEVENTY_DAY_STREAK" -> minOf(100, (currentStreak * 100) / 270)
-            "YEAR_STREAK" -> minOf(100, (currentStreak * 100) / 365)
-            "WEEK_WARRIOR" -> minOf(100, (currentStreak * 100) / 7)
-            "MONTH_MASTER" -> minOf(100, (currentStreak * 100) / 30)
-            "SPEED_DEMON" -> minOf(100, (efficiencyPercentage.toInt() * 100) / 120)
             else -> 0
         }
     }
@@ -374,14 +344,6 @@ class BadgeSystem @Inject constructor(
             "ONE_DAY_STREAK" -> "Completed one full day"
             "THREE_DAY_STREAK" -> "Maintained a 3-day streak"
             "SEVEN_DAY_STREAK" -> "Maintained a 7-day streak"
-            "FOURTEEN_DAY_STREAK" -> "Maintained a 14-day streak"
-            "THIRTY_DAY_STREAK" -> "Maintained a 30-day streak"
-            "SIXTY_DAY_STREAK" -> "Maintained a 60-day streak"
-            "NINETY_DAY_STREAK" -> "Maintained a 90-day streak"
-            "ONE_EIGHTY_DAY_STREAK" -> "Maintained a 180-day streak"
-            "TWO_SEVENTY_DAY_STREAK" -> "Maintained a 270-day streak"
-            "YEAR_STREAK" -> "Maintained a 365-day streak"
-            "SPEED_DEMON" -> "Completed tasks 20% faster than estimated"
             else -> "Achievement unlocked"
         }
     }
@@ -397,7 +359,6 @@ class BadgeSystem @Inject constructor(
             "tasks" -> completedTasksToday >= milestone.threshold
             "completion_percentage" -> totalTasksToday > 0 && completedTasksToday == totalTasksToday
             "streak" -> currentStreak >= milestone.threshold
-            "efficiency" -> efficiencyPercentage >= milestone.threshold
             else -> false
         }
     }

@@ -64,6 +64,41 @@ interface TaskDayCompletionDao {
         WHERE householdId = :householdId
         AND userId = :userId
         AND isCompleted = 1
+        AND targetDate >= :startDate
+        AND targetDate <= :endDate
+        """
+    )
+    suspend fun getCompletedCountForUserInDateRange(
+        householdId: String,
+        userId: String,
+        startDate: String,
+        endDate: String
+    ): Int
+
+    @Query(
+        """
+        SELECT DISTINCT targetDate FROM task_day_completions
+        WHERE householdId = :householdId
+        AND userId = :userId
+        AND isCompleted = 1
+        AND targetDate >= :startDate
+        AND targetDate <= :endDate
+        ORDER BY targetDate ASC
+        """
+    )
+    suspend fun getCompletedDatesForUserInDateRange(
+        householdId: String,
+        userId: String,
+        startDate: String,
+        endDate: String
+    ): List<String>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM task_day_completions
+        WHERE householdId = :householdId
+        AND userId = :userId
+        AND isCompleted = 1
         """
     )
     suspend fun getCompletedCountForUser(

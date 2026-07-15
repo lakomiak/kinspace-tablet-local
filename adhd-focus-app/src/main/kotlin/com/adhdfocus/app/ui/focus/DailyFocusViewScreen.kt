@@ -1,5 +1,11 @@
 package com.adhdfocus.app.ui.focus
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +27,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +45,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
@@ -56,6 +66,8 @@ import com.adhdfocus.app.ui.focus.components.TaskListByGroup
 import android.widget.DatePicker
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 /**
  * Home screen - Main interface showing today's todos
@@ -95,9 +107,17 @@ fun DailyFocusViewScreen(
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val completionCelebration by viewModel.completionCelebrationEvent.collectAsStateWithLifecycle()
     var taskPendingDelete by remember { mutableStateOf<Task?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     val activeMemberLabel = memberName ?: "Member"
+
+    LaunchedEffect(completionCelebration?.id) {
+        if (completionCelebration != null) {
+            delay(5600)
+            viewModel.dismissCompletionCelebration()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -239,6 +259,13 @@ fun DailyFocusViewScreen(
                         }
 
                         item {
+                            CompletionCelebrationBanner(
+                                event = completionCelebration,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        item {
                             ProgressHeader(
                                 completionPercentage = completionPercentage,
                                 completedCount = todaysTasks.count { it.status == TaskStatus.COMPLETED },
@@ -348,6 +375,132 @@ fun DailyFocusViewScreen(
         }
     }
 
+}
+
+@Composable
+private fun CompletionCelebrationBanner(
+    event: CompletionCelebrationEvent?,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = event != null,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+        modifier = modifier
+    ) {
+        if (event != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.tertiaryContainer
+                                )
+                            )
+                        )
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Perfect day complete",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CompletionCounterTile(
+                            label = "${event.year} To Do's",
+                            fromValue = event.previousCompletedTodos,
+                            toValue = event.completedTodos,
+                            eventId = event.id,
+                            modifier = Modifier.weight(1f)
+                        )
+                        CompletionCounterTile(
+                            label = "Perfect days",
+                            fromValue = event.previousPerfectDays,
+                            toValue = event.perfectDays,
+                            eventId = event.id + 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletionCounterTile(
+    label: String,
+    fromValue: Int,
+    toValue: Int,
+    eventId: Long,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        SlotMachineCounter(
+            fromValue = fromValue,
+            toValue = toValue,
+            eventId = eventId
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun SlotMachineCounter(
+    fromValue: Int,
+    toValue: Int,
+    eventId: Long,
+    modifier: Modifier = Modifier
+) {
+    var displayedValue by remember(eventId) { mutableStateOf(fromValue) }
+
+    LaunchedEffect(eventId, fromValue, toValue) {
+        displayedValue = fromValue
+        delay(300)
+        val low = minOf(fromValue, toValue)
+        val high = maxOf(fromValue, toValue).coerceAtLeast(low + 8)
+        repeat(18) { tick ->
+            displayedValue = if (tick < 15) {
+                Random.nextInt(low, high + 1)
+            } else {
+                fromValue + ((toValue - fromValue) * (tick - 14) / 4)
+            }
+            delay(55)
+        }
+        displayedValue = toValue
+    }
+
+    Text(
+        text = displayedValue.toString(),
+        modifier = modifier,
+        style = MaterialTheme.typography.headlineMedium,
+        color = MaterialTheme.colorScheme.onPrimaryContainer,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+        maxLines = 1
+    )
 }
 
 @Composable

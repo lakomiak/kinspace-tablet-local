@@ -35,7 +35,6 @@ import java.time.LocalDate
  * - Category tabs for filtering badges
  * - Smooth scrolling with LazyColumn
  * - Streak display with history
- * - Efficiency statistics
  * - WCAG 2.1 AA compliant styling
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -54,6 +53,7 @@ fun AchievementsView(
     val selectedPuzzleAgeBand by viewModel.selectedPuzzleAgeBand.collectAsState()
     val currentPuzzle by viewModel.currentPuzzle.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val yearStats by viewModel.yearStats.collectAsState()
     val categories = viewModel.getAllCategories()
 
     val filteredEarned = viewModel.getFilteredEarnedBadges()
@@ -126,6 +126,12 @@ fun AchievementsView(
                 }
 
                 item(span = { GridItemSpan(maxLineSpan) }) {
+                    YearKpiSection(
+                        stats = yearStats
+                    )
+                }
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     StreakSection(
                         currentStreak = currentStreak,
                         bestStreak = bestStreak
@@ -189,6 +195,61 @@ fun AchievementsView(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun YearKpiSection(
+    stats: AchievementYearStats,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        KpiTile(
+            label = "To Do's completed this year",
+            value = stats.completedTodoCount.toString(),
+            modifier = Modifier.weight(1f)
+        )
+        KpiTile(
+            label = "Perfect completion days",
+            value = stats.perfectDayCount.toString(),
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun KpiTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -440,9 +501,7 @@ private fun CategoryTabs(
 private fun BadgeSystem.BadgeCategory.displayName(): String {
     return when (this) {
         BadgeSystem.BadgeCategory.DAILY_MILESTONES -> "Daily"
-        BadgeSystem.BadgeCategory.WEEKLY_ACHIEVEMENTS -> "Weekly"
         BadgeSystem.BadgeCategory.STREAK_MILESTONES -> "Streaks"
-        BadgeSystem.BadgeCategory.EFFICIENCY_BADGES -> "Efficiency"
     }
 }
 
@@ -450,7 +509,5 @@ private fun categorySortOrder(category: BadgeSystem.BadgeCategory): Int {
     return when (category) {
         BadgeSystem.BadgeCategory.DAILY_MILESTONES -> 0
         BadgeSystem.BadgeCategory.STREAK_MILESTONES -> 1
-        BadgeSystem.BadgeCategory.WEEKLY_ACHIEVEMENTS -> 2
-        BadgeSystem.BadgeCategory.EFFICIENCY_BADGES -> 3
     }
 }

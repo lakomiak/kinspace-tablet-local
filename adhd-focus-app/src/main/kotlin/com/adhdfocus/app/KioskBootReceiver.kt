@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 
@@ -40,6 +41,9 @@ class KioskBootReceiver : BroadcastReceiver() {
         runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(context.packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                devicePolicyManager.setStatusBarDisabled(admin, true)
+            }
             devicePolicyManager.addPersistentPreferredActivity(
                 admin,
                 IntentFilter(Intent.ACTION_MAIN).apply {

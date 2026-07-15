@@ -79,6 +79,9 @@ class FocusViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _completionCelebrationEvent = MutableStateFlow<CompletionCelebrationEvent?>(null)
+    val completionCelebrationEvent: StateFlow<CompletionCelebrationEvent?> = _completionCelebrationEvent
+
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
 
@@ -275,6 +278,10 @@ class FocusViewModel @Inject constructor(
         }
     }
 
+    fun dismissCompletionCelebration() {
+        _completionCelebrationEvent.value = null
+    }
+
     /**
      * Resolves the task list to show on the Home screen.
      *
@@ -391,6 +398,13 @@ class FocusViewModel @Inject constructor(
         val isToday = selectedDate == LocalDate.now()
         val existingTask = _todaysTasks.value.firstOrNull { it.id == taskId } ?: taskManager.getTaskById(taskId)
         val isDateScopedCompletion = existingTask?.let { shouldUseDateScopedCompletion(it) } ?: false
+        val wasDayIncomplete = _todaysTasks.value.isNotEmpty() &&
+            _todaysTasks.value.any { it.status != com.adhdfocus.app.data.model.TaskStatus.COMPLETED }
+        val previousYearStats = if (complete && isToday && wasDayIncomplete && householdId.isNotBlank() && userId.isNotBlank()) {
+            loadCompletionYearStats(householdId, userId, LocalDate.now().year)
+        } else {
+            null
+        }
         Log.d(
             tag,
             "updateTaskCompletion start taskId=$taskId complete=$complete selectedDate=$selectedDate isToday=$isToday dateScoped=$isDateScopedCompletion householdId=$householdId userId=$userId"
@@ -424,6 +438,7 @@ class FocusViewModel @Inject constructor(
                 date = selectedDate,
                 isCompleted = complete
             )
+            maybePublishCompletionCelebration(previousYearStats)
             return
         }
 
@@ -449,6 +464,7 @@ class FocusViewModel @Inject constructor(
             memberName = memberName,
             triggerAffirmations = true
         )
+        maybePublishCompletionCelebration(previousYearStats)
     }
 
     private fun shouldUseDateScopedCompletion(task: Task): Boolean {
@@ -556,7 +572,79 @@ class FocusViewModel @Inject constructor(
         }
     }
 
+    private suspend fun maybePublishCompletionCelebration(previousStats: CompletionYearStats?) {
+        val selectedDate = _selectedDate.value
+        val householdId = currentHouseholdId.ifBlank { setupManager.getHouseholdId().orEmpty() }
+        val userId = currentUserId.ifBlank { setupManager.getAssignedMemberId().orEmpty() }
+        if (previousStats == null || selectedDate != LocalDate.now() || householdId.isBlank() || userId.isBlank()) {
+            return
+        }
+        val tasks = _todaysTasks.value
+        if (tasks.isEmpty() || tasks.any { it.status != com.adhdfocus.app.data.model.TaskStatus.COMPLETED }) {
+            return
+        }
+
+        val newStats = loadCompletionYearStats(householdId, userId, selectedDate.year)
+        _completionCelebrationEvent.value = CompletionCelebrationEvent(
+            id = System.currentTimeMillis(),
+            year = selectedDate.year,
+            previousCompletedTodos = previousStats.completedTodoCount,
+            completedTodos = newStats.completedTodoCount,
+            previousPerfectDays = previousStats.perfectDayCount,
+            perfectDays = newStats.perfectDayCount
+        )
+    }
+
+    private suspend fun loadCompletionYearStats(
+        householdId: String,
+        userId: String,
+        year: Int
+    ): CompletionYearStats {
+        val completedTodoCount = taskDayCompletionRepository.getCompletedCountForYear(householdId, userId, year)
+        val memberName = setupManager.getAssignedMemberName()
+        val perfectDayCount = taskDayCompletionRepository.getCompletedDatesForYear(householdId, userId, year)
+            .count { date -> isPerfectCompletionDay(householdId, userId, memberName, date) }
+
+        return CompletionYearStats(
+            year = year,
+            completedTodoCount = completedTodoCount,
+            perfectDayCount = perfectDayCount
+        )
+    }
+
+    private suspend fun isPerfectCompletionDay(
+        householdId: String,
+        userId: String,
+        memberName: String?,
+        date: LocalDate
+    ): Boolean {
+        val visibleTasks = taskRepository.getTasksForDate(householdId, userId, date, memberName)
+        if (visibleTasks.isEmpty()) return false
+        val completedIds = taskDayCompletionRepository.getCompletionsForDate(householdId, userId, date)
+            .filter { it.isCompleted }
+            .map { it.taskId }
+            .toSet()
+        return visibleTasks.all { task ->
+            task.id in completedIds || (date == LocalDate.now() && task.status == com.adhdfocus.app.data.model.TaskStatus.COMPLETED)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
     }
 }
+
+data class CompletionCelebrationEvent(
+    val id: Long,
+    val year: Int,
+    val previousCompletedTodos: Int,
+    val completedTodos: Int,
+    val previousPerfectDays: Int,
+    val perfectDays: Int
+)
+
+private data class CompletionYearStats(
+    val year: Int,
+    val completedTodoCount: Int,
+    val perfectDayCount: Int
+)
