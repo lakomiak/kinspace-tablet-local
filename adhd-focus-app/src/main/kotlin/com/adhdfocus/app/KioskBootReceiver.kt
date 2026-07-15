@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.provider.Settings
 import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
 
 class KioskBootReceiver : BroadcastReceiver() {
@@ -21,6 +22,26 @@ class KioskBootReceiver : BroadcastReceiver() {
         }
 
         if (!BuildConfig.ENABLE_KIOSK_MODE) {
+            return
+        }
+
+        val shouldDeduplicateForBoot =
+            action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
+                action == Intent.ACTION_BOOT_COMPLETED
+        val currentBootCount = if (shouldDeduplicateForBoot) {
+            runCatching {
+                Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
+            }.getOrDefault(-1)
+        } else {
+            -1
+        }
+        val bootStatePrefs = context.createDeviceProtectedStorageContext()
+            .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        if (
+            shouldDeduplicateForBoot &&
+            currentBootCount >= 0 &&
+            bootStatePrefs.getInt(KEY_LAST_HANDLED_BOOT_COUNT, -1) == currentBootCount
+        ) {
             return
         }
 
@@ -47,7 +68,12 @@ class KioskBootReceiver : BroadcastReceiver() {
             )
         }
 
-        launchKinspace(context)
+        val launched = runCatching {
+            launchKinspace(context)
+        }.isSuccess
+        if (launched && shouldDeduplicateForBoot && currentBootCount >= 0) {
+            bootStatePrefs.edit().putInt(KEY_LAST_HANDLED_BOOT_COUNT, currentBootCount).apply()
+        }
     }
 
     private fun launchKinspace(context: Context) {
@@ -59,5 +85,10 @@ class KioskBootReceiver : BroadcastReceiver() {
                 Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         )
         context.startActivity(launchIntent)
+    }
+
+    companion object {
+        private const val PREF_NAME = "kiosk_boot_state"
+        private const val KEY_LAST_HANDLED_BOOT_COUNT = "last_handled_boot_count"
     }
 }
