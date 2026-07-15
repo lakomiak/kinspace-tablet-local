@@ -85,6 +85,20 @@ adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.Kinspac
 adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.adhdfocus.app/.MainActivity
 ```
 
+For a new Android 14 tablet, the full flow above can be run and verified with:
+
+```powershell
+.\dist\Provision-KinspaceTablet.ps1
+```
+
+When more than one Android device is connected, specify the tablet serial:
+
+```powershell
+.\dist\Provision-KinspaceTablet.ps1 -DeviceId Q8PRO2514E108441
+```
+
+The script expects a factory-clean tablet with USB debugging enabled and authorized. It installs the modern APK, sets the device owner, launches Kinspace, verifies lock-task mode, reboots, and verifies that kiosk mode returns after boot.
+
 After that:
 
 - Kinspace can set itself as lock-task allowlisted

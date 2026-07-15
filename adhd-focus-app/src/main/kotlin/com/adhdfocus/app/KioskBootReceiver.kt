@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
-import com.adhdfocus.app.domain.setup.TabletSetupManager
 
 class KioskBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -22,12 +21,6 @@ class KioskBootReceiver : BroadcastReceiver() {
         }
 
         if (!BuildConfig.ENABLE_KIOSK_MODE) {
-            return
-        }
-
-        val setupManager = TabletSetupManager(context)
-        if (!setupManager.isSetupComplete()) {
-            launchKinspace(context)
             return
         }
 

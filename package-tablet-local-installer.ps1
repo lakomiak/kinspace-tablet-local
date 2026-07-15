@@ -60,12 +60,22 @@ try {
     }
 
     Copy-Item -Force $apk $target
+    if (!$Release -and !$Legacy -and !$Audit) {
+        $provisionScript = Join-Path $repoRoot "provision-new-tablet.ps1"
+        $provisionTarget = Join-Path $distDir "Provision-KinspaceTablet.ps1"
+        Copy-Item -Force $provisionScript $provisionTarget
+    }
     Write-Host ""
     Write-Host "Packaged installer written to:"
     Write-Host $target
     Write-Host ""
     Write-Host "Install on a device with:"
     Write-Host "adb install --user 0 -r `"$target`""
+    if (!$Release -and !$Legacy -and !$Audit) {
+        Write-Host ""
+        Write-Host "Provision a factory-clean Android tablet with:"
+        Write-Host ".\dist\Provision-KinspaceTablet.ps1"
+    }
 }
 finally {
     Pop-Location

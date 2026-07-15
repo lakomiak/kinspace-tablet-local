@@ -89,7 +89,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import kotlinx.coroutines.delay
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -97,8 +96,6 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var themeManager: ThemeManager
     @Inject lateinit var setupManager: TabletSetupManager
     @Inject lateinit var categoryReminderScheduler: CategoryReminderScheduler
-    private var kioskSurfaceReady = false
-    private var kioskLockEngaged = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -130,22 +127,19 @@ class MainActivity : ComponentActivity() {
                         val startDestination = "welcome"
 
                         LaunchedEffect(currentDestination?.route) {
-                            val currentRoute = currentDestination?.route
-                            val isSetupRoute = currentRoute == "welcome" ||
-                                currentRoute == "local_setup" ||
-                                currentRoute == "member_selection"
-                            kioskSurfaceReady = currentRoute == "focus"
-                            if (isSetupRoute) {
-                                activity.disableKioskLockForSetup()
-                            }
-                            if (kioskSurfaceReady) {
-                                delay(400)
-                                activity.enableKioskLockIfEligible()
-                            }
+                            activity.enableKioskLockIfEligible()
                         }
 
                         BackHandler {
-                            navController.popBackStack()
+                            if (!navController.popBackStack()) {
+                                navController.navigate("focus") {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
                         }
 
                         Scaffold(
@@ -377,9 +371,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemBars()
-        if (kioskSurfaceReady) {
-            enableKioskLockIfEligible()
-        }
+        enableKioskLockIfEligible()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -400,9 +392,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restartApplication() {
-        runCatching { stopLockTask() }
-        finishAffinity()
-        Runtime.getRuntime().exit(0)
+        recreate()
     }
 
     private fun hideSystemBars() {
@@ -424,7 +414,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun enableKioskLockIfEligible() {
-        if (!BuildConfig.ENABLE_KIOSK_MODE || kioskLockEngaged) {
+        if (!BuildConfig.ENABLE_KIOSK_MODE) {
             return
         }
 
@@ -432,12 +422,8 @@ class MainActivity : ComponentActivity() {
         if (!devicePolicyManager.isDeviceOwnerApp(packageName)) {
             return
         }
-        if (!devicePolicyManager.isLockTaskPermitted(packageName)) {
-            return
-        }
-
         val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
-        runCatching {
+        val policiesApplied = runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
             applyKioskDevicePolicies(devicePolicyManager, admin)
@@ -449,30 +435,16 @@ class MainActivity : ComponentActivity() {
                 },
                 ComponentName(this, MainActivity::class.java)
             )
+        }.isSuccess
+
+        if (!policiesApplied || !devicePolicyManager.isLockTaskPermitted(packageName)) {
+            return
         }
 
         val activityManager = getSystemService(ActivityManager::class.java)
         if (activityManager?.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) {
             runCatching { startLockTask() }
         }
-
-        kioskLockEngaged = true
-    }
-
-    fun disableKioskLockForSetup() {
-        val devicePolicyManager = getSystemService(DevicePolicyManager::class.java)
-        if (devicePolicyManager?.isDeviceOwnerApp(packageName) == true) {
-            val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
-            runCatching {
-                devicePolicyManager.clearPackagePersistentPreferredActivities(admin, packageName)
-            }
-        }
-
-        val activityManager = getSystemService(ActivityManager::class.java)
-        if (activityManager?.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
-            runCatching { stopLockTask() }
-        }
-        kioskLockEngaged = false
     }
 }
 
