@@ -63,6 +63,7 @@ class TaskSerializer {
         json.put("householdId", task.householdId)
         json.put("assignedUserId", task.assignedUserId)
         json.put("title", task.title)
+        json.put("emoji", task.emoji)
         json.put("description", task.description)
         json.put("todoGroup", task.todoGroup)
         json.put("repeat", task.repeatRule)

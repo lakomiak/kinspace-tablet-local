@@ -1,6 +1,7 @@
 param(
     [string]$DeviceId,
     [string]$ApkPath,
+    [switch]$WipeLocalData,
     [switch]$SkipRebootVerification
 )
 
@@ -135,6 +136,22 @@ Wait-ForBoot
 
 Write-Host "Installing Kinspace..."
 Invoke-Adb -Arguments @("install", "--user", "0", "-r", $apkPath) | Write-Host
+
+if ($WipeLocalData) {
+    $wipeScript = Join-Path $scriptDir "Wipe-KinspaceTabletData.ps1"
+    if (!(Test-Path -LiteralPath $wipeScript)) {
+        $wipeScript = Join-Path $scriptDir "wipe-tablet-local-data.ps1"
+    }
+    if (!(Test-Path -LiteralPath $wipeScript)) {
+        throw "Wipe script not found. Repackage with -IncludeWipeTool or place wipe-tablet-local-data.ps1 beside this script."
+    }
+
+    Write-Host "Resetting Kinspace local data..."
+    & $wipeScript -DeviceId $script:SelectedDeviceId -PackageName $packageName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Local data reset failed."
+    }
+}
 
 $owners = (Invoke-Adb -Arguments @("shell", "dpm", "list-owners") | Out-String)
 if ($owners -match 'DeviceOwner') {

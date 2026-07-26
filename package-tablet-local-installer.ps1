@@ -1,7 +1,8 @@
 param(
     [switch]$Release,
     [switch]$Legacy,
-    [switch]$Audit
+    [switch]$Audit,
+    [switch]$IncludeWipeTool
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,6 +65,13 @@ try {
         $provisionScript = Join-Path $repoRoot "provision-new-tablet.ps1"
         $provisionTarget = Join-Path $distDir "Provision-KinspaceTablet.ps1"
         Copy-Item -Force $provisionScript $provisionTarget
+        $wipeTarget = Join-Path $distDir "Wipe-KinspaceTabletData.ps1"
+        if ($IncludeWipeTool) {
+            $wipeScript = Join-Path $repoRoot "wipe-tablet-local-data.ps1"
+            Copy-Item -Force $wipeScript $wipeTarget
+        } elseif (Test-Path -LiteralPath $wipeTarget) {
+            Remove-Item -LiteralPath $wipeTarget -Force
+        }
     }
     Write-Host ""
     Write-Host "Packaged installer written to:"
@@ -75,6 +83,15 @@ try {
         Write-Host ""
         Write-Host "Provision a factory-clean Android tablet with:"
         Write-Host ".\dist\Provision-KinspaceTablet.ps1"
+        Write-Host ""
+        Write-Host "This package preserves existing tablet data during install."
+        Write-Host "To package the reset utility too, rerun with:"
+        Write-Host ".\package-tablet-local-installer.ps1 -IncludeWipeTool"
+        if ($IncludeWipeTool) {
+            Write-Host ""
+            Write-Host "Reset app data back to first-launch setup with:"
+            Write-Host ".\dist\Wipe-KinspaceTabletData.ps1 -Launch"
+        }
     }
 }
 finally {

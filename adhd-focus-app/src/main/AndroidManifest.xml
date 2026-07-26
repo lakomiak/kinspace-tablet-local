@@ -48,6 +48,15 @@
         </receiver>
 
         <receiver
+            android:name=".LocalDataWipeReceiver"
+            android:directBootAware="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.adhdfocus.app.action.WIPE_LOCAL_DATA" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".KioskBootReceiver"
             android:directBootAware="true"
             android:exported="true">

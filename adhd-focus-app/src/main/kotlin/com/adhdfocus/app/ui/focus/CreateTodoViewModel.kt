@@ -47,6 +47,7 @@ class CreateTodoViewModel @Inject constructor(
 
     fun createTodo(
         title: String,
+        emoji: String?,
         dueDateText: String,
         todoGroup: String,
         repeatRule: String,
@@ -95,6 +96,7 @@ class CreateTodoViewModel @Inject constructor(
             try {
                 taskManager.createTask(
                     title = trimmedTitle,
+                    emoji = emoji?.trim()?.takeIf { it.isNotBlank() },
                     todoGroup = resolvedGroup,
                     householdId = householdId,
                     assignedUserId = memberId,
@@ -152,6 +154,7 @@ class CreateTodoViewModel @Inject constructor(
     fun updateTodo(
         taskId: String,
         title: String,
+        emoji: String?,
         dueDateText: String,
         todoGroup: String,
         repeatRule: String,
@@ -190,6 +193,8 @@ class CreateTodoViewModel @Inject constructor(
                 taskManager.updateTask(
                     taskId = taskId,
                     title = trimmedTitle,
+                    emoji = emoji?.trim()?.takeIf { it.isNotBlank() },
+                    clearEmoji = emoji.isNullOrBlank(),
                     todoGroup = resolvedGroup,
                     dueDate = dueDate,
                     clearDueDate = dueDateText.isBlank(),

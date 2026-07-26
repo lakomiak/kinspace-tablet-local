@@ -59,7 +59,8 @@ class TaskParser {
             .takeIf { it.isNotBlank() } ?: "once"
 
         // Extract optional fields
-        val description = json.optString("description", null).takeIf { it?.isNotBlank() == true }
+        val emoji = optionalString(json, "emoji")
+        val description = optionalString(json, "description")
         val estimatedDurationMinutes = json.optInt("estimatedDurationMinutes", -1).takeIf { it >= 0 }
         val estimatedDurationSeconds = json.optInt("estimatedDurationSeconds", -1).takeIf { it >= 0 }
         val actualDurationMinutes = json.optInt("actualDurationMinutes", -1).takeIf { it >= 0 }
@@ -96,6 +97,7 @@ class TaskParser {
             householdId = householdId,
             assignedUserId = assignedUserId,
             title = title,
+            emoji = emoji,
             description = description,
             todoGroup = todoGroup,
             repeatRule = repeatRule,
@@ -157,6 +159,14 @@ class TaskParser {
             }
             else -> null
         }
+    }
+
+    private fun optionalString(json: JSONObject, key: String): String? {
+        if (!json.has(key) || json.isNull(key)) {
+            return null
+        }
+
+        return json.optString(key).takeIf { it.isNotBlank() }
     }
 
     private fun parseTimer(json: JSONObject): Long? {

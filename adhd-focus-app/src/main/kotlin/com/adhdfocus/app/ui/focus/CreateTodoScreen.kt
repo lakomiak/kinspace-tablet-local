@@ -1,6 +1,7 @@
 package com.adhdfocus.app.ui.focus
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,10 +9,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -19,9 +25,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,14 +45,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.PopupProperties
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.NumberPicker
@@ -71,6 +77,9 @@ fun CreateTodoScreen(
     val pastTodoTitles by viewModel.pastTodoTitles.collectAsStateWithLifecycle()
 
     var title by rememberSaveable(taskId) { mutableStateOf("") }
+    var selectedEmoji by rememberSaveable(taskId) { mutableStateOf("") }
+    var showEmojiPicker by rememberSaveable(taskId) { mutableStateOf(false) }
+    var emojiSearch by rememberSaveable(taskId) { mutableStateOf("") }
     var dueDate by rememberSaveable(taskId) { mutableStateOf("") }
     var showDueDatePicker by rememberSaveable(taskId) { mutableStateOf(false) }
     var selectedGroup by rememberSaveable(taskId) { mutableStateOf("Other") }
@@ -83,7 +92,6 @@ fun CreateTodoScreen(
     var timerMinutes by rememberSaveable(taskId) { mutableStateOf(0) }
     var timerSeconds by rememberSaveable(taskId) { mutableStateOf(0) }
     var formInitialized by rememberSaveable(taskId) { mutableStateOf(false) }
-    var titleSuggestionsExpanded by rememberSaveable(taskId) { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -128,6 +136,7 @@ fun CreateTodoScreen(
         if (formInitialized) return@LaunchedEffect
 
         title = task.title
+        selectedEmoji = task.emoji.orEmpty()
         dueDate = task.dueDate?.atZone(ZoneOffset.UTC)?.toLocalDate()?.toString().orEmpty()
         selectedGroup = task.todoGroup
         repeatValue = repeatValueFrom(task.repeatRule)
@@ -212,42 +221,38 @@ fun CreateTodoScreen(
                         value = title,
                         onValueChange = {
                             title = it
-                            titleSuggestionsExpanded = it.trim().isNotBlank()
                             if (error != null) viewModel.clearError()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("To Do title") },
                         singleLine = true,
-                        trailingIcon = {
-                            if (filteredTitleSuggestions.isNotEmpty()) {
-                                IconButton(onClick = { titleSuggestionsExpanded = !titleSuggestionsExpanded }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Show title suggestions"
-                                    )
-                                }
-                            }
-                        }
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            autoCorrect = false,
+                            keyboardType = KeyboardType.Password
+                        )
                     )
 
-                    DropdownMenu(
-                        expanded = titleSuggestionsExpanded && filteredTitleSuggestions.isNotEmpty(),
-                        onDismissRequest = { titleSuggestionsExpanded = false },
-                        properties = PopupProperties(focusable = false),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        filteredTitleSuggestions.forEach { suggestion -> 
-                            DropdownMenuItem(
-                                text = { Text(suggestion) },
-                                onClick = {
-                                    title = suggestion
-                                    titleSuggestionsExpanded = false
-                                    if (error != null) viewModel.clearError()
-                                }
-                            )
+                    TitleSuggestionStrip(
+                        suggestions = filteredTitleSuggestions,
+                        onSuggestionSelected = {
+                            title = it
+                            if (error != null) viewModel.clearError()
                         }
-                    }
+                    )
                 }
+
+                TodoEmojiField(
+                    selectedEmoji = selectedEmoji,
+                    onChooseClick = {
+                        emojiSearch = title.trim()
+                        showEmojiPicker = true
+                    },
+                    onClearClick = {
+                        selectedEmoji = ""
+                        if (error != null) viewModel.clearError()
+                    }
+                )
 
                 NativeDateField(
                     label = "Due date",
@@ -412,6 +417,7 @@ fun CreateTodoScreen(
                             viewModel.updateTodo(
                                 taskId = taskId.orEmpty(),
                                 title = title,
+                                emoji = selectedEmoji,
                                 dueDateText = dueDate,
                                 todoGroup = selectedGroup,
                                 repeatRule = repeatRule,
@@ -422,6 +428,7 @@ fun CreateTodoScreen(
                         } else {
                             viewModel.createTodo(
                                 title = title,
+                                emoji = selectedEmoji,
                                 dueDateText = dueDate,
                                 todoGroup = selectedGroup,
                                 repeatRule = repeatRule,
@@ -446,6 +453,19 @@ fun CreateTodoScreen(
             }
         }
     }
+
+    if (showEmojiPicker) {
+        TodoEmojiPickerDialog(
+            query = emojiSearch,
+            onQueryChange = { emojiSearch = it },
+            onEmojiSelected = {
+                selectedEmoji = it.emoji
+                showEmojiPicker = false
+                if (error != null) viewModel.clearError()
+            },
+            onDismiss = { showEmojiPicker = false }
+        )
+    }
 }
 
 private fun repeatValueFrom(repeatRule: String): String {
@@ -466,6 +486,202 @@ private fun parseDateToMillis(value: String): Long? {
         val date = LocalDate.parse(trimmed)
         date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     }.getOrNull()
+}
+
+@Composable
+private fun TitleSuggestionStrip(
+    suggestions: List<String>,
+    onSuggestionSelected: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (suggestions.isNotEmpty()) {
+            Text(
+                text = "Previous To Dos",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                suggestions.take(3).forEach { suggestion ->
+                    Surface(
+                        onClick = { onSuggestionSelected(suggestion) },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ) {
+                        Text(
+                            text = suggestion,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodoEmojiField(
+    selectedEmoji: String,
+    onChooseClick: () -> Unit,
+    onClearClick: () -> Unit
+) {
+    Surface(
+        onClick = onChooseClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(52.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = selectedEmoji.ifBlank { "🙂" },
+                        fontSize = 28.sp
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Picture icon",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (selectedEmoji.isBlank()) "Tap to search emoji" else "Selected $selectedEmoji",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            if (selectedEmoji.isNotBlank()) {
+                TextButton(onClick = onClearClick) {
+                    Text("Clear")
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodoEmojiPickerDialog(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onEmojiSelected: (TodoEmoji) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val results = remember(query) {
+        TodoEmojiCatalog.search(query)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = MaterialTheme.shapes.extraLarge) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Choose picture icon",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Search emoji") },
+                    singleLine = true
+                )
+
+                if (results.isEmpty()) {
+                    Text(
+                        text = "No matching emoji yet. Try words like brush, shoes, lunch, clean, bed, school, pet, or sports.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 76.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(results) { item ->
+                            Surface(
+                                onClick = { onEmojiSelected(item) },
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = item.emoji,
+                                        fontSize = 30.sp
+                                    )
+                                    Text(
+                                        text = item.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

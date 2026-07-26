@@ -33,6 +33,7 @@ data class Task(
     val householdId: String,
     val assignedUserId: String,
     val title: String,
+    val emoji: String? = null,
     val description: String? = null,
     val todoGroup: String,
     val repeatRule: String = "once",

@@ -58,6 +58,7 @@ class TaskManager @Inject constructor(
      */
     suspend fun createTask(
         title: String,
+        emoji: String? = null,
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
         estimatedDurationSeconds: Int? = null,
@@ -88,6 +89,7 @@ class TaskManager @Inject constructor(
             householdId = householdId,
             assignedUserId = assignedUserId,
             title = title,
+            emoji = emoji?.trim()?.takeIf { it.isNotBlank() },
             description = description,
             todoGroup = todoGroup,
             repeatRule = repeatRule,
@@ -123,6 +125,7 @@ class TaskManager @Inject constructor(
     suspend fun updateTask(
         taskId: String,
         title: String? = null,
+        emoji: String? = null,
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
         estimatedDurationSeconds: Int? = null,
@@ -130,6 +133,7 @@ class TaskManager @Inject constructor(
         status: TaskStatus? = null,
         dueDate: Instant? = null,
         clearDueDate: Boolean = false,
+        clearEmoji: Boolean = false,
         repeatRule: String? = null
     ): Task {
         require(taskId.isNotBlank()) { "Task ID cannot be empty" }
@@ -168,6 +172,11 @@ class TaskManager @Inject constructor(
 
         val updatedTask = existingTask.copy(
             title = title ?: existingTask.title,
+            emoji = when {
+                clearEmoji -> null
+                emoji != null -> emoji.trim().takeIf { it.isNotBlank() }
+                else -> existingTask.emoji
+            },
             description = description ?: existingTask.description,
             todoGroup = todoGroup ?: existingTask.todoGroup,
             repeatRule = resolvedRepeatRule,

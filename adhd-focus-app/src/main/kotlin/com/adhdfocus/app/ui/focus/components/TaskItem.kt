@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.adhdfocus.app.data.model.SyncStatus
 import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.TaskStatus
@@ -115,6 +116,7 @@ fun TaskItem(
         }
         val taskAccessibilityDescription = remember(
             task.title,
+            task.emoji,
             statusDescription,
             timerLabel,
             syncDescription,
@@ -122,6 +124,10 @@ fun TaskItem(
         ) {
             buildString {
                 append(task.title)
+                task.emoji?.takeIf { it.isNotBlank() }?.let {
+                    append(", picture icon ")
+                    append(it)
+                }
                 append(", ")
                 append(statusDescription)
                 timerLabel?.let {
@@ -208,6 +214,26 @@ fun TaskItem(
                 }
 
                 Spacer(modifier = Modifier.width(itemSpacing))
+
+                task.emoji?.takeIf { it.isNotBlank() }?.let { emoji ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(
+                            alpha = if (isCompleted) 0.46f else 0.86f
+                        ),
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(statusSize)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = emoji,
+                                fontSize = if (isCompact) 24.sp else 30.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(itemSpacing))
+                }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

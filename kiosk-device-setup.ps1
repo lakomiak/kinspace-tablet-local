@@ -2,6 +2,7 @@ param(
     [string]$DeviceId,
     [switch]$Legacy,
     [switch]$Launch,
+    [switch]$WipeLocalData,
     [switch]$OpenHomeChooser,
     [switch]$OpenAppSettings,
     [switch]$ShowCommands
@@ -53,6 +54,27 @@ if ([string]::IsNullOrWhiteSpace($DeviceId)) {
     & adb -s $DeviceId install --user 0 -r $apkPath
 }
 Write-Host ""
+
+if ($WipeLocalData) {
+    $wipeScript = Join-Path $repoRoot "dist\Wipe-KinspaceTabletData.ps1"
+    if (!(Test-Path -LiteralPath $wipeScript)) {
+        $wipeScript = Join-Path $repoRoot "wipe-tablet-local-data.ps1"
+    }
+    if (!(Test-Path -LiteralPath $wipeScript)) {
+        throw "Wipe script not found. Repackage with -IncludeWipeTool or keep wipe-tablet-local-data.ps1 in the repo root."
+    }
+
+    Write-Host "Resetting Kinspace local data..."
+    $wipeArgs = @("-PackageName", $packageName)
+    if (![string]::IsNullOrWhiteSpace($DeviceId)) {
+        $wipeArgs += @("-DeviceId", $DeviceId)
+    }
+    & $wipeScript @wipeArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Local data reset failed."
+    }
+    Write-Host ""
+}
 
 if ($Launch) {
     Write-Host "Launching Kinspace Tablet Local..."
