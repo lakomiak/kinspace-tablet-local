@@ -8,6 +8,8 @@ import com.adhdfocus.app.data.database.DatabaseBackupManager
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.Theme
 import com.adhdfocus.app.data.model.UserPreferences
+import com.adhdfocus.app.data.repository.TokenRepository
+import com.adhdfocus.app.data.repository.UserRepository
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.puzzle.PuzzleAgeBand
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
@@ -43,6 +45,12 @@ data class StorageUsageUiState(
         get() = (totalStorageBytes - availableStorageBytes).coerceAtLeast(0L)
 }
 
+data class TokenBankUiState(
+    val userId: String = "",
+    val displayName: String = "Selected child",
+    val balance: Int = 0
+)
+
 /**
  * SettingsViewModel manages settings UI state and persistence.
  *
@@ -63,7 +71,9 @@ class SettingsViewModel @Inject constructor(
     private val audioNotificationManager: AudioNotificationManager,
     private val categoryReminderScheduler: CategoryReminderScheduler,
     private val setupManager: TabletSetupManager,
-    private val backupManager: DatabaseBackupManager
+    private val backupManager: DatabaseBackupManager,
+    private val userRepository: UserRepository,
+    private val tokenRepository: TokenRepository
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -146,6 +156,12 @@ class SettingsViewModel @Inject constructor(
     private val _restoreTargetName = MutableStateFlow<String?>(null)
     val restoreTargetName: StateFlow<String?> = _restoreTargetName
 
+    private val _tokenBank = MutableStateFlow(TokenBankUiState())
+    val tokenBank: StateFlow<TokenBankUiState> = _tokenBank
+
+    private val _tokenBankMessage = MutableStateFlow<String?>(null)
+    val tokenBankMessage: StateFlow<String?> = _tokenBankMessage
+
     private var currentUserId: String? = null
 
     init {
@@ -156,6 +172,7 @@ class SettingsViewModel @Inject constructor(
         if (userId.isNotBlank()) {
             currentUserId = userId
             loadSettings(userId)
+            refreshTokenBank()
         }
     }
 
@@ -170,6 +187,7 @@ class SettingsViewModel @Inject constructor(
         val effectiveId = userId.ifBlank { resolveUserId() }
         currentUserId = effectiveId
         loadSettings(effectiveId)
+        refreshTokenBank()
     }
 
     /**
@@ -232,6 +250,49 @@ class SettingsViewModel @Inject constructor(
                 totalStorageBytes = backupManager.getTotalStorageBytes()
             )
         }
+    }
+
+    fun refreshTokenBank() {
+        viewModelScope.launch {
+            val householdId = setupManager.getHouseholdId().orEmpty()
+            val userId = currentUserId.orEmpty().ifBlank { resolveUserId() }
+            if (householdId.isBlank() || userId.isBlank()) {
+                _tokenBank.value = TokenBankUiState()
+                return@launch
+            }
+            val user = userRepository.getUserById(userId)
+            _tokenBank.value = TokenBankUiState(
+                userId = userId,
+                displayName = user?.displayName ?: setupManager.getAssignedMemberName().orEmpty().ifBlank { "Selected child" },
+                balance = tokenRepository.getBalance(householdId, userId)
+            )
+        }
+    }
+
+    fun adjustTokensForCurrentChild(amountText: String, note: String, remove: Boolean) {
+        val householdId = setupManager.getHouseholdId().orEmpty()
+        val userId = currentUserId.orEmpty().ifBlank { resolveUserId() }
+        val amount = amountText.trim().toIntOrNull()?.coerceAtLeast(1) ?: 1
+        if (householdId.isBlank() || userId.isBlank()) return
+        viewModelScope.launch {
+            val signedAmount = if (remove) -amount else amount
+            tokenRepository.adjustTokens(
+                householdId = householdId,
+                userId = userId,
+                amount = signedAmount,
+                note = note
+            )
+            _tokenBankMessage.value = if (remove) {
+                "Removed $amount token${if (amount == 1) "" else "s"}."
+            } else {
+                "Added $amount token${if (amount == 1) "" else "s"}."
+            }
+            refreshTokenBank()
+        }
+    }
+
+    fun clearTokenBankMessage() {
+        _tokenBankMessage.value = null
     }
 
     fun createBackup() {

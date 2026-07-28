@@ -3,10 +3,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adhdfocus.app.data.model.Badge
 import com.adhdfocus.app.data.model.TaskStatus
+import com.adhdfocus.app.data.model.TokenTransaction
+import com.adhdfocus.app.data.model.TokenTransactionType
 import com.adhdfocus.app.data.model.User
 import com.adhdfocus.app.data.repository.BadgeRepository
 import com.adhdfocus.app.data.repository.StreakRepository
 import com.adhdfocus.app.data.repository.TaskRepository
+import com.adhdfocus.app.data.repository.TokenRepository
 import com.adhdfocus.app.data.repository.UserRepository
 import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.gamification.BadgeSystem
@@ -19,7 +22,10 @@ import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 import java.time.Period
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
 
 /**
  * AchievementsViewModel manages the state for the Achievements View.
@@ -40,7 +46,8 @@ class AchievementsViewModel @Inject constructor(
     private val setupManager: TabletSetupManager,
     private val puzzleSystem: PuzzleSystem,
     private val taskRepository: TaskRepository,
-    private val taskDayCompletionRepository: TaskDayCompletionRepository
+    private val taskDayCompletionRepository: TaskDayCompletionRepository,
+    private val tokenRepository: TokenRepository
 ) : ViewModel() {
 
     private val _earnedBadges = MutableStateFlow<List<Badge>>(emptyList())
@@ -73,8 +80,26 @@ class AchievementsViewModel @Inject constructor(
     private val _yearStats = MutableStateFlow(AchievementYearStats())
     val yearStats: StateFlow<AchievementYearStats> = _yearStats
 
+    private val _tokenBalance = MutableStateFlow(0)
+    val tokenBalance: StateFlow<Int> = _tokenBalance
+
+    private val _tokensEarnedThisWeek = MutableStateFlow(0)
+    val tokensEarnedThisWeek: StateFlow<Int> = _tokensEarnedThisWeek
+
+    private val _recentTokenTransactions = MutableStateFlow<List<TokenTransaction>>(emptyList())
+    val recentTokenTransactions: StateFlow<List<TokenTransaction>> = _recentTokenTransactions
+
+    private val _tokenMessage = MutableStateFlow<String?>(null)
+    val tokenMessage: StateFlow<String?> = _tokenMessage
+
+    private val _tokenWeekGrid = MutableStateFlow(TokenWeekGridUiState())
+    val tokenWeekGrid: StateFlow<TokenWeekGridUiState> = _tokenWeekGrid
+
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
+    private var tokenBalanceJob: Job? = null
+    private var tokenWeekJob: Job? = null
+    private var tokenTransactionsJob: Job? = null
 
     /**
      * Loads achievements for a user.
@@ -93,6 +118,7 @@ class AchievementsViewModel @Inject constructor(
                 // Load user
                 val user = userRepository.getUserById(userId)
                 _currentUser.value = user
+                observeTokenState(householdId, userId)
 
                 // Load badges
                 val earned = badgeRepository.getEarnedBadges(userId, householdId)
@@ -117,6 +143,7 @@ class AchievementsViewModel @Inject constructor(
                 _selectedPuzzleAgeBand.value = selectedBand
                 _currentPuzzle.value = puzzleSystem.getCurrentPuzzle(householdId, userId, selectedBand)
                 _yearStats.value = loadYearStats(householdId, userId, LocalDate.now().year)
+                _tokenWeekGrid.value = loadTokenWeekGrid(householdId, userId)
             } finally {
                 _isLoading.value = false
             }
@@ -192,6 +219,49 @@ class AchievementsViewModel @Inject constructor(
         )
     }
 
+    fun redeemTokens(amount: Int) {
+        val householdId = currentHouseholdId
+        val userId = currentUserId
+        if (householdId.isBlank() || userId.isBlank()) return
+        if (amount <= 0) {
+            _tokenMessage.value = "Choose at least 1 token to turn in."
+            return
+        }
+        viewModelScope.launch {
+            val success = tokenRepository.redeemTokens(householdId, userId, amount)
+            _tokenMessage.value = if (success) {
+                "Turned in $amount token${if (amount == 1) "" else "s"}."
+            } else {
+                "Not enough tokens available."
+            }
+        }
+    }
+
+    fun clearTokenMessage() {
+        _tokenMessage.value = null
+    }
+
+    private fun observeTokenState(householdId: String, userId: String) {
+        tokenBalanceJob?.cancel()
+        tokenWeekJob?.cancel()
+        tokenTransactionsJob?.cancel()
+        tokenBalanceJob = viewModelScope.launch {
+            tokenRepository.observeBalance(householdId, userId).collect { balance ->
+                _tokenBalance.value = balance
+            }
+        }
+        tokenWeekJob = viewModelScope.launch {
+            tokenRepository.observeEarnedThisWeek(householdId, userId).collect { earned ->
+                _tokensEarnedThisWeek.value = earned
+            }
+        }
+        tokenTransactionsJob = viewModelScope.launch {
+            tokenRepository.observeTransactionsForUser(householdId, userId).collect { transactions ->
+                _recentTokenTransactions.value = transactions.take(5)
+            }
+        }
+    }
+
     private fun normalizeBadges(badges: List<Badge>): List<Badge> {
         val badgeOrder = badgeSystem.getAllBadgeMilestones()
             .mapIndexed { index, milestone -> milestone.badgeType to index }
@@ -246,6 +316,78 @@ class AchievementsViewModel @Inject constructor(
             perfectDayCount = perfectDayCount
         )
     }
+
+    private suspend fun loadTokenWeekGrid(
+        householdId: String,
+        userId: String
+    ): TokenWeekGridUiState {
+        val today = LocalDate.now()
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val days = (0..6).map { offset -> weekStart.plusDays(offset.toLong()) }
+        val memberName = setupManager.getAssignedMemberName()
+        val transactions = tokenRepository.getTransactionsForUser(householdId, userId)
+        val taskAwards = transactions
+            .filter { transaction ->
+                transaction.type == TokenTransactionType.TASK_AWARD &&
+                    !transaction.taskId.isNullOrBlank() &&
+                    !transaction.targetDate.isNullOrBlank()
+            }
+            .associateBy { transaction -> transaction.taskId.orEmpty() to transaction.targetDate.orEmpty() }
+
+        val tasksByDate = days.associateWith { date ->
+            taskRepository.getTasksForDate(householdId, userId, date, memberName)
+        }
+        val rowOrder = LinkedHashMap<String, TokenTaskRowSeed>()
+        tasksByDate.values.flatten().forEach { task ->
+            rowOrder.putIfAbsent(
+                task.id,
+                TokenTaskRowSeed(
+                    taskId = task.id,
+                    title = task.title,
+                    emoji = task.emoji,
+                    todoGroup = task.todoGroup,
+                    tokenValue = task.tokenValue.coerceAtLeast(0)
+                )
+            )
+        }
+
+        val rows = rowOrder.values.map { seed ->
+            TokenTaskRowUiState(
+                taskId = seed.taskId,
+                title = seed.title,
+                emoji = seed.emoji,
+                todoGroup = seed.todoGroup,
+                cells = days.map { date ->
+                    val taskForDate = tasksByDate[date].orEmpty().firstOrNull { task -> task.id == seed.taskId }
+                    if (taskForDate == null) {
+                        TokenTaskCellUiState(date = date, state = TokenCellState.NOT_DUE, tokenValue = seed.tokenValue)
+                    } else {
+                        val wasAwarded = taskAwards.containsKey(seed.taskId to date.toString())
+                        val state = when {
+                            wasAwarded -> TokenCellState.EARNED
+                            date.isBefore(today) -> TokenCellState.MISSED
+                            else -> TokenCellState.DUE
+                        }
+                        TokenTaskCellUiState(
+                            date = date,
+                            state = state,
+                            tokenValue = if (wasAwarded) taskForDate.tokenValue.coerceAtLeast(0) else taskForDate.tokenValue.coerceAtLeast(0)
+                        )
+                    }
+                }
+            )
+        }.sortedWith(
+            compareBy<TokenTaskRowUiState> { row -> tokenGroupSortOrder(row.todoGroup) }
+                .thenBy { row -> row.title.lowercase() }
+        )
+
+        return TokenWeekGridUiState(
+            weekStart = weekStart,
+            today = today,
+            days = days,
+            rows = rows
+        )
+    }
 }
 
 data class AchievementYearStats(
@@ -253,3 +395,50 @@ data class AchievementYearStats(
     val completedTodoCount: Int = 0,
     val perfectDayCount: Int = 0
 )
+
+data class TokenWeekGridUiState(
+    val weekStart: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+    val today: LocalDate = LocalDate.now(),
+    val days: List<LocalDate> = emptyList(),
+    val rows: List<TokenTaskRowUiState> = emptyList()
+)
+
+data class TokenTaskRowUiState(
+    val taskId: String,
+    val title: String,
+    val emoji: String?,
+    val todoGroup: String,
+    val cells: List<TokenTaskCellUiState>
+)
+
+data class TokenTaskCellUiState(
+    val date: LocalDate,
+    val state: TokenCellState,
+    val tokenValue: Int
+)
+
+enum class TokenCellState {
+    EARNED,
+    DUE,
+    MISSED,
+    NOT_DUE
+}
+
+private data class TokenTaskRowSeed(
+    val taskId: String,
+    val title: String,
+    val emoji: String?,
+    val todoGroup: String,
+    val tokenValue: Int
+)
+
+private fun tokenGroupSortOrder(group: String): Int {
+    return when (group.trim().lowercase()) {
+        "morning" -> 0
+        "afternoon" -> 1
+        "evening" -> 2
+        "bedtime" -> 3
+        "other" -> 4
+        else -> 10
+    }
+}

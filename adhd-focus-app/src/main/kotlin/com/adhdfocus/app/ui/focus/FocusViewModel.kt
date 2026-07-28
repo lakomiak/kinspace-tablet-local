@@ -8,6 +8,7 @@ import com.adhdfocus.app.data.model.Task
 import com.adhdfocus.app.data.model.Streak
 import com.adhdfocus.app.data.repository.TaskRepository
 import com.adhdfocus.app.data.repository.StreakRepository
+import com.adhdfocus.app.data.repository.TokenRepository
 import com.adhdfocus.app.domain.affirmation.AffirmationTriggerManager
 import com.adhdfocus.app.domain.gamification.BadgeSystem
 import com.adhdfocus.app.domain.puzzle.PuzzleSystem
@@ -19,6 +20,7 @@ import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.streak.StreakCalculationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +55,8 @@ class FocusViewModel @Inject constructor(
     private val streakCalculationManager: StreakCalculationManager,
     private val badgeSystem: BadgeSystem,
     private val affirmationTriggerManager: AffirmationTriggerManager,
-    private val puzzleSystem: PuzzleSystem
+    private val puzzleSystem: PuzzleSystem,
+    private val tokenRepository: TokenRepository
 ) : ViewModel() {
 
     private val tag = "FocusViewModel"
@@ -82,8 +85,12 @@ class FocusViewModel @Inject constructor(
     private val _completionCelebrationEvent = MutableStateFlow<CompletionCelebrationEvent?>(null)
     val completionCelebrationEvent: StateFlow<CompletionCelebrationEvent?> = _completionCelebrationEvent
 
+    private val _tokenBalance = MutableStateFlow(0)
+    val tokenBalance: StateFlow<Int> = _tokenBalance
+
     private var currentHouseholdId: String = ""
     private var currentUserId: String = ""
+    private var tokenBalanceJob: Job? = null
 
     init {
         val householdId = setupManager.getHouseholdId()
@@ -94,6 +101,7 @@ class FocusViewModel @Inject constructor(
             currentUserId = userId
             _selectedDate.value = LocalDate.now()
             setupManager.setCurrentFocusDate(_selectedDate.value)
+            observeTokenBalance(householdId, userId)
             refreshCurrentTasks(fromCloud = false)
         }
 
@@ -109,6 +117,7 @@ class FocusViewModel @Inject constructor(
     fun loadTodaysTasks(householdId: String, userId: String) {
         currentHouseholdId = householdId
         currentUserId = userId
+        observeTokenBalance(householdId, userId)
         _selectedDate.value = LocalDate.now()
         setupManager.setCurrentFocusDate(_selectedDate.value)
         
@@ -131,6 +140,7 @@ class FocusViewModel @Inject constructor(
     ) {
         currentHouseholdId = householdId
         currentUserId = userId
+        observeTokenBalance(householdId, userId)
 
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.SYNCED
@@ -173,6 +183,16 @@ class FocusViewModel @Inject constructor(
         _selectedDate.value = LocalDate.now()
         setupManager.setCurrentFocusDate(_selectedDate.value)
         loadTodaysTasks(householdId, userId)
+    }
+
+    private fun observeTokenBalance(householdId: String, userId: String) {
+        if (householdId.isBlank() || userId.isBlank()) return
+        tokenBalanceJob?.cancel()
+        tokenBalanceJob = viewModelScope.launch {
+            tokenRepository.observeBalance(householdId, userId).collect { balance ->
+                _tokenBalance.value = balance
+            }
+        }
     }
 
     fun showPreviousDay() {
@@ -438,6 +458,11 @@ class FocusViewModel @Inject constructor(
                 date = selectedDate,
                 isCompleted = complete
             )
+            if (complete) {
+                tokenRepository.awardTaskTokensForToday(persistedTask, selectedDate)
+            } else {
+                tokenRepository.revokeTaskTokensForToday(persistedTask, selectedDate)
+            }
             maybePublishCompletionCelebration(previousYearStats)
             return
         }
@@ -454,6 +479,11 @@ class FocusViewModel @Inject constructor(
             date = selectedDate,
             isCompleted = complete
         )
+        if (complete) {
+            existingTask?.let { tokenRepository.awardTaskTokensForToday(it, selectedDate) }
+        } else {
+            existingTask?.let { tokenRepository.revokeTaskTokensForToday(it, selectedDate) }
+        }
 
         val refreshedTasks = resolveVisibleTasks(householdId, userId, memberName, selectedDate)
         Log.d(tag, "updateTaskCompletion refreshedTasks count=${refreshedTasks.size} after taskId=$taskId complete=$complete")

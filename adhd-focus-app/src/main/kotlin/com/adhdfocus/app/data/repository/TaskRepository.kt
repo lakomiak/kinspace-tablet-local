@@ -49,6 +49,7 @@ class TaskRepository @Inject constructor(
             description = (updates["description"] as? String) ?: task.description,
             todoGroup = (updates["todoGroup"] as? String) ?: task.todoGroup,
             estimatedDurationMinutes = (updates["estimatedDurationMinutes"] as? Int) ?: task.estimatedDurationMinutes,
+            tokenValue = (updates["tokenValue"] as? Int)?.coerceAtLeast(0) ?: task.tokenValue,
             status = (updates["status"] as? TaskStatus) ?: task.status,
             updatedAt = java.time.Instant.now()
         )

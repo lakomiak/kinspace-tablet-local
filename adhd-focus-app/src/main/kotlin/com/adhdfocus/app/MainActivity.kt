@@ -250,6 +250,15 @@ class MainActivity : ComponentActivity() {
                                             popUpTo("focus") { inclusive = false }
                                         }
                                     },
+                                    onAchievementsClick = {
+                                        navController.navigate("achievements") {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
                                     onTaskEditRequested = { task ->
                                         navController.navigate("edit_todo/${Uri.encode(task.id)}")
                                     },

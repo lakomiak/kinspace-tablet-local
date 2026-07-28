@@ -5,7 +5,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,10 +50,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
@@ -67,6 +79,10 @@ import android.widget.DatePicker
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 import kotlin.random.Random
 
 /**
@@ -89,6 +105,7 @@ fun DailyFocusViewScreen(
     memberId: String = "",
     memberName: String? = null,
     onChangeMemberClick: () -> Unit = {},
+    onAchievementsClick: () -> Unit = {},
     refreshToken: Int = 0,
     viewModel: FocusViewModel = hiltViewModel()
 ) {
@@ -108,6 +125,7 @@ fun DailyFocusViewScreen(
     val allowTodoEditing by viewModel.allowTodoEditing.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val completionCelebration by viewModel.completionCelebrationEvent.collectAsStateWithLifecycle()
+    val tokenBalance by viewModel.tokenBalance.collectAsStateWithLifecycle()
     var taskPendingDelete by remember { mutableStateOf<Task?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     val activeMemberLabel = memberName ?: "Member"
@@ -126,6 +144,11 @@ fun DailyFocusViewScreen(
                     Text(if (activeMemberLabel.isBlank()) "Hello" else "Hello, $activeMemberLabel")
                 },
                 actions = {
+                    HeaderTokenStar(
+                        tokenBalance = tokenBalance,
+                        onClick = onAchievementsClick,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
                     IconButton(onClick = onChangeMemberClick) {
                         Icon(
                             imageVector = Icons.Default.Person,
@@ -375,6 +398,137 @@ fun DailyFocusViewScreen(
         }
     }
 
+}
+
+@Composable
+private fun HeaderTokenStar(
+    tokenBalance: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var previousBalance by remember { mutableStateOf(tokenBalance) }
+    var animationId by remember { mutableStateOf(0L) }
+    var fromValue by remember { mutableStateOf(tokenBalance) }
+
+    LaunchedEffect(tokenBalance) {
+        if (tokenBalance > previousBalance) {
+            fromValue = previousBalance
+            animationId = System.nanoTime()
+        }
+        previousBalance = tokenBalance
+    }
+
+    Box(
+        modifier = modifier
+            .width(64.dp)
+            .height(48.dp)
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = "Open achievements. $tokenBalance total tokens."
+                role = Role.Button
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(46.dp)) {
+            val starPath = createHeaderStarPath(
+                center = Offset(size.width / 2f, size.height / 2f),
+                outerRadius = min(size.width, size.height) * 0.48f,
+                innerRadius = min(size.width, size.height) * 0.22f
+            )
+            drawPath(
+                path = starPath,
+                color = Color(0xFFFFB703)
+            )
+        }
+        HeaderSlotCounter(
+            fromValue = fromValue,
+            toValue = tokenBalance,
+            eventId = animationId,
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+private fun HeaderSlotCounter(
+    fromValue: Int,
+    toValue: Int,
+    eventId: Long,
+    modifier: Modifier = Modifier
+) {
+    var displayedDigits by remember { mutableStateOf(listOf(toValue.toString())) }
+    var isRolling by remember { mutableStateOf(false) }
+
+    LaunchedEffect(eventId, toValue) {
+        if (eventId == 0L || fromValue >= toValue) {
+            isRolling = false
+            displayedDigits = listOf(toValue.toString())
+            return@LaunchedEffect
+        }
+
+        isRolling = true
+        val digitCount = maxOf(fromValue, toValue).toString().length.coerceAtLeast(1)
+        val targetDigits = toValue.toString().padStart(digitCount, '0').map { it.digitToInt() }
+        var currentDigits = fromValue.toString().padStart(digitCount, '0').map { it.digitToInt() }
+        displayedDigits = currentDigits.map { it.toString() }
+
+        val totalTicks = 18
+        repeat(totalTicks) { tick ->
+            currentDigits = currentDigits.mapIndexed { index, digit ->
+                val settleTick = totalTicks - 1 - ((digitCount - 1 - index) * 3)
+                if (tick < settleTick) {
+                    (digit + 1) % 10
+                } else {
+                    targetDigits[index]
+                }
+            }
+            displayedDigits = currentDigits.map { it.toString() }
+            delay(42)
+        }
+        displayedDigits = listOf(toValue.toString())
+        isRolling = false
+    }
+
+    val digitCount = if (isRolling) displayedDigits.size else toValue.toString().length
+    val valueFontSize = when {
+        digitCount >= 3 -> 8.sp
+        digitCount == 2 -> 12.sp
+        else -> 15.sp
+    }
+    Text(
+        text = displayedDigits.joinToString(""),
+        modifier = modifier.width(40.dp),
+        fontSize = valueFontSize,
+        lineHeight = valueFontSize,
+        fontWeight = FontWeight.Black,
+        color = Color.White,
+        textAlign = TextAlign.Center,
+        softWrap = false,
+        maxLines = 1,
+        overflow = TextOverflow.Clip
+    )
+}
+
+private fun createHeaderStarPath(
+    center: Offset,
+    outerRadius: Float,
+    innerRadius: Float
+): Path {
+    val path = Path()
+    repeat(10) { index ->
+        val radius = if (index % 2 == 0) outerRadius else innerRadius
+        val angle = -PI / 2.0 + index * PI / 5.0
+        val x = center.x + (cos(angle) * radius).toFloat()
+        val y = center.y + (sin(angle) * radius).toFloat()
+        if (index == 0) {
+            path.moveTo(x, y)
+        } else {
+            path.lineTo(x, y)
+        }
+    }
+    path.close()
+    return path
 }
 
 @Composable

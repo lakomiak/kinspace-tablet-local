@@ -102,11 +102,15 @@ fun SettingsScreen(
     val storageUsage by viewModel.storageUsage.collectAsStateWithLifecycle()
     val restoreReady by viewModel.restoreReady.collectAsStateWithLifecycle()
     val restoreTargetName by viewModel.restoreTargetName.collectAsStateWithLifecycle()
+    val tokenBank by viewModel.tokenBank.collectAsStateWithLifecycle()
+    val tokenBankMessage by viewModel.tokenBankMessage.collectAsStateWithLifecycle()
     val kioskModeEnabled = BuildConfig.ENABLE_KIOSK_MODE
 
     var unlockPasscode by remember { mutableStateOf("") }
     var backupPendingRestore by remember { mutableStateOf<BackupListItem?>(null) }
     var backupPendingExport by remember { mutableStateOf<BackupListItem?>(null) }
+    var tokenAmount by remember { mutableStateOf("1") }
+    var tokenNote by remember { mutableStateOf("") }
 
     val importBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -273,6 +277,101 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Manage Family Members")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SettingSection(title = "Token Bank") {
+                        Text(
+                            text = "Parents can add or remove tokens from a child account. To Do completions only earn tokens automatically for today's tasks.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (tokenBank.userId.isBlank()) {
+                            Text(
+                                text = "Choose a child before assigning tokens.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = tokenBank.displayName,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${tokenBank.balance} token${if (tokenBank.balance == 1) "" else "s"}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            OutlinedTextField(
+                                value = tokenAmount,
+                                onValueChange = {
+                                    tokenAmount = it.filter { char -> char.isDigit() }.take(3)
+                                    viewModel.clearTokenBankMessage()
+                                },
+                                label = { Text("Amount") },
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = tokenNote,
+                                onValueChange = {
+                                    tokenNote = it
+                                    viewModel.clearTokenBankMessage()
+                                },
+                                label = { Text("Reason") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        viewModel.adjustTokensForCurrentChild(tokenAmount, tokenNote, remove = false)
+                                        tokenAmount = "1"
+                                        tokenNote = ""
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = tokenBank.userId.isNotBlank()
+                                ) {
+                                    Text("Add Tokens")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.adjustTokensForCurrentChild(tokenAmount, tokenNote, remove = true)
+                                        tokenAmount = "1"
+                                        tokenNote = ""
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = tokenBank.userId.isNotBlank()
+                                ) {
+                                    Text("Remove")
+                                }
+                            }
+
+                            tokenBankMessage?.let { message ->
+                                Text(
+                                    text = message,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
 

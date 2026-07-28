@@ -65,6 +65,7 @@ class TaskParser {
         val estimatedDurationSeconds = json.optInt("estimatedDurationSeconds", -1).takeIf { it >= 0 }
         val actualDurationMinutes = json.optInt("actualDurationMinutes", -1).takeIf { it >= 0 }
         val timerDurationMs = parseTimer(json)
+        val tokenValue = json.optInt("tokenValue", json.optInt("tokens", 1)).coerceAtLeast(0)
 
         // Parse status enum
         val statusString = json.optString("status", "INCOMPLETE")
@@ -104,6 +105,7 @@ class TaskParser {
             estimatedDurationMinutes = estimatedDurationMinutes,
             estimatedDurationSeconds = estimatedDurationSeconds,
             timerDurationMs = timerDurationMs,
+            tokenValue = tokenValue,
             actualDurationMinutes = actualDurationMinutes,
             status = status,
             dueDate = dueDate,

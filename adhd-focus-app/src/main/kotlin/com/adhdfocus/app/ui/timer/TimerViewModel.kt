@@ -10,6 +10,7 @@ import com.adhdfocus.app.data.dao.EfficiencyMetricDao
 import com.adhdfocus.app.data.dao.TaskSessionMetricDao
 import com.adhdfocus.app.data.model.TaskSessionMetric
 import com.adhdfocus.app.data.model.TaskSessionOutcome
+import com.adhdfocus.app.data.repository.TokenRepository
 import com.adhdfocus.app.domain.audio.AudioNotificationManager
 import com.adhdfocus.app.domain.completion.TaskDayCompletionRepository
 import com.adhdfocus.app.domain.gamification.EfficiencyCalculator
@@ -49,6 +50,7 @@ class TimerViewModel @Inject constructor(
     private val setupManager: TabletSetupManager,
     private val taskManager: TaskManager,
     private val taskDayCompletionRepository: TaskDayCompletionRepository,
+    private val tokenRepository: TokenRepository,
     private val efficiencyMetricDao: EfficiencyMetricDao,
     private val taskSessionMetricDao: TaskSessionMetricDao,
     private val efficiencyCalculator: EfficiencyCalculator
@@ -292,8 +294,11 @@ class TimerViewModel @Inject constructor(
             try {
                 val metrics = buildCompletionMetrics(taskId)
                 stopTimerForCompletion()
-                taskManager.completeTask(taskId, metrics)
-                markTaskCompletedForCurrentFocusDate(taskId)
+                val completedTask = taskManager.completeTask(taskId, metrics)
+                val focusDate = markTaskCompletedForCurrentFocusDate(taskId)
+                if (focusDate != null) {
+                    tokenRepository.awardTaskTokensForToday(completedTask, focusDate)
+                }
                 onCompleted?.invoke()
 
                 metrics?.let {
@@ -315,7 +320,7 @@ class TimerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun markTaskCompletedForCurrentFocusDate(taskId: String) {
+    private suspend fun markTaskCompletedForCurrentFocusDate(taskId: String): LocalDate? {
         val householdId = setupManager.getHouseholdId().orEmpty()
         val userId = setupManager.getAssignedMemberId().orEmpty()
         val focusDate = setupManager.getCurrentFocusDate() ?: LocalDate.now()
@@ -325,7 +330,7 @@ class TimerViewModel @Inject constructor(
                 tag,
                 "Skipping date completion for taskId=$taskId because householdId or userId is blank"
             )
-            return
+            return null
         }
 
         taskDayCompletionRepository.setCompletionForDate(
@@ -336,6 +341,7 @@ class TimerViewModel @Inject constructor(
             isCompleted = true
         )
         Log.d(tag, "Marked taskId=$taskId complete for focusDate=$focusDate")
+        return focusDate
     }
 
     private suspend fun playCompletionAlarm() {

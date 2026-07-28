@@ -2,6 +2,7 @@ package com.adhdfocus.app.ui.achievements
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,14 +19,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.adhdfocus.app.data.model.TokenTransaction
 import com.adhdfocus.app.domain.gamification.BadgeSystem
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * AchievementsView displays all badges and achievements organized by category.
@@ -54,6 +68,12 @@ fun AchievementsView(
     val currentPuzzle by viewModel.currentPuzzle.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val yearStats by viewModel.yearStats.collectAsState()
+    val tokenBalance by viewModel.tokenBalance.collectAsState()
+    val tokensEarnedThisWeek by viewModel.tokensEarnedThisWeek.collectAsState()
+    val recentTokenTransactions by viewModel.recentTokenTransactions.collectAsState()
+    val tokenMessage by viewModel.tokenMessage.collectAsState()
+    val tokenWeekGrid by viewModel.tokenWeekGrid.collectAsState()
+    var redeemAmount by remember { mutableStateOf("1") }
     val categories = viewModel.getAllCategories()
 
     val filteredEarned = viewModel.getFilteredEarnedBadges()
@@ -128,6 +148,24 @@ fun AchievementsView(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     YearKpiSection(
                         stats = yearStats
+                    )
+                }
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    TokenEconomyWeekSection(
+                        tokenBalance = tokenBalance,
+                        tokensEarnedThisWeek = tokensEarnedThisWeek,
+                        weekGrid = tokenWeekGrid,
+                        recentTransactions = recentTokenTransactions,
+                        redeemAmount = redeemAmount,
+                        tokenMessage = tokenMessage,
+                        onRedeemAmountChange = {
+                            redeemAmount = it.filter { char -> char.isDigit() }.take(3)
+                            viewModel.clearTokenMessage()
+                        },
+                        onRedeem = {
+                            viewModel.redeemTokens(redeemAmount.toIntOrNull() ?: 0)
+                        }
                     )
                 }
 
@@ -217,6 +255,514 @@ private fun YearKpiSection(
             label = "Perfect completion days",
             value = stats.perfectDayCount.toString(),
             modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun TokenEconomyWeekSection(
+    tokenBalance: Int,
+    tokensEarnedThisWeek: Int,
+    weekGrid: TokenWeekGridUiState,
+    recentTransactions: List<TokenTransaction>,
+    redeemAmount: String,
+    tokenMessage: String?,
+    onRedeemAmountChange: (String) -> Unit,
+    onRedeem: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(Color(0xFFFFE08A), MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                ),
+                shape = MaterialTheme.shapes.large
+            ),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "This week: $tokensEarnedThisWeek token${if (tokensEarnedThisWeek == 1) "" else "s"}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (tokensEarnedThisWeek > 0) {
+                            "Keep it up. You're doing great!"
+                        } else {
+                            "Complete today's To Do's to earn tokens."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = Color(0xFFFFF2C2),
+                    contentColor = Color(0xFF7C4A03)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = tokenBalance.toString(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = "available",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            TokenEconomyGrid(weekGrid = weekGrid)
+
+            TokenLegend()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = redeemAmount,
+                    onValueChange = onRedeemAmountChange,
+                    label = { Text("Turn in") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = onRedeem,
+                    enabled = tokenBalance > 0,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Turn In Tokens")
+                }
+            }
+
+            tokenMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Recent token activity",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (recentTransactions.isEmpty()) {
+                    Text(
+                        text = "No token activity yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    recentTransactions.forEach { transaction ->
+                        TokenTransactionRow(transaction)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TokenEconomyGrid(
+    weekGrid: TokenWeekGridUiState,
+    modifier: Modifier = Modifier
+) {
+    val dayFormatter = remember { DateTimeFormatter.ofPattern("EEE") }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
+    val scrollState = rememberScrollState()
+    val taskColumnWidth = 156.dp
+    val dayColumnWidth = 88.dp
+    val headerHeight = 86.dp
+    val groupHeight = 34.dp
+    val rowHeight = 78.dp
+    val groupedRows = remember(weekGrid.rows) {
+        weekGrid.rows.groupBy { row -> row.todoGroup.ifBlank { "Other" } }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f),
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Column(modifier = Modifier.width(taskColumnWidth)) {
+            Text(
+                text = "To Do",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeight)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                    .padding(horizontal = 12.dp),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (weekGrid.rows.isEmpty()) {
+                Text(
+                    text = "No To Do's",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                groupedRows.forEach { (group, rows) ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(groupHeight)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = group,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    rows.forEachIndexed { index, tokenRow ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(rowHeight)
+                                .background(
+                                    if (index % 2 == 0) {
+                                        MaterialTheme.colorScheme.surface
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                    }
+                                )
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = tokenRow.emoji?.takeIf { it.isNotBlank() } ?: "",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                text = tokenRow.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(scrollState)
+        ) {
+            Row(
+                modifier = Modifier
+                    .width(dayColumnWidth * 7)
+                    .height(headerHeight)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                weekGrid.days.forEach { day ->
+                    Column(
+                        modifier = Modifier.width(dayColumnWidth),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (day == weekGrid.today) {
+                            Text(
+                                text = "TODAY",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = dayFormatter.format(day),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = dateFormatter.format(day),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            if (weekGrid.rows.isEmpty()) {
+                Text(
+                    text = "No token To Do's are due this week.",
+                    modifier = Modifier
+                        .width(dayColumnWidth * 7)
+                        .padding(18.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                groupedRows.forEach { (_, rows) ->
+                    Spacer(
+                        modifier = Modifier
+                            .width(dayColumnWidth * 7)
+                            .height(groupHeight)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                    )
+
+                    rows.forEachIndexed { index, row ->
+                        Row(
+                            modifier = Modifier
+                                .width(dayColumnWidth * 7)
+                                .height(rowHeight)
+                                .background(
+                                    if (index % 2 == 0) {
+                                        MaterialTheme.colorScheme.surface
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                    }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            row.cells.forEach { cell ->
+                                Box(
+                                    modifier = Modifier.width(dayColumnWidth),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    TokenEconomyCell(cell)
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+    }
+}
+}
+
+@Composable
+private fun TokenEconomyCell(cell: TokenTaskCellUiState) {
+    when (cell.state) {
+        TokenCellState.EARNED -> TokenStarCell(
+            value = cell.tokenValue,
+            filled = true
+        )
+        TokenCellState.DUE -> TokenStarCell(
+            value = cell.tokenValue,
+            filled = false
+        )
+        TokenCellState.MISSED -> Surface(
+            modifier = Modifier.size(width = 58.dp, height = 52.dp),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "-",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
+            }
+        }
+        TokenCellState.NOT_DUE -> Surface(
+            modifier = Modifier.size(width = 58.dp, height = 52.dp),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "-",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TokenStarCell(
+    value: Int,
+    filled: Boolean
+) {
+    val badgeSize = 58.dp
+    val valueFontSize = when {
+        value >= 100 -> 9.sp
+        value >= 10 -> 14.sp
+        else -> 18.sp
+    }
+    val starColor = if (filled) Color(0xFFFFB703) else Color(0xFF4F7FE5)
+    Box(
+        modifier = Modifier.size(badgeSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(badgeSize)) {
+            val starPath = createTokenStarPath(
+                center = Offset(size.width / 2f, size.height / 2f),
+                outerRadius = min(size.width, size.height) * 0.47f,
+                innerRadius = min(size.width, size.height) * 0.22f
+            )
+            if (filled) {
+                drawPath(
+                    path = starPath,
+                    color = starColor
+                )
+            } else {
+                drawPath(
+                    path = starPath,
+                    color = starColor,
+                    style = Stroke(width = 2.8.dp.toPx())
+                )
+            }
+        }
+        Text(
+            text = value.toString(),
+            modifier = Modifier.width(44.dp),
+            fontSize = valueFontSize,
+            lineHeight = valueFontSize,
+            fontWeight = FontWeight.Black,
+            color = if (filled) Color.White else starColor,
+            textAlign = TextAlign.Center,
+            softWrap = false,
+            maxLines = 1,
+            overflow = TextOverflow.Clip
+        )
+    }
+}
+
+private fun createTokenStarPath(
+    center: Offset,
+    outerRadius: Float,
+    innerRadius: Float
+): Path {
+    val path = Path()
+    repeat(10) { index ->
+        val radius = if (index % 2 == 0) outerRadius else innerRadius
+        val angle = -PI / 2.0 + index * PI / 5.0
+        val x = center.x + (cos(angle) * radius).toFloat()
+        val y = center.y + (sin(angle) * radius).toFloat()
+        if (index == 0) {
+            path.moveTo(x, y)
+        } else {
+            path.lineTo(x, y)
+        }
+    }
+    path.close()
+    return path
+}
+
+@Composable
+private fun TokenLegend() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LegendItem(symbol = "★", label = "Completed", color = Color(0xFFFFB703))
+        LegendItem(symbol = "☆", label = "Due", color = Color(0xFF4F7FE5))
+        LegendItem(symbol = "-", label = "Missed", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LegendItem(symbol = "-", label = "Not due", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+    }
+}
+
+@Composable
+private fun LegendItem(
+    symbol: String,
+    label: String,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = symbol,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TokenTransactionRow(transaction: TokenTransaction) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = transaction.note ?: transaction.type.name.replace('_', ' '),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+            maxLines = 1
+        )
+        Text(
+            text = "${if (transaction.amount > 0) "+" else ""}${transaction.amount}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = if (transaction.amount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
         )
     }
 }

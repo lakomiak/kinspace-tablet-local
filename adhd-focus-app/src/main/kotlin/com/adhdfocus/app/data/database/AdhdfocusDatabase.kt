@@ -18,6 +18,7 @@ import com.adhdfocus.app.data.model.OfflineUpdateQueueItem
 import com.adhdfocus.app.data.model.PuzzleProgress
 import com.adhdfocus.app.data.model.TaskSessionMetric
 import com.adhdfocus.app.data.model.TaskDayCompletion
+import com.adhdfocus.app.data.model.TokenTransaction
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.UserDao
 import com.adhdfocus.app.data.dao.UserPreferencesDao
@@ -31,6 +32,7 @@ import com.adhdfocus.app.data.dao.OfflineUpdateQueueDao
 import com.adhdfocus.app.data.dao.PuzzleProgressDao
 import com.adhdfocus.app.data.dao.TaskSessionMetricDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
+import com.adhdfocus.app.data.dao.TokenTransactionDao
 
 @Database(
     entities = [
@@ -46,9 +48,10 @@ import com.adhdfocus.app.data.dao.TaskDayCompletionDao
         OfflineUpdateQueueItem::class,
         TaskDayCompletion::class,
         PuzzleProgress::class,
-        TaskSessionMetric::class
+        TaskSessionMetric::class,
+        TokenTransaction::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -66,6 +69,7 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
     abstract fun taskDayCompletionDao(): TaskDayCompletionDao
     abstract fun puzzleProgressDao(): PuzzleProgressDao
     abstract fun taskSessionMetricDao(): TaskSessionMetricDao
+    abstract fun tokenTransactionDao(): TokenTransactionDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -435,6 +439,36 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN tokenValue INTEGER NOT NULL DEFAULT 1")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS token_transactions (
+                        id TEXT NOT NULL,
+                        householdId TEXT NOT NULL,
+                        userId TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        type TEXT NOT NULL,
+                        note TEXT,
+                        taskId TEXT,
+                        targetDate TEXT,
+                        createdAt INTEGER NOT NULL,
+                        createdBy TEXT,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_householdId ON token_transactions(householdId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_userId ON token_transactions(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_type ON token_transactions(type)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_createdAt ON token_transactions(createdAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_householdId_userId ON token_transactions(householdId, userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_token_transactions_householdId_userId_createdAt ON token_transactions(householdId, userId, createdAt)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_token_transactions_householdId_userId_taskId_targetDate ON token_transactions(householdId, userId, taskId, targetDate)")
+            }
+        }
+
         /**
          * Migration framework for future schema changes.
          * Add new migrations here as the database schema evolves.
@@ -458,7 +492,8 @@ abstract class AdhdfocusDatabase : RoomDatabase() {
             MIGRATION_15_16,
             MIGRATION_16_17,
             MIGRATION_17_18,
-            MIGRATION_18_19
+            MIGRATION_18_19,
+            MIGRATION_19_20
         )
     }
 }

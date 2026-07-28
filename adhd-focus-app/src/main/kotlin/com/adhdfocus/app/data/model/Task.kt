@@ -40,6 +40,7 @@ data class Task(
     val estimatedDurationMinutes: Int? = null,
     val estimatedDurationSeconds: Int? = null,
     val timerDurationMs: Long? = null,
+    val tokenValue: Int = 1,
     val actualDurationMinutes: Int? = null,
     val status: TaskStatus = TaskStatus.INCOMPLETE,
     val dueDate: Instant? = null,
@@ -63,6 +64,9 @@ data class Task(
         }
         require(actualDurationMinutes == null || actualDurationMinutes >= 0) {
             "actualDurationMinutes must be non-negative if provided"
+        }
+        require(tokenValue >= 0) {
+            "tokenValue must be non-negative"
         }
     }
 }

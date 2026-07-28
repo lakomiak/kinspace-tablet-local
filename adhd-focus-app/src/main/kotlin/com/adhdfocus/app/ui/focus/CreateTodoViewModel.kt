@@ -53,6 +53,7 @@ class CreateTodoViewModel @Inject constructor(
         repeatRule: String,
         timerMinutesText: String,
         timerSecondsText: String,
+        tokenValueText: String,
         onSuccess: () -> Unit
     ) {
         val householdId = setupManager.getHouseholdId().orEmpty()
@@ -86,6 +87,11 @@ class CreateTodoViewModel @Inject constructor(
             _error.value = "Timer seconds must be between 0 and 59."
             return
         }
+        val tokenValue = tokenValueText.trim().toIntOrNull() ?: 1
+        if (tokenValue < 0) {
+            _error.value = "Tokens earned must be 0 or greater."
+            return
+        }
 
         val estimatedDurationMinutes = durationMinutes.takeIf { it >= 0 }
         val estimatedDurationSeconds = durationSeconds.takeIf { it >= 0 }
@@ -104,6 +110,7 @@ class CreateTodoViewModel @Inject constructor(
                     dueDate = dueDate,
                     estimatedDurationMinutes = estimatedDurationMinutes,
                     estimatedDurationSeconds = estimatedDurationSeconds,
+                    tokenValue = tokenValue,
                     repeatRule = repeatRule
                 )
                 onSuccess()
@@ -160,6 +167,7 @@ class CreateTodoViewModel @Inject constructor(
         repeatRule: String,
         timerMinutesText: String,
         timerSecondsText: String,
+        tokenValueText: String,
         onSuccess: () -> Unit
     ) {
         val trimmedTitle = title.trim()
@@ -185,6 +193,11 @@ class CreateTodoViewModel @Inject constructor(
             _error.value = "Timer seconds must be between 0 and 59."
             return
         }
+        val tokenValue = tokenValueText.trim().toIntOrNull() ?: 1
+        if (tokenValue < 0) {
+            _error.value = "Tokens earned must be 0 or greater."
+            return
+        }
 
         viewModelScope.launch {
             _isSaving.value = true
@@ -200,6 +213,7 @@ class CreateTodoViewModel @Inject constructor(
                     clearDueDate = dueDateText.isBlank(),
                     estimatedDurationMinutes = durationMinutes,
                     estimatedDurationSeconds = durationSeconds,
+                    tokenValue = tokenValue,
                     repeatRule = repeatRule
                 )
                 onSuccess()

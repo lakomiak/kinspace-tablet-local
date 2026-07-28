@@ -22,6 +22,7 @@ import com.adhdfocus.app.data.dao.SyncQueueDao
 import com.adhdfocus.app.data.dao.TaskDayCompletionDao
 import com.adhdfocus.app.data.dao.TaskDao
 import com.adhdfocus.app.data.dao.TaskSessionMetricDao
+import com.adhdfocus.app.data.dao.TokenTransactionDao
 import com.adhdfocus.app.data.dao.UserDao
 import com.adhdfocus.app.data.dao.UserPreferencesDao
 import com.adhdfocus.app.data.dao.UserSwitchingStateDao
@@ -132,6 +133,7 @@ object AppModule {
     @Singleton @Provides fun provideSyncQueueDao(db: AdhdfocusDatabase): SyncQueueDao = db.syncQueueDao()
     @Singleton @Provides fun provideTaskDayCompletionDao(db: AdhdfocusDatabase): TaskDayCompletionDao = db.taskDayCompletionDao()
     @Singleton @Provides fun provideTaskSessionMetricDao(db: AdhdfocusDatabase): TaskSessionMetricDao = db.taskSessionMetricDao()
+    @Singleton @Provides fun provideTokenTransactionDao(db: AdhdfocusDatabase): TokenTransactionDao = db.tokenTransactionDao()
     @Singleton @Provides fun provideEfficiencyMetricDao(db: AdhdfocusDatabase): EfficiencyMetricDao = db.efficiencyMetricDao()
     @Singleton @Provides fun providePuzzleProgressDao(db: AdhdfocusDatabase): PuzzleProgressDao = db.puzzleProgressDao()
     @Singleton @Provides fun provideUserPreferencesDao(db: AdhdfocusDatabase): UserPreferencesDao = db.userPreferencesDao()

@@ -71,6 +71,7 @@ class TaskSerializer {
         json.put("estimatedDurationMinutes", task.estimatedDurationMinutes)
         json.put("estimatedDurationSeconds", task.estimatedDurationSeconds)
         json.put("timer", task.timerDurationMs?.takeIf { it > 0 }?.let { JSONObject().put("durationMs", it) })
+        json.put("tokenValue", task.tokenValue)
         json.put("actualDurationMinutes", task.actualDurationMinutes)
         json.put("status", task.status.name)
         json.put("createdAt", task.createdAt.toEpochMilli())

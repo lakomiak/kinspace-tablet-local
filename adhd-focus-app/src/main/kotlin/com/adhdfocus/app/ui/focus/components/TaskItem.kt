@@ -1,6 +1,7 @@
 package com.adhdfocus.app.ui.focus.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,11 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +51,10 @@ import com.adhdfocus.app.data.model.TaskStatus
 import com.adhdfocus.app.ui.theme.CompletedGreen
 import com.adhdfocus.app.ui.theme.InProgressOrange
 import com.adhdfocus.app.ui.theme.IncompleteRed
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * To Do Item Component
@@ -267,6 +275,14 @@ fun TaskItem(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (task.tokenValue > 0) {
+                            TokenStarBadge(
+                                value = task.tokenValue,
+                                isCompleted = isCompleted,
+                                isCompact = isCompact
+                            )
+                        }
+
                         if (timerLabel != null) {
                             Surface(
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(
@@ -355,6 +371,78 @@ fun TaskItem(
             }
         }
     }
+}
+
+@Composable
+private fun TokenStarBadge(
+    value: Int,
+    isCompleted: Boolean,
+    isCompact: Boolean
+) {
+    val badgeSize = if (isCompact) 34.dp else 40.dp
+    val valueFontSize = when {
+        value >= 100 -> if (isCompact) 7.sp else 8.sp
+        value >= 10 -> if (isCompact) 10.sp else 11.sp
+        else -> if (isCompact) 13.sp else 14.sp
+    }
+    Box(
+        modifier = Modifier
+            .size(badgeSize)
+            .semantics {
+                contentDescription = "$value token${if (value == 1) "" else "s"}"
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        val starAlpha = if (isCompleted) 0.58f else 1f
+        Canvas(modifier = Modifier.size(badgeSize)) {
+            val starPath = createStarPath(
+                center = Offset(size.width / 2f, size.height / 2f),
+                outerRadius = min(size.width, size.height) * 0.48f,
+                innerRadius = min(size.width, size.height) * 0.22f
+            )
+            drawPath(
+                path = starPath,
+                color = Color(0xFFFFD86B).copy(alpha = starAlpha)
+            )
+            drawPath(
+                path = starPath,
+                color = Color(0xFFFFB703).copy(alpha = starAlpha)
+            )
+        }
+        Text(
+            text = value.toString(),
+            modifier = Modifier.width(if (isCompact) 28.dp else 32.dp),
+            fontSize = valueFontSize,
+            lineHeight = valueFontSize,
+            fontWeight = FontWeight.Black,
+            color = Color.White.copy(alpha = if (isCompleted) 0.7f else 1f),
+            textAlign = TextAlign.Center,
+            softWrap = false,
+            maxLines = 1,
+            overflow = TextOverflow.Clip
+        )
+    }
+}
+
+private fun createStarPath(
+    center: Offset,
+    outerRadius: Float,
+    innerRadius: Float
+): Path {
+    val path = Path()
+    repeat(10) { index ->
+        val radius = if (index % 2 == 0) outerRadius else innerRadius
+        val angle = -PI / 2.0 + index * PI / 5.0
+        val x = center.x + (cos(angle) * radius).toFloat()
+        val y = center.y + (sin(angle) * radius).toFloat()
+        if (index == 0) {
+            path.moveTo(x, y)
+        } else {
+            path.lineTo(x, y)
+        }
+    }
+    path.close()
+    return path
 }
 
 @Composable

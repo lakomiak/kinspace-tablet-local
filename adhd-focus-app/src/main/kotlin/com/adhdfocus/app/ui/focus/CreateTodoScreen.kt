@@ -91,6 +91,7 @@ fun CreateTodoScreen(
     var customUnitExpanded by remember { mutableStateOf(false) }
     var timerMinutes by rememberSaveable(taskId) { mutableStateOf(0) }
     var timerSeconds by rememberSaveable(taskId) { mutableStateOf(0) }
+    var tokenValue by rememberSaveable(taskId) { mutableStateOf(1) }
     var formInitialized by rememberSaveable(taskId) { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
@@ -159,6 +160,7 @@ fun CreateTodoScreen(
         } ?: (task.estimatedDurationSeconds ?: 0)
         timerMinutes = timerMinutesValue
         timerSeconds = timerSecondsValue
+        tokenValue = task.tokenValue.coerceAtLeast(0)
         formInitialized = true
     }
 
@@ -395,6 +397,16 @@ fun CreateTodoScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                NativeNumberPickerField(
+                    label = "Tokens earned",
+                    value = tokenValue,
+                    onValueChange = {
+                        tokenValue = it
+                        if (error != null) viewModel.clearError()
+                    },
+                    maxValue = 99
+                )
+
                 if (error != null) {
                     Text(
                         text = error.orEmpty(),
@@ -423,6 +435,7 @@ fun CreateTodoScreen(
                                 repeatRule = repeatRule,
                                 timerMinutesText = timerMinutes.toString(),
                                 timerSecondsText = timerSeconds.toString(),
+                                tokenValueText = tokenValue.toString(),
                                 onSuccess = onSaveSuccess
                             )
                         } else {
@@ -434,6 +447,7 @@ fun CreateTodoScreen(
                                 repeatRule = repeatRule,
                                 timerMinutesText = timerMinutes.toString(),
                                 timerSecondsText = timerSeconds.toString(),
+                                tokenValueText = tokenValue.toString(),
                                 onSuccess = onSaveSuccess
                             )
                         }

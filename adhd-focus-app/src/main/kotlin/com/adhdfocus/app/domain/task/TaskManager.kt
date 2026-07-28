@@ -62,6 +62,7 @@ class TaskManager @Inject constructor(
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
         estimatedDurationSeconds: Int? = null,
+        tokenValue: Int = 1,
         todoGroup: String,
         householdId: String,
         assignedUserId: String,
@@ -81,6 +82,7 @@ class TaskManager @Inject constructor(
         require(estimatedDurationSeconds == null || estimatedDurationSeconds >= 0) {
             "Estimated duration seconds must be non-negative if provided"
         }
+        require(tokenValue >= 0) { "Token value must be non-negative" }
 
         val now = Instant.now()
         val timerDurationMs = computeTimerDurationMs(estimatedDurationMinutes, estimatedDurationSeconds)
@@ -96,6 +98,7 @@ class TaskManager @Inject constructor(
             estimatedDurationMinutes = estimatedDurationMinutes,
             estimatedDurationSeconds = estimatedDurationSeconds,
             timerDurationMs = timerDurationMs,
+            tokenValue = tokenValue,
             dueDate = dueDate,
             status = TaskStatus.INCOMPLETE,
             createdAt = now,
@@ -129,6 +132,7 @@ class TaskManager @Inject constructor(
         description: String? = null,
         estimatedDurationMinutes: Int? = null,
         estimatedDurationSeconds: Int? = null,
+        tokenValue: Int? = null,
         todoGroup: String? = null,
         status: TaskStatus? = null,
         dueDate: Instant? = null,
@@ -153,6 +157,9 @@ class TaskManager @Inject constructor(
         }
         if (estimatedDurationSeconds != null) {
             require(estimatedDurationSeconds >= 0) { "Estimated duration seconds must be non-negative" }
+        }
+        if (tokenValue != null) {
+            require(tokenValue >= 0) { "Token value must be non-negative" }
         }
 
         val resolvedDueDate = when {
@@ -183,6 +190,7 @@ class TaskManager @Inject constructor(
             estimatedDurationMinutes = resolvedEstimatedMinutes,
             estimatedDurationSeconds = resolvedEstimatedSeconds,
             timerDurationMs = timerDurationMs,
+            tokenValue = tokenValue ?: existingTask.tokenValue,
             dueDate = resolvedDueDate,
             status = status ?: existingTask.status,
             completedAt = when (status) {
