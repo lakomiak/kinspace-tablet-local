@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,9 +39,11 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Image(
-                painter = painterResource(id = R.drawable.kinspace_splash_mark),
-                contentDescription = "Kinspace",
-                modifier = Modifier.size(220.dp),
+                painter = painterResource(id = R.drawable.kinpilot_logo),
+                contentDescription = "Kinpilot",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp),
                 contentScale = ContentScale.Fit
             )
 
@@ -52,7 +53,7 @@ fun WelcomeScreen(
                 text = if (isSetupComplete) {
                     "Ready to get focused?"
                 } else {
-                    "Let's set up this Kinspace focus tablet."
+                    "Let's set up this Kinpilot focus tablet."
                 },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,

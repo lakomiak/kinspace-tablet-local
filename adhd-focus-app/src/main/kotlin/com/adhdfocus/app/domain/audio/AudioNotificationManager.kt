@@ -46,7 +46,7 @@ class AudioNotificationManager @Inject constructor(
 
     fun playCategoryReminderSound(
         alarmSound: TimerAlarmSound = TimerAlarmSound.ALARM,
-        durationMs: Long = 15_000L
+        durationMs: Long = 10_000L
     ) {
         clearStopTimer()
         when (alarmSound) {

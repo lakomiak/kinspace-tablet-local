@@ -69,7 +69,7 @@ class FamilyManagementViewModel @Inject constructor(
                 User(
                     id = id,
                     householdId = householdId,
-                    email = "$id@kinspace.family",
+                    email = "$id@kinpilot.family",
                     displayName = trimmedName,
                     birthDate = birthDate,
                     role = role,

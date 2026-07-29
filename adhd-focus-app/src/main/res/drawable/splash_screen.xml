@@ -6,10 +6,10 @@
     <!-- Keep the launch splash centered and scaled cleanly so Android does not crop or soften it. -->
     <item
         android:gravity="center"
-        android:width="220dp"
+        android:width="330dp"
         android:height="220dp">
         <bitmap
-            android:src="@drawable/kinspace_splash_mark"
+            android:src="@drawable/kinpilot_splash"
             android:gravity="center"
             android:tileMode="disabled"/>
     </item>

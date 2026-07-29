@@ -71,7 +71,7 @@ fun LocalSetupScreen(
             )
 
             Text(
-                text = "Everything stays on this device. Create the focus profiles this tablet should support, then Kinspace will open to the first profile by default.",
+                text = "Everything stays on this device. Create the focus profiles this tablet should support, then Kinpilot will open to the first profile by default.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

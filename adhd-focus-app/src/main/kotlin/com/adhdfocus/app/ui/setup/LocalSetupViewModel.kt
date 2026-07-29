@@ -91,7 +91,7 @@ class LocalSetupViewModel @Inject constructor(
                     User(
                         id = member.id,
                         householdId = householdId,
-                        email = "${member.id}@kinspace.family",
+                        email = "${member.id}@kinpilot.family",
                         displayName = member.displayName,
                         birthDate = member.birthDate,
                         role = member.role,

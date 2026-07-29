@@ -59,7 +59,7 @@ class ReportExportManager @Inject constructor(
 
     private fun buildSummaryText(memberName: String, householdId: String, summary: ReportSummary): String {
         val lines = mutableListOf<String>()
-        lines += "Kinspace Tablet Local - Caregiver Summary"
+        lines += "Kinpilot Tablet Local - Caregiver Summary"
         lines += "Generated: ${SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US).format(Date())}"
         lines += "Member: $memberName"
         lines += "Household ID: $householdId"

@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+import com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver
 
 class KioskBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -30,7 +30,7 @@ class KioskBootReceiver : BroadcastReceiver() {
             return
         }
 
-        val admin = ComponentName(context, KinspaceDeviceAdminReceiver::class.java)
+        val admin = ComponentName(context, KinpilotDeviceAdminReceiver::class.java)
         runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(context.packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
@@ -47,10 +47,10 @@ class KioskBootReceiver : BroadcastReceiver() {
             )
         }
 
-        launchKinspace(context)
+        launchKinpilot(context)
     }
 
-    private fun launchKinspace(context: Context) {
+    private fun launchKinpilot(context: Context) {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: return
         launchIntent.addFlags(

@@ -3,7 +3,7 @@ package com.adhdfocus.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Kinspace Tablet color system.
+ * Kinpilot Tablet color system.
  *
  * The palette stays calm for ADHD/EF use while still giving the app a clear
  * product identity: sage for progress, warm orange for urgency, and blue for

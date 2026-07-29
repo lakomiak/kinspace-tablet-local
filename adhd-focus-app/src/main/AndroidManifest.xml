@@ -68,7 +68,7 @@
         </receiver>
 
         <receiver
-            android:name=".admin.KinspaceDeviceAdminReceiver"
+            android:name=".admin.KinpilotDeviceAdminReceiver"
             android:description="@string/app_name"
             android:exported="true"
             android:label="@string/app_name"

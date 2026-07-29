@@ -85,7 +85,7 @@ class CategoryReminderReceiver : BroadcastReceiver() {
         if (notificationPrefs.soundEnabled) {
             audioNotificationManager.playCategoryReminderSound(
                 notificationPrefs.timerAlarmSound,
-                durationMs = 2_500L
+                durationMs = 10_000L
             )
         }
 

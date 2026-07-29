@@ -78,7 +78,7 @@ class MemberSelectionViewModel @Inject constructor(
                 FamilyMember(
                     id = user.id,
                     name = user.displayName,
-                    email = user.email.takeUnless { it.endsWith("@kinspace.family") },
+                    email = user.email.takeUnless { it.endsWith("@kinpilot.family") },
                     avatarUrl = user.avatarUrl,
                     birthDate = user.birthDate
                 )

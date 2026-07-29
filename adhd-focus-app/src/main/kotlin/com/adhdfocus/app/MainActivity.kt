@@ -65,7 +65,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
-import com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+import com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver
 import com.adhdfocus.app.domain.setup.TabletSetupManager
 import com.adhdfocus.app.domain.reminder.CategoryReminderScheduler
 import com.adhdfocus.app.domain.theme.ThemeManager
@@ -431,7 +431,7 @@ class MainActivity : ComponentActivity() {
         if (!devicePolicyManager.isDeviceOwnerApp(packageName)) {
             return
         }
-        val admin = ComponentName(this, KinspaceDeviceAdminReceiver::class.java)
+        val admin = ComponentName(this, KinpilotDeviceAdminReceiver::class.java)
         val policiesApplied = runCatching {
             devicePolicyManager.setLockTaskPackages(admin, arrayOf(packageName))
             devicePolicyManager.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)

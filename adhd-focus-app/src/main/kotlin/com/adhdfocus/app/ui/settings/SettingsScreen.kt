@@ -379,7 +379,7 @@ fun SettingsScreen(
 
                     SettingSection(title = "Storage") {
                         Text(
-                            text = "Track how much local space Kinspace is using for live family data and backups.",
+                            text = "Track how much local space Kinpilot is using for live family data and backups.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -505,12 +505,12 @@ fun SettingsScreen(
 
                     SettingSection(title = "Kiosk Help") {
                         Text(
-                            text = "Use Kinspace Tablet Local as the dedicated focus home screen.",
+                            text = "Use Kinpilot Tablet Local as the dedicated focus home screen.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Recommended steps:\n1. Install Kinspace on the device\n2. Set Kinspace as the Home app when Android asks\n3. Keep Settings protected with a passcode\n4. Create local backups regularly",
+                            text = "Recommended steps:\n1. Install Kinpilot on the device\n2. Set Kinpilot as the Home app when Android asks\n3. Keep Settings protected with a passcode\n4. Create local backups regularly",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -623,7 +623,7 @@ fun SettingsScreen(
 
                     SettingSection(title = "Affirmations") {
                         Text(
-                            text = "Adjust how often Kinspace shows encouraging affirmations after progress milestones.",
+                            text = "Adjust how often Kinpilot shows encouraging affirmations after progress milestones.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -646,7 +646,7 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Kinspace",
+                            text = "Kinpilot",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -779,7 +779,7 @@ fun SettingsScreen(
             onDismissRequest = {},
             title = { Text("Restart Required") },
             text = {
-                Text("The backup ${restoreTargetName ?: "data"} was restored. Restart Kinspace Tablet Local now to load the restored household and reports.")
+                Text("The backup ${restoreTargetName ?: "data"} was restored. Restart Kinpilot Tablet Local now to load the restored household and reports.")
             },
             confirmButton = {
                 Button(

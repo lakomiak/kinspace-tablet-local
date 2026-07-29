@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand Colors from Kinspace Mobile App -->
+    <!-- Brand colors for the Kinpilot tablet app -->
     <color name="brand_primary">#6F9C62</color>
     <color name="brand_secondary">#E58D4E</color>
     <color name="brand_background">#F8F5EE</color>
