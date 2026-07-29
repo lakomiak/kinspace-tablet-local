@@ -33,7 +33,7 @@ try {
         if (!(Test-Path $apk)) {
             throw "Release APK was not generated at $apk. Release signing may not be configured."
         }
-        $target = Join-Path $distDir $(if ($Legacy) { "KinspaceTablet-legacy-release.apk" } else { "KinspaceTablet-release.apk" })
+        $target = Join-Path $distDir $(if ($Legacy) { "KinpilotTablet-legacy-release.apk" } else { "KinpilotTablet-release.apk" })
     }
     else {
         if ($Audit -and $Legacy) {
@@ -60,10 +60,10 @@ try {
             throw "Debug APK was not generated at $apk."
         }
         $target = Join-Path $distDir $(
-            if ($Audit -and $Legacy) { "KinspaceTablet-legacy-audit.apk" }
-            elseif ($Audit) { "KinspaceTablet-audit.apk" }
-            elseif ($Legacy) { "KinspaceTablet-legacy-debug.apk" }
-            else { "KinspaceTablet-debug.apk" }
+            if ($Audit -and $Legacy) { "KinpilotTablet-legacy-audit.apk" }
+            elseif ($Audit) { "KinpilotTablet-audit.apk" }
+            elseif ($Legacy) { "KinpilotTablet-legacy-debug.apk" }
+            else { "KinpilotTablet-debug.apk" }
         )
     }
 

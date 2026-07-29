@@ -12,8 +12,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $packageName = "com.adhdfocus.app"
-$modernApk = Join-Path $repoRoot "dist\KinspaceTabletLocal-debug.apk"
-$legacyApk = Join-Path $repoRoot "dist\KinspaceTabletLocal-legacy-debug.apk"
+$modernApk = Join-Path $repoRoot "dist\KinpilotTabletLocal-debug.apk"
+$legacyApk = Join-Path $repoRoot "dist\KinpilotTabletLocal-legacy-debug.apk"
 $apkPath = if ($Legacy) { $legacyApk } else { $modernApk }
 
 function Get-AdbPrefix {

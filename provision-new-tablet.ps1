@@ -9,8 +9,8 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (!$ApkPath) {
-    $besideScript = Join-Path $scriptDir "KinspaceTabletLocal-debug.apk"
-    $inRepoDist = Join-Path $scriptDir "dist\KinspaceTabletLocal-debug.apk"
+    $besideScript = Join-Path $scriptDir "KinpilotTabletLocal-debug.apk"
+    $inRepoDist = Join-Path $scriptDir "dist\KinpilotTabletLocal-debug.apk"
     $ApkPath = if (Test-Path -LiteralPath $besideScript) { $besideScript } else { $inRepoDist }
 }
 $apkPath = $ApkPath
