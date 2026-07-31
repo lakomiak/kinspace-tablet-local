@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Brand background -->
-    <item android:drawable="@color/brand_background"/>
+    <item android:drawable="@color/brand_background" />
 
-    <!-- Keep the launch splash centered and scaled cleanly so Android does not crop or soften it. -->
     <item
         android:gravity="center"
-        android:width="330dp"
-        android:height="220dp">
+        android:width="260dp"
+        android:height="173dp">
         <bitmap
             android:src="@drawable/kinpilot_splash"
             android:gravity="center"
-            android:tileMode="disabled"/>
+            android:tileMode="disabled" />
     </item>
 </layer-list>

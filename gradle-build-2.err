@@ -1,0 +1,281 @@
+e: Incremental compilation failed: Failed to close caches
+org.jetbrains.kotlin.incremental.CachesManagerCloseException: Failed to close caches
+	at org.jetbrains.kotlin.incremental.BaseCompilationTransaction.closeCachesManager(CompilationTransaction.kt:126)
+	at org.jetbrains.kotlin.incremental.NonRecoverableCompilationTransaction.close(CompilationTransaction.kt:154)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.tryCompileIncrementally(IncrementalCompilerRunner.kt:684)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:116)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:657)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:105)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1624)
+	at jdk.internal.reflect.GeneratedMethodAccessor159.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not flush incremental caches in C:\Users\allen\kinspace-tablet-local\adhd-focus-app\build\kotlin\compileLegacyProductionDebugKotlin\cacheable\caches-jvm\jvm\kotlin: source-to-classes.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:225)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at org.jetbrains.kotlin.incremental.BaseCompilationTransaction.closeCachesManager(CompilationTransaction.kt:123)
+	... 22 more
+Caused by: java.lang.Exception: Could not flush incremental caches in C:\Users\allen\kinspace-tablet-local\adhd-focus-app\build\kotlin\compileLegacyProductionDebugKotlin\cacheable\caches-jvm\jvm\kotlin: source-to-classes.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:64)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.flush(BasicMapsOwner.kt:48)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager$CacheCloser.close(IncrementalCachesManager.kt:64)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:213)
+	... 24 more
+	Suppressed: java.lang.reflect.InaccessibleObjectException: Unable to make field protected java.io.OutputStream java.io.FilterOutputStream.out accessible: module java.base does not "opens java.io" to unnamed module @2173f6d9
+		at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:354)
+		at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:297)
+		at java.base/java.lang.reflect.Field.checkCanSetAccessible(Field.java:178)
+		at java.base/java.lang.reflect.Field.setAccessible(Field.java:172)
+		at org.jetbrains.kotlin.com.intellij.util.io.IOUtil.syncStream(IOUtil.java:216)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:188)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:175)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl$2.onDropFromCache(PersistentMapImpl.java:237)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl$2.onDropFromCache(PersistentMapImpl.java:215)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.clear(SLRUMap.java:172)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:930)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.clearAppenderCaches(PersistentMapImpl.java:754)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doForce(PersistentMapImpl.java:741)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.force(PersistentMapImpl.java:730)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.force(PersistentHashMap.java:194)
+		at org.jetbrains.kotlin.incremental.storage.CachingLazyStorage.flush(CachingLazyStorage.kt:115)
+		at org.jetbrains.kotlin.incremental.storage.BasicMap.flush(BasicMap.kt:40)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$flush$1.invoke(BasicMapsOwner.kt:48)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$flush$1.invoke(BasicMapsOwner.kt:48)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:56)
+		... 27 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:244)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:175)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:135)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:73)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:264)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:128)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:133)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.reflect.InaccessibleObjectException: Unable to make field protected java.io.OutputStream java.io.FilterOutputStream.out accessible: module java.base does not "opens java.io" to unnamed module @2173f6d9
+	at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:354)
+	at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:297)
+	at java.base/java.lang.reflect.Field.checkCanSetAccessible(Field.java:178)
+	at java.base/java.lang.reflect.Field.setAccessible(Field.java:172)
+	at org.jetbrains.kotlin.com.intellij.util.io.IOUtil.syncStream(IOUtil.java:216)
+	at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:188)
+	at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:175)
+	at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:380)
+	at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:360)
+	at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:102)
+	at org.jetbrains.kotlin.incremental.storage.CachingLazyStorage.set(CachingLazyStorage.kt:78)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCache$InternalNameToSourcesMap.set(IncrementalJvmCache.kt:566)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCache.saveClassToCache(IncrementalJvmCache.kt:138)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCache.saveFileToCache(IncrementalJvmCache.kt:118)
+	at org.jetbrains.kotlin.incremental.BuildUtilKt.updateIncrementalCache(buildUtil.kt:110)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.updateCaches(IncrementalJvmCompilerRunner.kt:371)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.updateCaches(IncrementalJvmCompilerRunner.kt:62)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:517)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:400)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:281)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:144)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:657)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:105)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1624)
+	at jdk.internal.reflect.GeneratedMethodAccessor159.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	... 3 more
+	Suppressed: java.lang.AssertionError: java.lang.Exception: Could not flush incremental caches in C:\Users\allen\kinspace-tablet-local\adhd-focus-app\build\kotlin\compileLegacyProductionDebugKotlin\cacheable\caches-jvm\jvm\kotlin: source-to-classes.tab
+		at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:225)
+		at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+		at kotlin.io.CloseableKt.closeFinally(Closeable.kt:59)
+		at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:273)
+		... 20 more
+	Caused by: java.lang.Exception: Could not flush incremental caches in C:\Users\allen\kinspace-tablet-local\adhd-focus-app\build\kotlin\compileLegacyProductionDebugKotlin\cacheable\caches-jvm\jvm\kotlin: source-to-classes.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:64)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.flush(BasicMapsOwner.kt:48)
+		at org.jetbrains.kotlin.incremental.IncrementalCachesManager$CacheCloser.close(IncrementalCachesManager.kt:64)
+		at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:213)
+		... 23 more
+		Suppressed: java.lang.reflect.InaccessibleObjectException: Unable to make field protected java.io.OutputStream java.io.FilterOutputStream.out accessible: module java.base does not "opens java.io" to unnamed module @2173f6d9
+			at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:354)
+			at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:297)
+			at java.base/java.lang.reflect.Field.checkCanSetAccessible(Field.java:178)
+			at java.base/java.lang.reflect.Field.setAccessible(Field.java:172)
+			at org.jetbrains.kotlin.com.intellij.util.io.IOUtil.syncStream(IOUtil.java:216)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:188)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMapValueStorage.appendBytes(PersistentHashMapValueStorage.java:175)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl$2.onDropFromCache(PersistentMapImpl.java:237)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl$2.onDropFromCache(PersistentMapImpl.java:215)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.clear(SLRUMap.java:172)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:930)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.clearAppenderCaches(PersistentMapImpl.java:754)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doForce(PersistentMapImpl.java:741)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.force(PersistentMapImpl.java:730)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.force(PersistentHashMap.java:194)
+			at org.jetbrains.kotlin.incremental.storage.CachingLazyStorage.flush(CachingLazyStorage.kt:115)
+			at org.jetbrains.kotlin.incremental.storage.BasicMap.flush(BasicMap.kt:40)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$flush$1.invoke(BasicMapsOwner.kt:48)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$flush$1.invoke(BasicMapsOwner.kt:48)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:56)
+			... 26 more
+
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\MainActivity.kt:104:16: warning: 'setter for statusBarColor: Int' is deprecated. Deprecated in Java
+exception:         window.statusBarColor = android.graphics.Color.TRANSPARENT
+exception:                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\MainActivity.kt:105:16: warning: 'setter for navigationBarColor: Int' is deprecated. Deprecated in Java
+exception:         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+exception:                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\BadgeRepository.kt:26:49: warning: parameter 'householdId' is never used
+exception:     suspend fun getEarnedBadges(userId: String, householdId: String): List<Badge> {
+exception:                                                 ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\BadgeRepository.kt:37:49: warning: parameter 'householdId' is never used
+exception:     suspend fun getLockedBadges(userId: String, householdId: String): List<Badge> {
+exception:                                                 ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\BadgeRepository.kt:49:48: warning: parameter 'householdId' is never used
+exception:     suspend fun getBadgeByType(userId: String, householdId: String, badgeType: String): Badge? {
+exception:                                                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\BadgeRepository.kt:129:46: warning: parameter 'householdId' is never used
+exception:     suspend fun getAllBadges(userId: String, householdId: String): List<Badge> {
+exception:                                              ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\TaskRepository.kt:268:32: warning: parameter 'householdId' is never used
+exception:     suspend fun getTasksByUser(householdId: String, userId: String): List<Task> {
+exception:                                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\data\repository\UserRepository.kt:96:32: warning: parameter 'userId' is never used
+exception:     suspend fun setCurrentUser(userId: String) {
+exception:                                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\domain\gamification\BadgeSystem.kt:210:9: warning: parameter 'efficiencyPercentage' is never used
+exception:         efficiencyPercentage: Float
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\domain\gamification\BadgeSystem.kt:356:9: warning: parameter 'efficiencyPercentage' is never used
+exception:         efficiencyPercentage: Float
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\domain\streak\StreakCalculationManager.kt:30:9: warning: parameter 'currentStreak' is never used
+exception:         currentStreak: Int,
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\domain\task\TaskManager.kt:69:9: warning: parameter 'assignedMemberName' is never used
+exception:         assignedMemberName: String? = null,
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\domain\timer\BackgroundTimerService.kt:247:64: warning: no cast needed
+exception:         (serviceScope.coroutineContext[kotlinx.coroutines.Job] as? kotlinx.coroutines.Job)?.cancel()
+exception:                                                                ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\achievements\PuzzleSection.kt:357:9: warning: variable 'highlightGlowAlpha' is never used
+exception:     val highlightGlowAlpha by animateFloatAsState(
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\common\util\AccessibilityModifiers.kt:66:28: warning: parameter 'label' is never used
+exception: fun Modifier.semanticLabel(label: String): Modifier {
+exception:                            ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\common\util\KeyboardNavigation.kt:163:23: warning: parameter 'tabOrder' is never used
+exception: fun Modifier.tabOrder(tabOrder: Int): Modifier {
+exception:                       ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\family\FamilyMemberSelectionModal.kt:59:5: warning: parameter 'onErrorDismiss' is never used
+exception:     onErrorDismiss: () -> Unit
+exception:     ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:86:9: warning: variable 'groupExpanded' is never used
+exception:     var groupExpanded by remember { mutableStateOf(false) }
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:88:9: warning: variable 'repeatExpanded' is never used
+exception:     var repeatExpanded by remember { mutableStateOf(false) }
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:91:9: warning: variable 'customUnitExpanded' is never used
+exception:     var customUnitExpanded by remember { mutableStateOf(false) }
+exception:         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:276:41: warning: 'setter for calendarViewShown: Boolean' is deprecated. Deprecated in Java
+exception:                                         calendarViewShown = true
+exception:                                         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:277:41: warning: 'setter for spinnersShown: Boolean' is deprecated. Deprecated in Java
+exception:                                         spinnersShown = false
+exception:                                         ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\CreateTodoScreen.kt:786:47: warning: unchecked cast: SpinnerAdapter! to ArrayAdapter<String>
+exception:                 val adapter = spinner.adapter as? ArrayAdapter<String>
+exception:                                               ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\DailyFocusViewScreen.kt:383:29: warning: 'setter for calendarViewShown: Boolean' is deprecated. Deprecated in Java
+exception:                             calendarViewShown = true
+exception:                             ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\DailyFocusViewScreen.kt:384:29: warning: 'setter for spinnersShown: Boolean' is deprecated. Deprecated in Java
+exception:                             spinnersShown = false
+exception:                             ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\focus\FocusViewModel.kt:161:29: warning: parameter 'fromCloud' is never used
+exception:     fun refreshCurrentTasks(fromCloud: Boolean = true) {
+exception:                             ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\theme\Theme.kt:67:5: warning: parameter 'dynamicColor' is never used
+exception:     dynamicColor: Boolean = false,  // Disabled dynamic colors to ensure WCAG compliance
+exception:     ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\theme\Theme.kt:79:20: warning: 'setter for statusBarColor: Int' is deprecated. Deprecated in Java
+exception:             window.statusBarColor = colorScheme.background.toArgb()
+exception:                    ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\theme\Theme.kt:80:59: warning: unnecessary safe call on a non-null receiver of type WindowInsetsControllerCompat
+exception:             WindowCompat.getInsetsController(window, view)?.isAppearanceLightStatusBars = !darkTheme
+exception:                                                           ^
+exception: adhd-focus-app\src\main\kotlin\com\adhdfocus\app\ui\timer\TimerScreen.kt:352:5: warning: parameter 'isRunning' is never used
+exception:     isRunning: Boolean,
+exception:     ^
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':adhd-focus-app:packageModernProductionDebug'.
+> A failure occurred while executing com.android.build.gradle.tasks.PackageAndroidArtifact$IncrementalSplitterRunnable
+   > Could not find EOCD in 'C:\Users\allen\kinspace-tablet-local\adhd-focus-app\build\outputs\apk\modernProduction\debug\adhd-focus-app-modern-production-debug.apk'
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 48s
