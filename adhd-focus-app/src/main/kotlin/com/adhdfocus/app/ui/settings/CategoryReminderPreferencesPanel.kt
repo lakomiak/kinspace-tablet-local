@@ -65,12 +65,12 @@ fun CategoryReminderPreferencesPanel(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Audible reminders before time period end times",
+                    text = "Audible reminders before time period alert times",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Choose which time period alarms are active, set each time period end time, and decide how many minutes before each one ends they should sound.",
+                    text = "Choose which time period alarms are active, set each time period alert time, and decide how many minutes before each one sounds.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -119,7 +119,7 @@ fun CategoryReminderPreferencesPanel(
             }
         } else {
             Text(
-                text = "Enable time period reminders to choose end times and lead times for Morning, Afternoon, Evening, Bedtime, and any custom time periods you add.",
+                text = "Enable time period reminders to choose alert times and lead times for Morning, Afternoon, Evening, Bedtime, and any custom time periods you add.",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -302,18 +302,18 @@ private fun CategoryReminderLeadPicker(
             )
         }
         Text(
-            text = "Ends at $endTime",
+            text = "Alerts at $endTime",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = "$leadMinutes minute${if (leadMinutes == 1) "" else "s"} before end",
+            text = "$leadMinutes minute${if (leadMinutes == 1) "" else "s"} before alert",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.primary
         )
 
         TimePickerField(
-            label = "Time Period End Time",
+            label = "Time Period Alert Time",
             value = endTime,
             onValueChanged = onEndTimeChanged
         )
@@ -432,18 +432,18 @@ private fun CustomTimePeriodReminderCard(
             )
         }
         Text(
-            text = "Ends at ${reminder.endTime}",
+            text = "Alerts at ${reminder.endTime}",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = "${reminder.leadMinutes} minute${if (reminder.leadMinutes == 1) "" else "s"} before end",
+            text = "${reminder.leadMinutes} minute${if (reminder.leadMinutes == 1) "" else "s"} before alert",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.primary
         )
 
         TimePickerField(
-            label = "Time Period End Time",
+            label = "Time Period Alert Time",
             value = reminder.endTime,
             onValueChanged = { newValue ->
                 onReminderChanged(reminder.copy(endTime = newValue))

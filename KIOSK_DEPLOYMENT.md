@@ -6,7 +6,7 @@ The local app already includes:
 
 - HOME intent filter in [AndroidManifest.xml](C:/Users/allen/kinspace-tablet-local/adhd-focus-app/src/main/AndroidManifest.xml)
 - boot relaunch behavior in [KioskBootReceiver.kt](C:/Users/allen/kinspace-tablet-local/adhd-focus-app/src/main/kotlin/com/adhdfocus/app/KioskBootReceiver.kt)
-- device-admin receiver in [KinspaceDeviceAdminReceiver.kt](C:/Users/allen/kinspace-tablet-local/adhd-focus-app/src/main/kotlin/com/adhdfocus/app/admin/KinspaceDeviceAdminReceiver.kt)
+- device-admin receiver in [KinpilotDeviceAdminReceiver.kt](C:/Users/allen/kinspace-tablet-local/adhd-focus-app/src/main/kotlin/com/adhdfocus/app/admin/KinpilotDeviceAdminReceiver.kt)
 - lock-task allowlisting and entry logic in [MainActivity.kt](C:/Users/allen/kinspace-tablet-local/adhd-focus-app/src/main/kotlin/com/adhdfocus/app/MainActivity.kt)
 
 That means the app can behave like a launcher, reopen after reboot, and enter true lock task once Android device policy allows it. The strongest “only app on the tablet” setup still depends on Android device-owner / managed-device provisioning.
@@ -81,7 +81,7 @@ Typical AOSP test flow on a freshly reset device:
 
 ```powershell
 adb install --user 0 -r "C:\Users\allen\kinspace-tablet-local\dist\KinspaceTabletLocal-debug.apk"
-adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver
 adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.adhdfocus.app/.MainActivity
 ```
 
@@ -144,13 +144,13 @@ adb shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:c
 Set device owner on a freshly reset AOSP-style device:
 
 ```powershell
-adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+adb shell dpm set-device-owner com.adhdfocus.app/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver
 ```
 
 Clear device owner/admin for test devices:
 
 ```powershell
-adb shell dpm remove-active-admin com.adhdfocus.app/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver
+adb shell dpm remove-active-admin com.adhdfocus.app/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver
 ```
 
 Open Home-app settings / chooser:

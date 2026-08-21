@@ -119,10 +119,10 @@ if ($ShowCommands) {
     Write-Host "adb shell am start --user 0 -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$packageName"
     Write-Host ""
     Write-Host "Set device owner on a freshly reset device:"
-    Write-Host "adb shell dpm set-device-owner $packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"
+    Write-Host "adb shell dpm set-device-owner $packageName/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver"
     Write-Host ""
     Write-Host "Remove active admin on a test device:"
-    Write-Host "adb shell dpm remove-active-admin $packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"
+    Write-Host "adb shell dpm remove-active-admin $packageName/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver"
     Write-Host ""
     Write-Host "Use KIOSK_DEPLOYMENT.md as the main deployment reference."
 }

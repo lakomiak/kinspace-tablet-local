@@ -15,7 +15,7 @@ if (!$ApkPath) {
 }
 $apkPath = $ApkPath
 $packageName = "com.adhdfocus.app"
-$adminComponent = "$packageName/com.adhdfocus.app.admin.KinspaceDeviceAdminReceiver"
+$adminComponent = "$packageName/com.adhdfocus.app.admin.KinpilotDeviceAdminReceiver"
 $script:SelectedDeviceId = $null
 
 function Invoke-Adb {

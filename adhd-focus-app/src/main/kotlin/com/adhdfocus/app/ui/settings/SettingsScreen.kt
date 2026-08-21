@@ -1,6 +1,5 @@
 package com.adhdfocus.app.ui.settings
 
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -36,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adhdfocus.app.BuildConfig
 import com.adhdfocus.app.data.model.NotificationPreferences
 import com.adhdfocus.app.data.model.TimerAlarmSound
 import com.adhdfocus.app.data.model.Theme
@@ -75,11 +72,9 @@ fun SettingsScreen(
     onManageFamilyClick: () -> Unit,
     onChangeMemberClick: () -> Unit,
     onRestartAppClick: () -> Unit,
-    onOpenAccessibilitySettingsClick: () -> Unit,
     onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     LaunchedEffect(userId) {
         viewModel.initialize(userId)
     }
@@ -104,7 +99,6 @@ fun SettingsScreen(
     val restoreTargetName by viewModel.restoreTargetName.collectAsStateWithLifecycle()
     val tokenBank by viewModel.tokenBank.collectAsStateWithLifecycle()
     val tokenBankMessage by viewModel.tokenBankMessage.collectAsStateWithLifecycle()
-    val kioskModeEnabled = BuildConfig.ENABLE_KIOSK_MODE
 
     var unlockPasscode by remember { mutableStateOf("") }
     var backupPendingRestore by remember { mutableStateOf<BackupListItem?>(null) }
@@ -502,66 +496,6 @@ fun SettingsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    SettingSection(title = "Kiosk Help") {
-                        Text(
-                            text = "Use Kinpilot Tablet Local as the dedicated focus home screen.",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Recommended steps:\n1. Install Kinpilot on the device\n2. Set Kinpilot as the Home app when Android asks\n3. Keep Settings protected with a passcode\n4. Create local backups regularly",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (!kioskModeEnabled) {
-                            Text(
-                                text = "If you need TalkBack or other accessibility services, open Accessibility Settings from here before returning to kiosk mode.",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        val intent = Intent(Intent.ACTION_MAIN).apply {
-                                            addCategory(Intent.CATEGORY_HOME)
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Open Home Chooser")
-                                }
-                                OutlinedButton(
-                                    onClick = {
-                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data = android.net.Uri.parse("package:${context.packageName}")
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("App Settings")
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = onOpenAccessibilitySettingsClick,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Accessibility Settings")
-                            }
-                        }
-                        Text(
-                            text = "For stricter managed-device setup, see KIOSK_DEPLOYMENT.md in the repo.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 

@@ -310,9 +310,6 @@ class MainActivity : ComponentActivity() {
                                     onRestartAppClick = {
                                         restartApplication()
                                     },
-                                    onOpenAccessibilitySettingsClick = {
-                                        openAccessibilitySettings()
-                                    },
                                     onBackClick = {
                                         focusRefreshToken += 1
                                         navController.popBackStack()
